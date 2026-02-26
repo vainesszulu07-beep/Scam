@@ -39,7 +39,8 @@ img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin
   Uploading your profile 💖
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
+<!-- … keep everything above unchanged … -->
+
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
@@ -115,18 +116,20 @@ saveBtn.addEventListener("click", async ()=>{
     if(!file){uploadOverlay.style.display="none"; message.style.color="red"; message.innerText="Failed to process HEIC image."; return;}
 
     try {
+      // ✅ Use backend API instead of direct Cloudinary fetch
       const formData = new FormData();
       formData.append("avatar", file);
-      formData.append("oldAvatarPublicId", oldAvatarPublicId);
+      if(oldAvatarPublicId) formData.append("oldAvatarPublicId", oldAvatarPublicId);
 
-      const response = await fetch("/upload-avatar", { method: "POST", body: formData });
+      const response = await fetch("/api/upload-avatar", { method: "POST", body: formData });
       const data = await response.json();
+
       if(data.url){ 
         newAvatarUrl = data.url;
-        oldAvatarPublicId = data.public_id; // store new public_id for Supabase
+        oldAvatarPublicId = data.public_id; // save for future replacement
       } else {
-        throw new Error("Upload failed");
-      }
+        throw new Error(data.error || "Upload failed");
+      } 
     } catch(err){
       uploadOverlay.style.display="none";
       message.style.color="red";
@@ -159,6 +162,4 @@ backBtn.addEventListener("click",()=>{window.location.href="/profile.html";});
 
 // Load profile on page load
 loadProfile();
-</script>
-</body>
-  </html>
+</script> 
