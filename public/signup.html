@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sign Up</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body { font-family: 'Inter', sans-serif; background: #f5f7fa; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+.card { background: white; padding: 40px; width: 100%; max-width: 400px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); text-align: center; }
+h2 { margin-bottom: 20px; font-weight: 600; }
+input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 15px; }
+input:focus { border-color: #6366f1; outline: none; }
+button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #6366f1; color: white; font-weight: 500; cursor: pointer; margin-top: 10px; }
+button:hover { background: #4f46e5; }
+.divider { margin: 20px 0; color: #888; font-size: 14px; }
+.google-btn { display: flex; align-items: center; justify-content: center; width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; background: #fff; color: #444; font-weight: 500; cursor: pointer; margin-bottom: 15px; }
+.google-btn img { width: 18px; margin-right: 8px; }
+.google-btn:hover { background: #f3f4f6; border-color: #ccc; }
+.message { margin-top: 10px; font-size: 14px; color: #dc2626; min-height: 20px; }
+.login-link { display: block; margin-top: 15px; font-size: 14px; color: #6366f1; text-decoration: none; }
+.login-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Create Account</h2>
+
+  <input type="email" id="email" placeholder="Email Address" />
+  <input type="password" id="password" placeholder="Password" />
+  <button id="signupBtn">Sign Up</button>
+
+  <div class="divider">— or —</div>
+
+  <button class="google-btn" id="googleSignUp">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+    Sign up with Google
+  </button>
+
+  <a href="/login.html" class="login-link">Already have an account? Login</a>
+  <div id="message" class="message"></div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const messageDiv = document.getElementById("message");
+const signupBtn = document.getElementById("signupBtn");
+const googleBtn = document.getElementById("googleSignUp");
+
+// EMAIL SIGNUP
+signupBtn.addEventListener("click", async () => {
+  const email = emailInput.value;
+  const password = passwordInput.value;
+  messageDiv.innerText = "";
+
+  if (!email || !password) {
+    messageDiv.innerText = "Please fill in all fields.";
+    return;
+  }
+
+  messageDiv.innerText = "Creating account...";
+
+  try {
+    // 1️⃣ Create Auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+    if (authError) throw authError;
+
+    const userId = authData.user.id;
+
+    // 2️⃣ Insert profile row (id & created_at only)
+    const { error: profileError } = await supabase.from("profile").insert([{
+      id: userId,
+      full_name: null,
+      bio: null,
+      avatar_url: null,
+      contact: email,
+      created_at: new Date().toISOString()
+    }]);
+    if (profileError) throw profileError;
+
+    messageDiv.innerText = "Account created! Check your email to verify.";
+    window.location.href = "/login.html";
+
+  } catch (err) {
+    messageDiv.innerText = err.message;
+  }
+});
+
+// GOOGLE SIGNUP
+googleBtn.addEventListener("click", async () => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: window.location.origin + "/login.html" } // redirect to login.html
+  });
+  if (error) messageDiv.innerText = "Google sign up failed: " + error.message;
+});
+</script>
+
+</body>
+</html>
