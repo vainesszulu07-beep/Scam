@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public', 'login.html')));
 
 // Multer setup (memory storage)
 const storage = multer.memoryStorage();
