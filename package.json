@@ -3,9 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Persistent login system with Supabase (Email & Google) and avatar uploads",
-  "main": "app.js",
   "scripts": {
-    "start": "node app.js",
     "dev": "npx live-server --port=5500"
   },
   "engines": {
