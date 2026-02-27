@@ -2,28 +2,21 @@
   "name": "scam-login-app",
   "version": "1.0.0",
   "type": "module",
-<<<<<<< HEAD
   "description": "Persistent login system with Supabase (Email & Google)",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "dev": "npx live-server --port=5500"
   },
-=======
->>>>>>> aebc723 (Add package files)
   "engines": {
     "node": "24.x"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",
-<<<<<<< HEAD
     "formidable": "^3.5.4",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "live-server": "^1.2.2"
-=======
-    "formidable": "^3.5.4"
->>>>>>> aebc723 (Add package files)
   }
 }
