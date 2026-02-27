@@ -220,7 +220,7 @@ saveBtn.addEventListener("click", async () => {
       formData.append("file", file);
       formData.append("userId", userId);
 
-      const response = await fetch("/api/upload-avatar.js", {
+      const response = await fetch("/api/upload-avatar", {
         method: "POST",
         body: formData
       });
