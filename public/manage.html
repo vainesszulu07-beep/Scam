@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Manual Profile Update</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f4f4f4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+.card {
+  background: white;
+  padding: 30px 25px;
+  width: 100%;
+  max-width: 420px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  text-align: center;
+}
+h2 {
+  margin-bottom: 20px;
+  color: #111827;
+}
+input, textarea {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 15px;
+}
+input:focus, textarea:focus {
+  border-color: #6366f1;
+  outline: none;
+}
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 15px;
+}
+#saveBtn { background: #6366f1; color: white; }
+#saveBtn:hover { background: #4f46e5; }
+#backBtn { background: #e5e7eb; color: #111827; }
+#backBtn:hover { background: #d1d5db; }
+img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 15px;
+}
+#message {
+  margin-top: 12px;
+  font-size: 14px;
+  min-height: 20px;
+}
+/* Loving GUI overlay */
+#uploadOverlay {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(255,255,255,0.85);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  font-family:'Inter',sans-serif;
+  font-size:18px;
+  color:#4f46e5;
+  z-index:9999;
+  display:none;
+}
+#uploadOverlay .spinner {
+  width:40px;
+  height:40px;
+  border:4px solid rgba(0,0,0,0.2);
+  border-top-color:#4f46e5;
+  border-radius:50%;
+  animation:spin 1s linear infinite;
+  margin-bottom:12px;
+}
+@keyframes spin { 0%{transform:rotate(0deg);}100%{transform:rotate(360deg);} }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Manual Profile Update</h2>
+  <img id="avatarPreview" style="display:none;" />
+  <input type="text" id="full_name" placeholder="Full Name" />
+  <textarea id="bio" placeholder="Bio"></textarea>
+  <input type="email" id="contact" placeholder="Contact Email" />
+  <input type="file" id="avatar_file" accept="image/*" />
+  <button id="saveBtn">Save</button>
+  <button id="backBtn">Back to Profile</button>
+  <p id="message"></p>
+</div>
+
+<!-- Loving GUI overlay -->
+<div id="uploadOverlay">
+  <div class="spinner"></div>
+  Uploading your profile 💖
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const fullNameInput = document.getElementById("full_name");
+const bioInput = document.getElementById("bio");
+const contactInput = document.getElementById("contact");
+const avatarInput = document.getElementById("avatar_file");
+const avatarPreview = document.getElementById("avatarPreview");
+const message = document.getElementById("message");
+const saveBtn = document.getElementById("saveBtn");
+const backBtn = document.getElementById("backBtn");
+const uploadOverlay = document.getElementById("uploadOverlay");
+
+// 🔹 Convert HEIC/HEIF to JPEG
+async function convertHEIC(file) {
+  if(file.type==="image/heic" || file.type==="image/heif") {
+    try {
+      const blob = await window.heic2any({ blob:file, toType:"image/jpeg"});
+      return new File([blob], file.name.replace(/\.\w+$/,".jpg"), {type:"image/jpeg"});
+    } catch(e){console.error(e); return null;}
+  }
+  return file;
+}
+
+// 🔹 Load current profile
+async function loadProfile() {
+  const { data:{session} } = await supabase.auth.getSession();
+  if(!session){message.style.color="red";message.innerText="Not logged in."; return;}
+  const userId = session.user.id;
+  const { data:profile, error } = await supabase.from("profile").select("*").eq("id",userId).single();
+  if(profile){
+    fullNameInput.value = profile.full_name||"";
+    bioInput.value = profile.bio||"";
+    contactInput.value = profile.contact||session.user.email||"";
+    if(profile.avatar_url){avatarPreview.src=profile.avatar_url; avatarPreview.style.display="block";}
+  }
+  if(error && error.code!=="PGRST116") console.error(error);
+}
+
+// 🔹 Preview avatar
+avatarInput.addEventListener("change", async ()=>{
+  let file = avatarInput.files[0];
+  if(!file) return;
+  avatarPreview.src = URL.createObjectURL(file);
+  avatarPreview.style.display="block";
+  message.innerText="";
+});
+
+// 🔹 Save profile
+saveBtn.addEventListener("click", async ()=>{
+  const { data:{session} } = await supabase.auth.getSession();
+  if(!session){message.style.color="red"; message.innerText="Not logged in."; return;}
+  const userId = session.user.id;
+  let newAvatarUrl = null;
+
+  uploadOverlay.style.display="flex";
+
+  // Get current avatar
+  const { data: profileBefore, error: profileError } = await supabase.from("profile").select("avatar_url").eq("id", userId).single();
+  if(profileError){uploadOverlay.style.display="none"; message.style.color="red"; message.innerText="Failed to fetch current avatar."; return;}
+  const oldAvatarUrl = profileBefore?.avatar_url;
+
+  // Upload avatar to Cloudinary if selected
+  if(avatarInput.files.length>0){
+    let file = avatarInput.files[0];
+    file = await convertHEIC(file);
+    if(!file){uploadOverlay.style.display="none"; message.style.color="red"; message.innerText="Failed to process HEIC image."; return;}
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "ml_default"); // your unsigned preset
+      formData.append("folder", "avatars");
+      const response = await fetch(`https://api.cloudinary.com/v1_1/dae7hfmv6/upload`, {method:"POST", body:formData});
+      const data = await response.json();
+      if(data.secure_url){newAvatarUrl = data.secure_url;} 
+      else {throw new Error("Cloudinary upload failed");}
+    } catch(err){
+      uploadOverlay.style.display="none";
+      message.style.color="red";
+      message.innerText = "Failed to upload avatar: "+err.message;
+      return;
+    }
+  }
+
+  // Update profile fields
+  const updates = {
+    full_name: fullNameInput.value||null,
+    bio: bioInput.value||null,
+    contact: contactInput.value||session.user.email
+  };
+  if(newAvatarUrl) updates.avatar_url = newAvatarUrl;
+
+  const { error: updateError } = await supabase.from("profile").update(updates).eq("id", userId);
+  if(updateError){uploadOverlay.style.display="none"; message.style.color="red"; message.innerText=updateError.message; return;}
+
+  uploadOverlay.style.display="none";
+  message.style.color="green";
+  message.innerText="Profile updated successfully!";
+});
+
+// 🔹 Back button
+backBtn.addEventListener("click",()=>{window.location.href="/profile.html";});
+
+// Load profile on page load
+loadProfile();
+</script>
+</body>
+  </html>
