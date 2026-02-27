@@ -9,7 +9,7 @@
     "dev": "npx live-server --port=5500"
   },
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",
