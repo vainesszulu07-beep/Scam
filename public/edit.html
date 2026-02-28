@@ -233,20 +233,23 @@ saveBtn.addEventListener("click", async () => {
     const savedUrl = await res.text();
     if (!res.ok) throw new Error(savedUrl);
 
-    // Update Supabase profile table
-    const { error } = await supabase.from("profile").upsert({
+     const { error } = await supabase.from("profile").upsert({
       id: userId,
       avatar_url: savedUrl,
       avatar_public_id: `avatar_${userId}`
     });
-
     if (error) throw error;
 
     message.style.color = "green";
-    message.textContent = "Avatar saved successfully!";
-    avatarPreview.src = savedUrl;
-    rotation = 0;
-    avatarPreview.style.transform = "rotate(0deg)";
+    message.textContent = "Avatar saved successfully! Redirecting...";
+
+    // Save to localStorage for manage.html
+    localStorage.setItem("finalAvatar", savedUrl);
+
+    // Redirect to profile page after a short delay
+    setTimeout(() => {
+      window.location.href = "profile.html";
+    }, 1000);
 
   } catch(err) {
     message.style.color = "red";
