@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile - Posts</title>
+<style>
+body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+#postContent { width: 100%; padding: 10px; margin-top: 10px; border-radius: 8px; border: 1px solid #ccc; }
+#postImage { margin-top: 10px; }
+#postBtn { margin-top: 10px; padding: 10px 20px; background: #1877f2; color: white; border: none; border-radius: 6px; cursor: pointer; }
+.posts-container { margin-top: 20px; }
+.post { background: #fff; padding: 12px; margin-bottom: 12px; border-radius: 8px; }
+.post img { max-width: 100%; margin-top: 5px; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<h2>Create a Post</h2>
+<textarea id="postContent" placeholder="What's on your mind?"></textarea>
+<input type="file" id="postImage" accept="image/*">
+<button id="postBtn">Post</button>
+
+<div class="posts-container" id="postsContainer">
+  <div class="no-posts">No posts yet</div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// Initialize Supabase
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const postBtn = document.getElementById("postBtn");
+const postsContainer = document.getElementById("postsContainer");
+const postContentEl = document.getElementById("postContent");
+const postImageEl = document.getElementById("postImage");
+
+let currentUserId;
+
+// 🔹 Get current user session
+async function getCurrentUser() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session) {
+    alert("Login required");
+    return null;
+  }
+  return session.user.id;
+}
+
+// 🔹 Load Posts
+async function loadPosts() {
+  const { data: posts, error } = await supabase
+    .from("posts")
+    .select("id, content, image_url, created_at")
+    .eq("user_id", currentUserId)
+    .order("created_at", { ascending: false });
+
+  postsContainer.innerHTML = "";
+
+  if (error) {
+    console.error("Error loading posts:", error);
+    postsContainer.innerHTML = `<div class="no-posts">Error loading posts</div>`;
+    return;
+  }
+
+  if (!posts || posts.length === 0) {
+    postsContainer.innerHTML = `<div class="no-posts">No posts yet</div>`;
+    return;
+  }
+
+  posts.forEach(post => {
+    const div = document.createElement("div");
+    div.className = "post";
+    div.innerHTML = `
+      <p>${post.content}</p>
+      ${post.image_url ? `<img src="${post.image_url}">` : ""}
+      <small style="color:#65676b;">${new Date(post.created_at).toLocaleString()}</small>
+    `;
+    postsContainer.appendChild(div);
+  });
+}
+
+// 🔹 Create Post
+postBtn.addEventListener("click", async () => {
+  const content = postContentEl.value.trim();
+
+  if (!content && postImageEl.files.length === 0) {
+    alert("Post cannot be empty");
+    return;
+  }
+
+  let image_url = null;
+  let image_public_id = null;
+
+  // Upload image if exists
+  if (postImageEl.files.length > 0) {
+    try {
+      const file = postImageEl.files[0];
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", currentUserId);
+
+      const res = await fetch("/api/upload-post.js", { method: "POST", body: formData });
+      const result = await res.json();
+
+      if (!res.ok) {
+        console.error("Upload error:", result);
+        alert("Failed to upload image");
+        return;
+      }
+
+      image_url = result.url;
+      image_public_id = result.publicId;
+
+    } catch (err) {
+      console.error("Upload exception:", err);
+      alert("Failed to upload image");
+      return;
+    }
+  }
+
+  // Insert post in Supabase
+  try {
+    const { error } = await supabase.from("posts").insert([
+      { user_id: currentUserId, content, image_url, image_public_id }
+    ]);
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      alert("Failed to create post");
+      return;
+    }
+
+    // Clear inputs and reload posts
+    postContentEl.value = "";
+    postImageEl.value = "";
+    loadPosts();
+
+  } catch (err) {
+    console.error("Insert exception:", err);
+    alert("Failed to create post");
+  }
+});
+
+// 🔹 Initialize
+(async () => {
+  currentUserId = await getCurrentUser();
+  if (currentUserId) loadPosts();
+})();
+</script>
+</body>
+</html>
