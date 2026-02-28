@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit Avatar</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.container {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 360px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+#avatarPreview {
+  max-width: 100%;
+  border-radius: 12px;
+  margin: 10px 0;
+  transition: transform 0.2s ease;
+}
+
+#uploadOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255,255,255,0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 9999;
+  display: none;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0,0,0,0.2);
+  border-top-color: #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+#message { margin-top: 12px; font-size: 14px; color: #111; }
+
+button {
+  margin-top: 10px;
+  padding: 10px;
+  width: 100%;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover { background: #0056b3; }
+
+.rotate-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.rotate-buttons button {
+  width: auto;
+  padding: 8px 12px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Edit Avatar</h2>
+  <img id="avatarPreview" src="https://via.placeholder.com/400" alt="Avatar Preview">
+  <input type="file" id="avatarFile" accept="image/*" hidden>
+  <button id="chooseBtn">Choose Photo</button>
+
+  <div class="rotate-buttons">
+    <button id="rotateLeftBtn">⟲ Rotate Left</button>
+    <button id="rotateRightBtn">⟳ Rotate Right</button>
+  </div>
+
+  <button id="saveBtn">Save Avatar</button>
+
+  <p id="message"></p>
+</div>
+
+<div id="uploadOverlay">
+  <div class="spinner"></div>
+  Processing...
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const avatarPreview = document.getElementById("avatarPreview");
+const avatarFile = document.getElementById("avatarFile");
+const chooseBtn = document.getElementById("chooseBtn");
+const overlay = document.getElementById("uploadOverlay");
+const message = document.getElementById("message");
+const rotateLeftBtn = document.getElementById("rotateLeftBtn");
+const rotateRightBtn = document.getElementById("rotateRightBtn");
+const saveBtn = document.getElementById("saveBtn");
+
+let rotation = 0; // rotation in degrees
+let currentImageUrl = "";
+
+// Click button to open file selector
+chooseBtn.addEventListener("click", () => avatarFile.click());
+
+// Rotate buttons
+rotateLeftBtn.addEventListener("click", () => {
+  rotation -= 90;
+  avatarPreview.style.transform = `rotate(${rotation}deg)`;
+});
+rotateRightBtn.addEventListener("click", () => {
+  rotation += 90;
+  avatarPreview.style.transform = `rotate(${rotation}deg)`;
+});
+
+// Upload image when selected
+avatarFile.addEventListener("change", async () => {
+  const file = avatarFile.files[0];
+  if (!file) return;
+
+  overlay.style.display = "flex";
+  message.textContent = "";
+  rotation = 0;
+  avatarPreview.style.transform = "rotate(0deg)";
+
+  try {
+    const { data:{ session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("You must be logged in.");
+    const userId = session.user.id;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("userId", userId);
+
+    const res = await fetch("/api/upload-avatar.js", {
+      method: "POST",
+      body: formData
+    });
+
+    const transformedUrl = await res.text();
+    if (!res.ok) throw new Error(transformedUrl);
+
+    // Fetch transformed image as blob to check size
+    const transformedRes = await fetch(transformedUrl);
+    const transformedBlob = await transformedRes.blob();
+
+    if (transformedBlob.size >= file.size) {
+      throw new Error("Transformed image is not smaller than the original.");
+    }
+
+    currentImageUrl = transformedUrl;
+    avatarPreview.src = transformedUrl;
+
+    message.style.color = "green";
+    message.textContent = `Avatar ready! (${Math.round(transformedBlob.size/1024)} KB)`;
+
+  } catch(err) {
+    message.style.color = "red";
+    message.textContent = err.message;
+  } finally {
+    overlay.style.display = "none";
+  }
+});
+
+// Save rotated avatar to profile
+saveBtn.addEventListener("click", async () => {
+  if (!currentImageUrl) return;
+  overlay.style.display = "flex";
+  message.textContent = "";
+
+  try {
+    const { data:{ session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("You must be logged in.");
+    const userId = session.user.id;
+
+    // Draw rotated image onto a canvas
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = currentImageUrl;
+
+    await new Promise(resolve => img.onload = resolve);
+
+    const canvas = document.createElement("canvas");
+    const size = 400; // keep 400x400
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+
+    // Rotate image
+    ctx.translate(size/2, size/2);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.drawImage(img, -size/2, -size/2, size, size);
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.9));
+
+    // Upload rotated image to Cloudinary backend
+    const formData = new FormData();
+    formData.append("file", blob);
+    formData.append("userId", userId);
+
+    const res = await fetch("/api/upload-avatar.js", {
+      method: "POST",
+      body: formData
+    });
+
+    const savedUrl = await res.text();
+    if (!res.ok) throw new Error(savedUrl);
+
+    // Update Supabase profile table
+    const { error } = await supabase.from("profile").upsert({
+      id: userId,
+      avatar_url: savedUrl,
+      avatar_public_id: `avatar_${userId}`
+    });
+
+    if (error) throw error;
+
+    message.style.color = "green";
+    message.textContent = "Avatar saved successfully!";
+    avatarPreview.src = savedUrl;
+    rotation = 0;
+    avatarPreview.style.transform = "rotate(0deg)";
+
+  } catch(err) {
+    message.style.color = "red";
+    message.textContent = err.message;
+  } finally {
+    overlay.style.display = "none";
+  }
+});
+</script>
+
+</body>
+  </html>
