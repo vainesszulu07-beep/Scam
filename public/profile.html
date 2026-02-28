@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile</title>
+<style>
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  color: #050505;
+  padding: 20px;
+}
+.profile-header {
+  text-align: center;
+}
+.profile-header img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+#postContent {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+#postImage {
+  margin-top: 10px;
+}
+#postBtn {
+  margin-top: 10px;
+  padding: 10px 20px;
+  background: #1877f2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.posts-container {
+  margin-top: 20px;
+}
+.post {
+  background: #fff;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+}
+.post img {
+  max-width: 100%;
+  margin-top: 5px;
+  border-radius: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="profile-header">
+  <img id="avatar" src="https://via.placeholder.com/120" alt="Avatar">
+  <h2 id="fullName">Full Name</h2>
+  <p id="bio">Bio goes here</p>
+</div>
+
+<!-- Create Post -->
+<textarea id="postContent" placeholder="What's on your mind?"></textarea>
+<input type="file" id="postImage" accept="image/*">
+<button id="postBtn">Post</button>
+
+<!-- Posts Feed -->
+<div class="posts-container" id="postsContainer">
+  <div class="no-posts">No posts yet</div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const avatarEl = document.getElementById("avatar");
+const fullNameEl = document.getElementById("fullName");
+const bioEl = document.getElementById("bio");
+const postBtn = document.getElementById("postBtn");
+const postsContainer = document.getElementById("postsContainer");
+const postContentEl = document.getElementById("postContent");
+const postImageEl = document.getElementById("postImage");
+
+let currentUserId;
+
+// 🔹 Load profile
+async function loadProfile() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    alert("Login required");
+    window.location.href = "index.html";
+    return;
+  }
+  currentUserId = session.user.id;
+
+  const { data: profile } = await supabase
+    .from("profile")
+    .select("avatar_url, full_name, bio")
+    .eq("id", currentUserId)
+    .single();
+
+  if (profile) {
+    if (profile.avatar_url) avatarEl.src = profile.avatar_url;
+    if (profile.full_name) fullNameEl.textContent = profile.full_name;
+    if (profile.bio) bioEl.textContent = profile.bio;
+  }
+
+  loadPosts();
+}
+
+// 🔹 Create Post
+postBtn.addEventListener("click", async () => {
+  const content = postContentEl.value.trim();
+  if (!content && !postImageEl.files.length) {
+    alert("Post cannot be empty");
+    return;
+  }
+
+  let image_url = null;
+  let image_public_id = null;
+
+  // Upload image if selected
+  if (postImageEl.files.length) {
+    const file = postImageEl.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("userId", currentUserId);
+    formData.append("type", "post");
+
+    const res = await fetch("/api/upload.js", { method: "POST", body: formData });
+    const result = await res.json();
+    image_url = result.url;
+    image_public_id = result.publicId;
+  }
+
+  // Insert post into Supabase
+  const { error } = await supabase.from("posts").insert([
+    {
+      user_id: currentUserId,
+      content,
+      image_url,
+      image_public_id
+    }
+  ]);
+
+  if (error) {
+    alert("Failed to create post");
+    console.error(error);
+    return;
+  }
+
+  // Clear input
+  postContentEl.value = "";
+  postImageEl.value = "";
+
+  loadPosts(); // reload posts
+});
+
+// 🔹 Load Posts
+async function loadPosts() {
+  const { data: posts } = await supabase
+    .from("posts")
+    .select("id, content, image_url, created_at")
+    .eq("user_id", currentUserId)
+    .order("created_at", { ascending: false });
+
+  postsContainer.innerHTML = "";
+
+  if (!posts || posts.length === 0) {
+    postsContainer.innerHTML = `<div class="no-posts">No posts yet</div>`;
+    return;
+  }
+
+  posts.forEach(post => {
+    const div = document.createElement("div");
+    div.className = "post";
+    div.innerHTML = `
+      <p>${post.content}</p>
+      ${post.image_url ? `<img src="${post.image_url}">` : ""}
+      <small style="color:#65676b;">${new Date(post.created_at).toLocaleString()}</small>
+    `;
+    postsContainer.appendChild(div);
+  });
+}
+
+// 🔹 Initial load
+loadProfile();
+
+</script>
+</body>
+  </html>
