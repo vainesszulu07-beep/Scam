@@ -222,7 +222,7 @@ async function loadProfile() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
     alert("Login required");
-    window.location.href = "login.html";
+    window.location.href = "index.html";
     return;
   }
 
