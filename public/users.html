@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Users</title>
+<style>
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  color: #050505;
+  padding-bottom: 80px; /* space for bottom navbar */
+}
+
+/* Users container */
+.users-container {
+  width: 100%;
+  max-width: 480px;
+  margin: 15px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* User card */
+.user-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: flex;
+  padding: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.user-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.user-card img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+.user-info h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+.user-info p {
+  margin: 2px 0 0 0;
+  font-size: 13px;
+  color: #65676b;
+}
+
+/* Bottom Navigation like Profile page (Facebook-style) */
+.navbar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  min-width: 300px;
+  max-width: 420px;
+  height: 60px;
+  background: #fff;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  box-shadow: 0 -1px 5px rgba(0,0,0,0.15);
+  border-radius: 30px;
+  padding: 0 10px;
+  z-index: 1000;
+}
+.nav-icon {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+.nav-icon:hover {
+  background: #e4e6eb;
+}
+.nav-icon svg {
+  width: 28px;
+  height: 28px;
+  fill: #1877f2;
+}
+.nav-icon.active svg {
+  fill: #050505;
+}
+
+/* Media Queries (small phones) */
+@media (max-width: 360px) {
+  .users-container {
+    margin: 10px;
+  }
+  .user-card img {
+    width: 45px;
+    height: 45px;
+  }
+  .user-info h3 {
+    font-size: 14px;
+  }
+  .user-info p {
+    font-size: 12px;
+  }
+  .navbar {
+    min-width: 260px;
+    max-width: 320px;
+    height: 55px;
+  }
+  .nav-icon {
+    width: 44px;
+    height: 44px;
+  }
+  .nav-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Users list -->
+<div class="users-container" id="usersContainer">
+  <!-- User cards will be injected here -->
+</div>
+
+<!-- Bottom Navigation -->
+<div class="navbar">
+  <!-- Profile icon -->
+  <div class="nav-icon" id="toProfile" title="Profile">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2c-3.3 0-9.9 1.7-9.9 5v3h19.8v-3c0-3.3-6.6-5-9.9-5z"/>
+    </svg>
+  </div>
+
+  <!-- Users icon active -->
+  <div class="nav-icon active" id="toUsers" title="Users">
+    <svg viewBox="0 0 24 24">
+      <path d="M23 3a10.9 10.9 0 01-3.14.86 4.48 4.48 0 001.98-2.48 9.06 9.06 0 01-2.88 1.1A4.52 4.52 0 0016.5 2c-2.5 0-4.5 2-4.5 4.5 0 .35.04.7.11 1.03-3.74-.18-7.06-1.97-9.28-4.66a4.49 4.49 0 00-.61 2.27c0 1.57.8 2.95 2.03 3.77a4.49 4.49 0 01-2.04-.56v.06c0 2.2 1.57 4.03 3.65 4.44a4.52 4.52 0 01-2.03.08 4.5 4.5 0 004.2 3.13A9.04 9.04 0 010 19.54a12.73 12.73 0 006.92 2.03c8.3 0 12.84-6.87 12.84-12.84 0-.2 0-.39-.01-.58A9.22 9.22 0 0023 3z"/>
+    </svg>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersContainer = document.getElementById("usersContainer");
+const toProfile = document.getElementById("toProfile");
+
+// Load all users except the logged-in user
+async function loadUsers() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    alert("Login required");
+    window.location.href = "login.html";
+    return;
+  }
+
+  const currentUserId = session.user.id;
+
+  const { data: users, error } = await supabase
+    .from("profile")
+    .select("id, avatar_url, full_name, bio")
+    .neq('id', currentUserId) // exclude the logged-in user
+    .order('full_name', { ascending: true });
+
+  if (error) {
+    usersContainer.innerHTML = `<p style="text-align:center;color:red;">Failed to load users</p>`;
+    return;
+  }
+
+  if (!users || users.length === 0) {
+    usersContainer.innerHTML = `<div class="no-posts">No other users found</div>`;
+    return;
+  }
+
+  usersContainer.innerHTML = '';
+
+  users.forEach(user => {
+    const card = document.createElement('div');
+    card.className = 'user-card';
+    card.innerHTML = `
+      <img src="${user.avatar_url || 'https://via.placeholder.com/50'}" alt="${user.full_name}">
+      <div class="user-info">
+        <h3>${user.full_name}</h3>
+        <p>${user.bio || ''}</p>
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      // Go to that user's profile page
+      window.location.href = `profile_view.html?userId=${user.id}`;
+    });
+    usersContainer.appendChild(card);
+  });
+}
+
+// Navbar navigation
+toProfile.addEventListener('click', () => {
+  window.location.href = "profile.html";
+});
+
+loadUsers();
+</script>
+</body>
+</html>
