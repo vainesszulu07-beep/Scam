@@ -235,7 +235,7 @@ saveBtn.onclick = async () => {
   try {
     const { error } = await supabase.from("profile").update({
       avatar_url: imagePreviewEl.src,
-      image_public_id: uploadedPublicId
+      avatar_public_id: uploadedPublicId
     }).eq("user_id", currentUserId);
 
     if (error) throw error;
