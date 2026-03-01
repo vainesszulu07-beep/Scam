@@ -236,7 +236,7 @@ saveBtn.onclick = async () => {
     const { error } = await supabase.from("profile").update({
       avatar_url: imagePreviewEl.src,
       avatar_public_id: uploadedPublicId
-    }).eq("user_id", currentUserId);
+    }).eq("id", currentUserId);
 
     if (error) throw error;
     window.location.href = "profile.html";
