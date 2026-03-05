@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     const timestamp = Math.floor(Date.now() / 1000);
 
     const params = {
-      folder: "posts",
+      folder: "videos",
       resource_type: "video",
       timestamp
     };
