@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Video</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #111;
+  color: white;
+}
+
+video {
+  width: 300px;
+  margin-top: 20px;
+  border-radius: 10px;
+}
+
+button {
+  padding: 10px 20px;
+  margin-top: 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#uploadProgressOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-size: 24px;
+}
+</style>
+</head>
+<body>
+
+<h2>Upload Video</h2>
+
+<input type="file" id="videoFile" accept="video/*"><br>
+<video id="videoPreview" controls></video><br>
+<button id="uploadBtn">Upload Video</button>
+
+<div id="uploadProgressOverlay">
+  <div>Uploading...</div>
+  <div id="progressPercent">0%</div>
+  <button id="cancelUploadBtn">Cancel</button>
+</div>
+
+<script type="module">
+const videoFileEl = document.getElementById("videoFile");
+const videoPreviewEl = document.getElementById("videoPreview");
+const uploadBtn = document.getElementById("uploadBtn");
+const uploadProgressOverlay = document.getElementById("uploadProgressOverlay");
+const progressPercent = document.getElementById("progressPercent");
+const cancelUploadBtn = document.getElementById("cancelUploadBtn");
+
+let selectedFile = null;
+let currentXHR = null;
+
+// Select video and preview
+videoFileEl.addEventListener("change", (e) => {
+  selectedFile = e.target.files[0];
+  if (!selectedFile) return;
+
+  if (selectedFile.size > 60 * 1024 * 1024) {
+    alert("Video too large. Max 60MB.");
+    selectedFile = null;
+    videoPreviewEl.src = "";
+    return;
+  }
+
+  videoPreviewEl.src = URL.createObjectURL(selectedFile);
+});
+
+// Cancel upload
+cancelUploadBtn.onclick = () => {
+  if (currentXHR) {
+    currentXHR.abort();
+    uploadProgressOverlay.style.display = "none";
+    alert("Upload canceled");
+    currentXHR = null;
+  }
+};
+
+// Upload video
+uploadBtn.onclick = async () => {
+  if (!selectedFile) {
+    alert("Select a video first");
+    return;
+  }
+
+  uploadProgressOverlay.style.display = "flex";
+  progressPercent.textContent = "0%";
+
+  try {
+    // Get signed payload from backend
+    const res = await fetch("/api/video.js"); // your backend route
+    const data = await res.json();
+    const { signature, timestamp, apiKey, cloudName } = data;
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("api_key", apiKey);
+    formData.append("timestamp", timestamp);
+    formData.append("signature", signature);
+    formData.append("folder", "videos");
+    formData.append("resource_type", "video"); // must match signature
+
+    currentXHR = new XMLHttpRequest();
+    currentXHR.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+
+    // Track progress
+    currentXHR.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        progressPercent.textContent = percent + "%";
+      }
+    };
+
+    const uploadPromise = new Promise((resolve, reject) => {
+      currentXHR.onload = () => {
+        if (currentXHR.status >= 200 && currentXHR.status < 300) {
+          resolve(JSON.parse(currentXHR.responseText));
+        } else {
+          reject(new Error("Upload failed"));
+        }
+      };
+      currentXHR.onerror = () => reject(new Error("Upload error"));
+      currentXHR.send(formData);
+    });
+
+    const videoData = await uploadPromise;
+
+    alert("Video uploaded successfully!\nURL: " + videoData.secure_url);
+  } catch (err) {
+    console.error(err);
+    alert("Error uploading video: " + err.message);
+  } finally {
+    uploadProgressOverlay.style.display = "none";
+    currentXHR = null;
+  }
+};
+</script>
+</body>
+</html>
