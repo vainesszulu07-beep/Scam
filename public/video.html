@@ -176,12 +176,16 @@ uploadBtn.onclick = async ()=>{
 
     const response = await fetch("/api/video.js");
 
-    const data = await response.json();
+/* accept text response */
+const text = await response.text();
 
-    const signature = data.signature;
-    const timestamp = data.timestamp;
-    const apiKey = data.apiKey;
-    const cloudName = data.cloudName;
+/* convert text to json */
+const data = JSON.parse(text);
+
+const signature = data.signature;
+const timestamp = data.timestamp;
+const apiKey = data.apiKey;
+const cloudName = data.cloudName;
 
     /* PREPARE FORM */
 
