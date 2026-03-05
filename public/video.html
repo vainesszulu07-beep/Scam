@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upload Video</title>
+<style>
+body {
+  font-family: sans-serif;
+  max-width:600px;
+  margin:auto;
+  padding:20px;
+  background:#f0f2f5;
+}
+h2 { text-align:center; }
+a.back-arrow { display:inline-block; margin-bottom:10px; font-size:20px; text-decoration:none; color:#1877f2; }
+button { padding:8px 12px; border-radius:6px; border:none; cursor:pointer; margin:4px 2px; }
+.primary { background:#1877f2; color:white; }
+#previewContainer { margin-top:15px; text-align:center; position:relative; }
+#previewContainer video { max-width:100%; border-radius:10px; display:block; margin:auto; }
+#uploadProgressOverlay { position:absolute; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; flex-direction:column; color:white; font-size:22px; border-radius:10px; }
+#uploadProgressOverlay span { margin-top:10px; }
+</style>
+</head>
+<body>
+
+<a href="manage.html" class="back-arrow">← Back to Manage</a>
+<h2>Upload Video</h2>
+
+<input type="file" id="videoFile" accept="video/*">
+
+<div id="previewContainer">
+  <video id="videoPreview" controls></video>
+  <div id="uploadProgressOverlay">
+    <span id="progressPercent">0%</span>
+  </div>
+</div>
+
+<button id="uploadBtn" class="primary" style="width:100%; margin-top:15px;">Upload Video</button>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// Initialize Supabase
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const videoFileEl = document.getElementById("videoFile");
+const videoPreviewEl = document.getElementById("videoPreview");
+const uploadBtn = document.getElementById("uploadBtn");
+const uploadProgressOverlay = document.getElementById("uploadProgressOverlay");
+const progressPercent = document.getElementById("progressPercent");
+
+let selectedFile = null;
+let currentXHR = null;
+let currentUserId = null;
+
+/* AUTH: get current user ID */
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { 
+    window.location.href = "index.html"; 
+    return; 
+  }
+  currentUserId = session.user.id;
+})();
+
+/* VIDEO SELECT & PREVIEW */
+videoFileEl.addEventListener("change", (e) => {
+  selectedFile = e.target.files[0];
+  if (!selectedFile) return;
+  videoPreviewEl.src = URL.createObjectURL(selectedFile);
+});
+
+/* UPLOAD VIDEO */
+uploadBtn.onclick = async () => {
+  if (!selectedFile) return alert("Select a video first");
+
+  uploadProgressOverlay.style.display = "flex";
+  progressPercent.textContent = "0%";
+
+  try {
+    // 1️⃣ Get signed payload from backend
+    const { signature, timestamp, apiKey, cloudName } = await fetch("/api/video.js").then(r=>r.json());
+
+    // 2️⃣ Prepare FormData
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("api_key", apiKey);
+    formData.append("timestamp", timestamp);
+    formData.append("signature", signature);
+    formData.append("folder", "videos");
+
+    // 3️⃣ Upload using XMLHttpRequest to track progress
+    currentXHR = new XMLHttpRequest();
+    currentXHR.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+
+    currentXHR.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        progressPercent.textContent = percent + "%";
+      }
+    };
+
+    const uploadPromise = new Promise((resolve,reject)=>{
+      currentXHR.onload = () => {
+        if(currentXHR.status>=200 && currentXHR.status<300)
+          resolve(JSON.parse(currentXHR.responseText));
+        else reject(new Error("Upload failed"));
+      };
+      currentXHR.onerror = () => reject(new Error("Upload error"));
+      currentXHR.send(formData);
+    });
+
+    const videoData = await uploadPromise;
+
+    // 4️⃣ Save to Supabase posts table
+    const { error } = await supabase.from("posts").insert([{
+      user_id: currentUserId,
+      video_url: videoData.secure_url,
+      video_public_id: videoData.public_id
+    }]);
+
+    if(error) throw error;
+
+    console.log("Upload complete!", videoData);
+    alert("Video uploaded and saved to posts table!");
+    window.location.href = "profile.html";
+
+  } catch(err) {
+    console.error(err);
+    alert("Error uploading video: "+err.message);
+  } finally {
+    uploadProgressOverlay.style.display="none";
+    currentXHR = null;
+  }
+};
+</script>
+
+</body>
+</html>
