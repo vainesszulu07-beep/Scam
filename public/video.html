@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trim & Upload Video</title>
+<style>
+body { font-family: sans-serif; max-width:600px; margin:auto; padding:20px; background:#f0f2f5; }
+h2 { text-align:center; }
+input[type=file], button { width:100%; margin:8px 0; padding:8px; }
+button.primary { background:#1877f2; color:white; border:none; border-radius:5px; cursor:pointer; }
+#previewContainer { position:relative; margin-top:15px; text-align:center; }
+#previewContainer video { max-width:100%; border-radius:10px; }
+#uploadProgressOverlay { position:absolute; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; color:white; font-size:22px; border-radius:10px; }
+#timelineContainer { position:relative; height:40px; background:#ddd; margin-top:10px; border-radius:5px; user-select:none; }
+.handle { position:absolute; top:0; width:10px; height:100%; background:#1877f2; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<h2>Trim & Upload Video</h2>
+
+<input type="file" id="videoFile" accept="video/*">
+
+<div id="previewContainer">
+  <video id="videoPreview" controls></video>
+  <div id="uploadProgressOverlay"><span id="progressPercent">0%</span></div>
+</div>
+
+<div id="timelineContainer">
+  <div id="startHandle" class="handle"></div>
+  <div id="endHandle" class="handle"></div>
+</div>
+
+<button id="trimBtn" class="primary">Trim Video</button>
+<button id="uploadBtn" class="primary">Upload Video</button>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+import { createFFmpeg, fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.0/dist/ffmpeg.min.js';
+
+// Initialize Supabase
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const videoFileEl = document.getElementById("videoFile");
+const videoPreview = document.getElementById("videoPreview");
+const trimBtn = document.getElementById("trimBtn");
+const uploadBtn = document.getElementById("uploadBtn");
+const uploadOverlay = document.getElementById("uploadProgressOverlay");
+const progressPercent = document.getElementById("progressPercent");
+
+const timelineContainer = document.getElementById("timelineContainer");
+const startHandle = document.getElementById("startHandle");
+const endHandle = document.getElementById("endHandle");
+
+let selectedFile = null;
+let trimmedBlob = null;
+let currentUserId = null;
+
+// Auth
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { window.location.href="index.html"; return; }
+  currentUserId = session.user.id;
+})();
+
+// FFmpeg
+const ffmpeg = createFFmpeg({ log: true });
+await ffmpeg.load();
+
+// Video select
+videoFileEl.addEventListener("change", async (e)=>{
+  selectedFile = e.target.files[0];
+  if(!selectedFile) return;
+  videoPreview.src = URL.createObjectURL(selectedFile);
+
+  videoPreview.onloadedmetadata = ()=>{
+    // Set handle positions
+    startHandle.style.left = '0px';
+    endHandle.style.left = timelineContainer.clientWidth - startHandle.clientWidth + 'px';
+  };
+});
+
+// Drag handles
+function makeDraggable(handle, isStart){
+  let dragging = false;
+  handle.onmousedown = e=>{
+    dragging=true;
+    const containerRect = timelineContainer.getBoundingClientRect();
+    const handleWidth = handle.clientWidth;
+
+    const onMouseMove = e=>{
+      if(!dragging) return;
+      let x = e.clientX - containerRect.left;
+      x = Math.max(0, Math.min(x, containerRect.width - handleWidth));
+      if(isStart){
+        if(x >= parseFloat(endHandle.style.left)) x = parseFloat(endHandle.style.left) - handleWidth;
+        handle.style.left = x + 'px';
+      } else {
+        if(x <= parseFloat(startHandle.style.left)) x = parseFloat(startHandle.style.left) + handleWidth;
+        handle.style.left = x + 'px';
+      }
+    };
+    const onMouseUp = e=>{
+      dragging=false;
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+}
+
+makeDraggable(startHandle,true);
+makeDraggable(endHandle,false);
+
+// Helper: get time from handle position
+function handleToTime(pos){
+  const ratio = pos / (timelineContainer.clientWidth - startHandle.clientWidth);
+  return ratio * videoPreview.duration;
+}
+
+// Trim
+trimBtn.onclick = async ()=>{
+  if(!selectedFile) return alert("Select a video first");
+  const start = handleToTime(parseFloat(startHandle.style.left));
+  const end = handleToTime(parseFloat(endHandle.style.left));
+  if(start>=end) return alert("Start must be before end");
+
+  uploadOverlay.style.display='flex';
+  progressPercent.textContent='Trimming...';
+
+  ffmpeg.FS('writeFile','input.mp4',await fetchFile(selectedFile));
+  await ffmpeg.run(
+    '-i','input.mp4',
+    '-ss', start.toString(),
+    '-to', end.toString(),
+    '-c','copy',
+    'output.mp4'
+  );
+  const data = ffmpeg.FS('readFile','output.mp4');
+  trimmedBlob = new Blob([data.buffer],{type:'video/mp4'});
+
+  videoPreview.src = URL.createObjectURL(trimmedBlob);
+  uploadOverlay.style.display='none';
+  alert("Video trimmed! You can now upload.");
+};
+
+// Upload
+uploadBtn.onclick = async ()=>{
+  if(!trimmedBlob) return alert("Trim the video first");
+  uploadOverlay.style.display='flex';
+  progressPercent.textContent='0%';
+
+  try{
+    // Get signed payload
+    const { signature, timestamp, apiKey, cloudName } = await fetch("/api/video.js").then(r=>r.json());
+
+    const formData = new FormData();
+    formData.append("file", trimmedBlob);
+    formData.append("api_key", apiKey);
+    formData.append("timestamp", timestamp);
+    formData.append("signature", signature);
+    formData.append("folder","videos");
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST",`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+    xhr.upload.onprogress = e=>{
+      if(e.lengthComputable){
+        const percent = Math.round((e.loaded/e.total)*100);
+        progressPercent.textContent = percent+'%';
+      }
+    };
+
+    const uploadPromise = new Promise((resolve,reject)=>{
+      xhr.onload = ()=> {
+        if(xhr.status>=200 && xhr.status<300) resolve(JSON.parse(xhr.responseText));
+        else reject(new Error("Upload failed"));
+      };
+      xhr.onerror = ()=>reject(new Error("Upload error"));
+      xhr.send(formData);
+    });
+
+    const videoData = await uploadPromise;
+
+    // Save to Supabase posts table
+    const { error } = await supabase.from("posts").insert([{
+      user_id: currentUserId,
+      video_url: videoData.secure_url,
+      video_public_id: videoData.public_id
+    }]);
+    if(error) throw error;
+
+    alert("Video uploaded successfully!");
+    window.location.href="profile.html";
+
+  }catch(err){
+    console.error(err);
+    alert("Error uploading video: "+err.message);
+  }finally{
+    uploadOverlay.style.display='none';
+  }
+};
+</script>
+
+</body>
+  </html>
