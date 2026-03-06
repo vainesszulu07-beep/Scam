@@ -128,6 +128,10 @@ button {
   Post
 </button>
 
+<button id="addVideoBtn" class="primary" style="width:100%; margin-top:10px;">
+  Add Video
+</button>
+
 <div id="processingOverlay">
   <div>
     <div class="spinner"></div>
@@ -273,6 +277,10 @@ discardBtn.onclick = async () => {
 /* SAVE POST */
 postBtn.onclick = async () => {
   const content = postContentEl.value.trim();
+
+  document.getElementById("addVideoBtn").onclick = () => {
+  window.location.href = "video.html";
+};
 
   if (!content && !uploadedImageUrl) {
     alert("Post cannot be empty");
