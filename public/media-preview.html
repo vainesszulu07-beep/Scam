@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Preview Media</title>
+
+<style>
+body{
+margin:0;
+background:black;
+color:white;
+font-family:Segoe UI;
+display:flex;
+flex-direction:column;
+height:100vh;
+}
+
+.preview{
+flex:1;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+.preview img,
+.preview video{
+max-width:100%;
+max-height:100%;
+border-radius:10px;
+}
+
+.controls{
+height:80px;
+display:flex;
+align-items:center;
+justify-content:center;
+gap:20px;
+background:#111;
+}
+
+button{
+padding:12px 20px;
+border:none;
+border-radius:25px;
+font-size:16px;
+cursor:pointer;
+}
+
+.discard{
+background:#444;
+color:white;
+}
+
+.upload{
+background:#1877f2;
+color:white;
+}
+
+.progress{
+position:absolute;
+top:20px;
+left:50%;
+transform:translateX(-50%);
+font-size:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="preview" id="preview"></div>
+
+<div class="controls">
+<button class="discard" id="discardBtn">Discard</button>
+<button class="upload" id="uploadBtn">Upload</button>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+"https://eimecuiixwgmpfpedxpr.supabase.co",
+"sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const preview = document.getElementById("preview");
+const progress = document.getElementById("progress");
+
+const discardBtn = document.getElementById("discardBtn");
+const uploadBtn = document.getElementById("uploadBtn");
+
+const { data:{session} } = await supabase.auth.getSession();
+if(!session) window.location.href="login.html";
+
+const userId = session.user.id;
+
+const conversationId = sessionStorage.getItem("chat-conversationId");
+
+const file = window.opener?.chatMediaFile;
+
+if(!file){
+alert("Media not found");
+window.location.href="view-chat.html?conversationId="+conversationId;
+}
+
+/* ---------- SHOW PREVIEW ---------- */
+
+const url = URL.createObjectURL(file);
+
+if(file.type.startsWith("video")){
+preview.innerHTML =
+`<video src="${url}" controls autoplay></video>`;
+}else{
+preview.innerHTML =
+`<img src="${url}">`;
+}
+
+/* ---------- DISCARD ---------- */
+
+discardBtn.onclick = ()=>{
+sessionStorage.removeItem("chat-media-file");
+window.location.href = "view-chat.html?conversationId="+conversationId;
+};
+
+/* ---------- UPLOAD ---------- */
+
+uploadBtn.onclick = async ()=>{
+
+progress.textContent = "Uploading...";
+
+try{
+
+if(file.type.startsWith("video")){
+
+/* VIDEO UPLOAD */
+
+const sign = await fetch("/api/video.js").then(r=>r.json());
+
+const formData = new FormData();
+formData.append("file",file);
+formData.append("api_key",sign.apiKey);
+formData.append("timestamp",sign.timestamp);
+formData.append("signature",sign.signature);
+formData.append("folder","videos");
+
+const xhr = new XMLHttpRequest();
+
+xhr.open(
+"POST",
+`https://api.cloudinary.com/v1_1/${sign.cloudName}/video/upload`
+);
+
+xhr.upload.onprogress = (e)=>{
+if(e.lengthComputable){
+let percent = Math.round((e.loaded/e.total)*100);
+progress.textContent = "Uploading "+percent+"%";
+}
+};
+
+xhr.onload = async ()=>{
+
+const data = JSON.parse(xhr.responseText);
+
+await supabase.from("messages").insert({
+
+conversation_id:conversationId,
+sender_id:userId,
+text:"",
+media_url:data.secure_url,
+media_id:data.public_id
+
+});
+
+window.location.href =
+"view-chat.html?conversationId="+conversationId;
+
+};
+
+xhr.send(formData);
+
+}else{
+
+/* IMAGE UPLOAD */
+
+const formData = new FormData();
+formData.append("file",file);
+formData.append("userId",userId);
+
+const res = await fetch("/api/upload-post.js",{
+method:"POST",
+body:formData
+});
+
+const result = await res.json();
+
+await supabase.from("messages").insert({
+
+conversation_id:conversationId,
+sender_id:userId,
+text:"",
+media_url:result.url,
+media_id:result.publicId
+
+});
+
+window.location.href =
+"view-chat.html?conversationId="+conversationId;
+
+}
+
+}catch(err){
+
+alert("Upload failed");
+
+}
+
+};
+</script>
+
+</body>
+  </html>
