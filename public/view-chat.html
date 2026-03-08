@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat</title>
+<style>
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  color: #050505;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  background: #fff;
+}
+
+/* HEADER */
+.chat-header {
+  padding: 12px 16px;
+  font-weight: bold;
+  border-bottom: 1px solid #ddd;
+  background: #f7f7f7;
+}
+
+/* MESSAGES */
+.chat-messages {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f0f2f5;
+}
+.message {
+  max-width: 70%;
+  padding: 8px 12px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+.message.sent {
+  background: #1877f2;
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.message.received {
+  background: #e4e6eb;
+  color: #050505;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+/* INPUT */
+.chat-input-container {
+  display: flex;
+  padding: 8px;
+  border-top: 1px solid #ddd;
+  background: #fff;
+}
+.chat-input-container input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 20px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  outline: none;
+}
+.chat-input-container button {
+  margin-left: 8px;
+  padding: 10px 16px;
+  background: #1877f2;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="chat-header" id="chatHeader">Chat</div>
+  <div class="chat-messages" id="chatMessages">
+    <div style="text-align:center;color:#777;">No messages</div>
+  </div>
+  <div class="chat-input-container">
+    <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+    <button id="sendBtn" disabled>Send</button>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const urlParams = new URLSearchParams(window.location.search);
+const otherUserId = urlParams.get("user_id"); // The user we are chatting with
+
+if(!otherUserId){
+  alert("No user selected!");
+  throw new Error("No user_id provided in URL");
+}
+
+const { data: { session } } = await supabase.auth.getSession();
+const currentUserId = session.user.id;
+
+const chatHeader = document.getElementById("chatHeader");
+const chatMessages = document.getElementById("chatMessages");
+const messageInput = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+
+let conversationId = null;
+let subscription = null;
+
+// Set chat header with the other user's name
+const { data: otherUser } = await supabase.from("profile").select("*").eq("id", otherUserId).single();
+chatHeader.textContent = otherUser.full_name;
+
+// Function to create conversation if it doesn't exist
+async function ensureConversation(){
+  // Check if a conversation already exists
+  const { data: convs } = await supabase
+    .from("conversations")
+    .select("*")
+    .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
+    .eq("user1_id", currentUserId)
+    .eq("user2_id", otherUserId);
+
+  if(convs && convs.length > 0){
+    conversationId = convs[0].id;
+  } else {
+    // Create conversation
+    const { data: newConv } = await supabase
+      .from("conversations")
+      .insert({ user1_id: currentUserId, user2_id: otherUserId })
+      .select()
+      .single();
+    conversationId = newConv.id;
+  }
+}
+
+// Load messages
+async function loadMessages(){
+  if(!conversationId) return;
+  const { data: messages } = await supabase
+    .from("messages")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true });
+  renderMessages(messages || []);
+}
+
+// Render messages
+function renderMessages(messages){
+  chatMessages.innerHTML = "";
+  if(messages.length === 0){
+    chatMessages.innerHTML = '<div style="text-align:center;color:#777;">No messages</div>';
+    return;
+  }
+  messages.forEach(msg => {
+    const div = document.createElement("div");
+    div.className = "message " + (msg.sender_id === currentUserId ? "sent" : "received");
+    div.textContent = msg.content;
+    chatMessages.appendChild(div);
+  });
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Subscribe to real-time messages
+function subscribeToMessages(){
+  if(!conversationId) return;
+  if(subscription) supabase.removeSubscription(subscription);
+
+  subscription = supabase
+    .channel(`conversation-${conversationId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, payload => {
+      const msg = payload.new;
+      const div = document.createElement("div");
+      div.className = "message " + (msg.sender_id === currentUserId ? "sent" : "received");
+      div.textContent = msg.content;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    })
+    .subscribe();
+}
+
+// Send message
+sendBtn.addEventListener("click", async ()=>{
+  const content = messageInput.value.trim();
+  if(!content || !conversationId) return;
+
+  await supabase.from("messages").insert({
+    conversation_id: conversationId,
+    sender_id: currentUserId,
+    content
+  });
+
+  messageInput.value = "";
+});
+
+async function initChat(){
+  await ensureConversation();
+  messageInput.disabled = false;
+  sendBtn.disabled = false;
+  await loadMessages();
+  subscribeToMessages();
+}
+
+initChat();
+
+</script>
+
+</body>
+  </html>
