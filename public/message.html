@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages</title>
+<style>
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  color: #050505;
+  padding-bottom: 80px;
+}
+
+/* CONTAINER */
+.messages-container {
+  max-width: 480px;
+  margin: 15px auto;
+}
+
+/* SECTIONS */
+.section {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 15px;
+  padding: 10px;
+}
+
+.section h3 {
+  margin: 0 0 10px 0;
+  font-weight: bold;
+  color: #050505;
+}
+
+/* USER / CONVERSATION CARD */
+.user-card, .conversation-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.user-card:hover, .conversation-card:hover {
+  background: #f0f2f5;
+}
+
+.user-card img, .conversation-card img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.name {
+  font-weight: bold;
+}
+
+.last-message {
+  font-size: 13px;
+  color: #555;
+  margin-left: auto;
+}
+
+/* NAVBAR */
+.navbar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  min-width: 300px;
+  max-width: 480px;
+  height: 60px;
+  background: #fff;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  box-shadow: 0 -1px 5px rgba(0,0,0,0.15);
+  border-radius: 30px;
+  padding: 0 10px;
+  z-index: 1000;
+}
+.nav-icon {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.nav-icon:hover { background: #e4e6eb; }
+.nav-icon svg { width: 28px; height: 28px; fill: #1877f2; }
+.nav-icon.active svg { fill: #050505; }
+
+</style>
+</head>
+<body>
+
+<div class="messages-container">
+
+  <!-- Top Section: Users -->
+  <div class="section">
+    <h3>Users</h3>
+    <div id="usersList">
+      <div style="text-align:center;color:#777;">Loading users...</div>
+    </div>
+  </div>
+
+  <!-- Bottom Section: Active Conversations -->
+  <div class="section">
+    <h3>Chats</h3>
+    <div id="conversationsList">
+      <div style="text-align:center;color:#777;">No chats yet</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- NAVBAR -->
+<div class="navbar">
+  <div class="nav-icon" id="toHome">
+    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+  </div>
+  <div class="nav-icon active" id="toMessages">
+    <svg viewBox="0 0 24 24"><path d="M21 6h-2v9H5v2h14c1.1 0 2-.9 2-2V6zM17 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2z"/></svg>
+  </div>
+  <div class="nav-icon" id="toProfile">
+    <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2c-3.3 0-9.9 1.7-9.9 5v3h19.8v-3c0-3.3-6.6-5-9.9-5z"/></svg>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersList = document.getElementById("usersList");
+const conversationsList = document.getElementById("conversationsList");
+
+const currentUserId = (await supabase.auth.getSession()).data.session.user.id;
+
+// Load users
+async function loadUsers() {
+  const { data: users } = await supabase
+    .from('profile')
+    .select('*')
+    .neq('id', currentUserId);
+
+  usersList.innerHTML = "";
+  if(!users || users.length === 0){
+    usersList.innerHTML = '<div style="text-align:center;color:#777;">No users found</div>';
+    return;
+  }
+
+  users.forEach(user => {
+    const card = document.createElement('div');
+    card.className = 'user-card';
+    card.innerHTML = `
+      <img src="${user.avatar_url || 'https://via.placeholder.com/50'}" alt="avatar">
+      <div class="name">${user.full_name}</div>
+    `;
+    card.addEventListener('click', () => {
+      // Go to view-chat.html with user_id
+      window.location.href = `view-chat.html?user_id=${user.id}`;
+    });
+    usersList.appendChild(card);
+  });
+}
+
+// Load conversations
+async function loadConversations() {
+  const { data: convs } = await supabase
+    .from('conversations')
+    .select('*, messages(*)')
+    .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+
+  conversationsList.innerHTML = "";
+  if(!convs || convs.length === 0){
+    conversationsList.innerHTML = '<div style="text-align:center;color:#777;">No chats yet</div>';
+    return;
+  }
+
+  for (const conv of convs) {
+    const otherUserId = conv.user1_id === currentUserId ? conv.user2_id : conv.user1_id;
+    const { data: otherUser } = await supabase.from('profile').select('*').eq('id', otherUserId).single();
+
+    const lastMessage = conv.messages?.[conv.messages.length-1]?.content || '';
+
+    const card = document.createElement('div');
+    card.className = 'conversation-card';
+    card.innerHTML = `
+      <img src="${otherUser.avatar_url || 'https://via.placeholder.com/50'}" alt="avatar">
+      <div class="name">${otherUser.full_name}</div>
+      <div class="last-message">${lastMessage}</div>
+    `;
+    card.addEventListener('click', () => {
+      window.location.href = `view-chat.html?conversation_id=${conv.id}`;
+    });
+    conversationsList.appendChild(card);
+  }
+}
+
+// Navbar navigation
+document.getElementById("toHome").onclick = () => location.href = "social.html";
+document.getElementById("toProfile").onclick = () => location.href = "profile.html";
+
+loadUsers();
+loadConversations();
+
+</script>
+
+</body>
+  </html>
