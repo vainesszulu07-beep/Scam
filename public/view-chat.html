@@ -74,7 +74,7 @@ input.addEventListener('input', async () => {
   await setTyping(true);
 
   clearTimeout(typingTimeout);
-  typingTimeout = setTimeout(() => setTyping(false), 1000);
+  typingTimeout = setTimeout(() => setTyping(false), 500);
 });
 
 /* Real-time subscription */
