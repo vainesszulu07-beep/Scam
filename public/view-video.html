@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Send Message</title>
+<style>
+body {
+  font-family: sans-serif;
+  max-width:600px;
+  margin:auto;
+  padding:20px;
+  background:#f0f2f5;
+}
+h2 { text-align:center; }
+a.back-arrow { display:inline-block; margin-bottom:10px; font-size:20px; text-decoration:none; color:#1877f2; }
+textarea {
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  margin-bottom:10px;
+  resize:none;
+}
+button { padding:8px 12px; border-radius:6px; border:none; cursor:pointer; margin:4px 2px; }
+.primary { background:#1877f2; color:white; }
+#previewContainer {
+  margin-top:15px;
+  text-align:center;
+  position:relative;
+}
+#previewContainer video {
+  max-width:100%;
+  border-radius:10px;
+  display:block;
+  margin:auto;
+  cursor:pointer;
+}
+#uploadProgressOverlay {
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,0.5);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  color:white;
+  font-size:22px;
+  border-radius:10px;
+}
+#uploadProgressOverlay span { margin-top:10px; }
+</style>
+</head>
+<body>
+
+<a href="view-chat.html" class="back-arrow">← Back to Chat</a>
+<h2>Send Message</h2>
+
+<!-- Text content -->
+<textarea id="messageContent" placeholder="Write a message..."></textarea>
+
+<!-- Video input -->
+<input type="file" id="videoFile" accept="video/*">
+
+<div id="previewContainer">
+  <video id="videoPreview" controls></video>
+  <div id="uploadProgressOverlay">
+    <span id="progressPercent">0%</span>
+  </div>
+</div>
+
+<button id="sendBtn" class="primary" style="width:100%; margin-top:15px;">Send</button>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// Initialize Supabase
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const messageContentEl = document.getElementById("messageContent");
+const videoFileEl = document.getElementById("videoFile");
+const videoPreviewEl = document.getElementById("videoPreview");
+const sendBtn = document.getElementById("sendBtn");
+const uploadProgressOverlay = document.getElementById("uploadProgressOverlay");
+const progressPercent = document.getElementById("progressPercent");
+
+let selectedFile = null;
+let currentUserId = null;
+
+/* AUTH: get current user ID */
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) { 
+    window.location.href = "index.html"; 
+    return; 
+  }
+  currentUserId = session.user.id;
+})();
+
+/* VIDEO SELECT & PREVIEW */
+videoFileEl.addEventListener("change", (e) => {
+  selectedFile = e.target.files[0];
+  if (!selectedFile) return;
+  videoPreviewEl.src = URL.createObjectURL(selectedFile);
+});
+
+/* SEND MESSAGE */
+sendBtn.onclick = async () => {
+  const content = messageContentEl.value.trim();
+  if (!content && !selectedFile) {
+    return alert("Message cannot be empty");
+  }
+
+  uploadProgressOverlay.style.display = "flex";
+  progressPercent.textContent = "0%";
+
+  try {
+    let videoData = null;
+
+    if (selectedFile) {
+      // Get signed payload from backend
+      const { signature, timestamp, apiKey, cloudName } = await fetch("/api/video.js").then(r=>r.json());
+
+      // Prepare FormData
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("api_key", apiKey);
+      formData.append("timestamp", timestamp);
+      formData.append("signature", signature);
+      formData.append("folder", "chat_videos");
+
+      // Upload using XMLHttpRequest
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+      xhr.upload.onprogress = (e)=>{
+        if(e.lengthComputable){
+          const percent = Math.round((e.loaded / e.total) * 100);
+          progressPercent.textContent = percent + "%";
+        }
+      };
+
+      videoData = await new Promise((resolve,reject)=>{
+        xhr.onload = () => {
+          if(xhr.status>=200 && xhr.status<300)
+            resolve(JSON.parse(xhr.responseText));
+          else reject(new Error("Upload failed"));
+        };
+        xhr.onerror = () => reject(new Error("Upload error"));
+        xhr.send(formData);
+      });
+    }
+
+    // Insert into messages table
+    const { error } = await supabase.from("messages").insert([{
+      conversation_id: new URLSearchParams(window.location.search).get("conversationId"),
+      sender_id: currentUserId,
+      content: content,
+      media_url: videoData ? videoData.secure_url : null,
+      media_id: videoData ? videoData.public_id : null
+    }]);
+
+    if(error) throw error;
+
+    alert("Message sent!");
+    window.location.href = `view-chat.html?conversationId=${new URLSearchParams(window.location.search).get("conversationId")}`;
+
+  } catch(err) {
+    console.error(err);
+    alert("Error sending message: "+err.message);
+  } finally{
+    uploadProgressOverlay.style.display="none";
+  }
+};
+</script>
+
+</body>
+  </html>
