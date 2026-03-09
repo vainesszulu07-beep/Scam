@@ -222,8 +222,9 @@ applyCrop.onclick = () => {
   enableCrop();
 };
 
-rotateLeft.onclick = ()=> cropper && cropper.rotate(-90);
-rotateRight.onclick = ()=> cropper && cropper.rotate(90);
+rotateLeft.onclick = () => cropper && cropper.rotate(-90);    
+rotateRight.onclick = () => cropper && cropper.rotate(90);    
+    
 
 document.querySelectorAll("[data-ratio]").forEach(btn=>{
   btn.onclick=()=>{
