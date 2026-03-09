@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Typing Test</title>
+<style>
+body { font-family: Arial; background:#f0f2f5; display:flex; justify-content:center; padding-top:50px; }
+.chat-container { width:400px; background:white; border-radius:8px; padding:20px; position:relative; }
+.typing-indicator {
+  font-size:14px;
+  color:black;
+  position:absolute;
+  left:20px;
+  bottom:60px;
+  background:rgba(0,0,0,0.1);
+  padding:4px 10px;
+  border-radius:12px;
+  display:none;
+}
+input { width:100%; padding:10px; font-size:14px; border-radius:5px; border:1px solid #ccc; }
+</style>
+</head>
+<body>
+
+<div class="chat-container">
+  <div class="typing-indicator" id="typingIndicator">Typing...</div>
+  <input id="messageInput" placeholder="Type something...">
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const input = document.getElementById("messageInput");
+const typingIndicator = document.getElementById("typingIndicator");
+
+const conversationId = "your-conversation-id"; // replace with real conversation ID
+const userId = "current-user-id"; // replace with real user ID
+
+let typingTimeout;
+
+/* Set typing state in DB (merge to avoid overwriting other users) */
+async function setTyping(isTyping) {
+  const { data: conv } = await supabase
+    .from('conversations')
+    .select('typing')
+    .eq('id', conversationId)
+    .single();
+
+  const currentTyping = conv.typing || {};
+  currentTyping[userId] = isTyping;
+
+  await supabase
+    .from('conversations')
+    .update({ typing: currentTyping })
+    .eq('id', conversationId);
+}
+
+/* Input event */
+input.addEventListener('input', async () => {
+  await setTyping(true);
+
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => setTyping(false), 3000);
+});
+
+/* Real-time subscription */
+supabase.channel("conversations")
+  .on('postgres_changes', { event:'UPDATE', schema:'public', table:'conversations', filter:`id=eq.${conversationId}` },
+    payload => {
+      const typingData = payload.new.typing || {};
+      const typingUsers = Object.entries(typingData)
+        .filter(([uid, t]) => t)
+        .map(([uid]) => uid === userId ? "You" : "Other User");
+
+      if(typingUsers.length) {
+        typingIndicator.style.display = "block";
+        typingIndicator.textContent = typingUsers.join(", ") + " typing...";
+      } else {
+        typingIndicator.style.display = "none";
+      }
+    }
+  ).subscribe();
+</script>
+
+</body>
+  </html>
