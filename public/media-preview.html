@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Send Media</title>
+
+<link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet"/>
+
+<style>
+body{
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background:#f0f2f5;
+  display:flex;
+  justify-content:center;
+  padding:20px;
+}
+.container{
+  max-width:500px;
+  width:100%;
+  background:white;
+  border-radius:12px;
+  padding:20px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+h2{text-align:center;margin-bottom:15px;}
+textarea{
+  width:100%;
+  border-radius:10px;
+  border:1px solid #ccc;
+  padding:10px;
+  resize:none;
+  font-size:14px;
+}
+#previewContainer{
+  margin-top:15px;
+  text-align:center;
+}
+#previewContainer img{
+  max-width:100%;
+  border-radius:10px;
+  display:block;
+  margin:auto;
+  cursor:pointer;
+}
+button{
+  padding:10px 15px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  margin-top:10px;
+  font-size:14px;
+}
+.send-btn{
+  background:#1877f2;
+  color:white;
+  width:100%;
+}
+.dark-btn{
+  background:#444;
+  color:white;
+}
+.discard-btn{
+  background:crimson;
+  color:white;
+  width:100%;
+  margin-top:5px;
+}
+.crop-controls{
+  display:none;
+  text-align:center;
+  margin-top:10px;
+}
+.crop-controls button{
+  margin:3px;
+}
+.aspect-buttons{
+  margin-top:8px;
+}
+#processingOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.6);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  color:white;
+  z-index:999;
+}
+.spinner{
+  border:4px solid rgba(255,255,255,0.3);
+  border-top:4px solid white;
+  border-radius:50%;
+  width:40px;
+  height:40px;
+  animation:spin 1s linear infinite;
+  margin-bottom:10px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h2>Send images</h2>
+
+<textarea id="messageContent" placeholder="Type a message..."></textarea>
+
+<input type="file" id="mediaFile" accept="image/*">
+
+<div id="previewContainer">
+  <img id="imagePreview">
+</div>
+
+<div class="crop-controls" id="cropControls">
+  <div>
+    <button id="rotateLeft" class="dark-btn">⟲</button>
+    <button id="rotateRight" class="dark-btn">⟳</button>
+    <button id="applyCrop" class="send-btn">Apply Crop</button>
+  </div>
+  <div class="aspect-buttons">
+    <button data-ratio="free" class="dark-btn">Free</button>
+    <button data-ratio="1" class="dark-btn">1:1</button>
+    <button data-ratio="1.777" class="dark-btn">16:9</button>
+    <button data-ratio="0.8" class="dark-btn">4:5</button>
+  </div>
+</div>
+
+<button id="sendBtn" class="send-btn">Send</button>
+<button id="discardBtn" class="discard-btn" style="display:none;">Discard</button>
+<button onclick="window.location.href='video.html'" class="dark-btn" style="width:100%; margin-top:5px;">Send Video</button>
+
+<div id="processingOverlay">
+  <div>
+    <div class="spinner"></div>
+    Processing...
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const params = new URLSearchParams(window.location.search);
+const conversationId = params.get("conversationId");
+
+const overlay = document.getElementById("processingOverlay");
+const mediaFileEl = document.getElementById("mediaFile");
+const imagePreviewEl = document.getElementById("imagePreview");
+const messageContentEl = document.getElementById("messageContent");
+const sendBtn = document.getElementById("sendBtn");
+const cropControls = document.getElementById("cropControls");
+const rotateLeft = document.getElementById("rotateLeft");
+const rotateRight = document.getElementById("rotateRight");
+const applyCrop = document.getElementById("applyCrop");
+const discardBtn = document.getElementById("discardBtn");
+
+let currentUserId;
+let cropper;
+let uploadedMediaUrl = null;
+let uploadedMediaId = null;
+
+/* AUTH */
+(async () => {
+  const { data:{session} } = await supabase.auth.getSession();
+  if(!session) window.location.href="index.html";
+  currentUserId = session.user.id;
+})();
+
+/* FILE SELECT */
+mediaFileEl.addEventListener("change", async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+
+  overlay.style.display="flex";
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("userId", currentUserId);
+
+  const res = await fetch("/api/upload-post.js",{method:"POST", body:formData});
+  const result = await res.json();
+  overlay.style.display="none";
+
+  if(!res.ok){ alert("Upload failed"); return; }
+
+  uploadedMediaUrl = result.url;
+  uploadedMediaId = result.publicId;
+
+  imagePreviewEl.src = uploadedMediaUrl;
+  cropControls.style.display="block";
+  discardBtn.style.display="block";
+});
+
+/* ENABLE CROP/EDIT */
+function enableCrop(){
+  if(!uploadedMediaUrl) return;
+  cropControls.style.display="block";
+  if(cropper) cropper.destroy();
+  cropper = new Cropper(imagePreviewEl,{
+    aspectRatio: NaN,
+    viewMode:1,
+    dragMode:"move",
+    autoCropArea:1,
+    responsive:true
+  });
+}
+
+applyCrop.onclick = () => {
+  if(!cropper) return;
+  const canvas = cropper.getCroppedCanvas({maxWidth:1200,maxHeight:1200});
+  imagePreviewEl.src = canvas.toDataURL("image/jpeg",0.9);
+  cropper.destroy();
+  cropper = null;
+  cropControls.style.display="none";
+  // keep edit available after cropping
+  enableCrop();
+};
+
+rotateLeft.onclick = ()=> cropper && cropper.rotate(-90);
+rotateRight.onclick = ()=> cropper && cropper.rotate(90);
+
+document.querySelectorAll("[data-ratio]").forEach(btn=>{
+  btn.onclick=()=>{
+    if(!cropper) return;
+    const ratio = btn.dataset.ratio;
+    cropper.setAspectRatio(ratio==="free"?NaN:parseFloat(ratio));
+  };
+});
+
+/* ENABLE EDIT BUTTON */
+imagePreviewEl.addEventListener("click", enableCrop);
+
+/* DISCARD IMAGE */
+discardBtn.onclick = ()=>{
+  uploadedMediaUrl = null;
+  uploadedMediaId = null;
+  imagePreviewEl.src = "";
+  cropControls.style.display="none";
+  discardBtn.style.display="none";
+};
+
+/* SEND MESSAGE */
+sendBtn.onclick = async ()=>{
+  const content = messageContentEl.value.trim();
+
+  if(!content && !uploadedMediaUrl){
+    alert("Message cannot be empty");
+    return;
+  }
+
+  overlay.style.display="flex";
+
+  const { error } = await supabase.from("messages").insert([{
+    conversation_id:conversationId,
+    sender_id:currentUserId,
+    content,
+    media_url:uploadedMediaUrl,
+    media_id:uploadedMediaId
+  }]);
+
+  overlay.style.display="none";
+
+  if(error){ alert("Failed to send message"); return; }
+
+  window.location.href = `view-chat.html?conversationId=${conversationId}`;
+};
+</script>
+</body>
+  </html>
