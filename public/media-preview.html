@@ -156,7 +156,7 @@ mediaFileEl.addEventListener("change", async (e)=>{
   formData.append("file", file);
   formData.append("userId", currentUserId);
 
-  const res = await fetch("/api/upload-media.js",{method:"POST", body:formData});
+  const res = await fetch("/api/upload-post.js",{method:"POST", body:formData});
   const result = await res.json();
   overlay.style.display="none";
 
