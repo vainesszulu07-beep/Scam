@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Send Video Message</title>
+<style>
+body {
+  font-family: sans-serif;
+  padding: 20px;
+  background: #f0f2f5;
+  max-width: 600px;
+  margin: auto;
+  position: relative;
+}
+
+.back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+h2 { 
+  text-align: center; 
+  margin-top: 0; 
+  margin-bottom: 20px;
+}
+
+textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+  resize: none;
+}
+
+button {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  margin: 4px 2px;
+}
+
+.primary { background: #1877f2; color: white; }
+
+#previewContainer {
+  margin-top: 15px;
+  text-align: center;
+  position: relative;
+}
+
+#previewContainer video {
+  max-width: 100%;
+  border-radius: 10px;
+  display: block;
+  margin: auto;
+  cursor: pointer;
+}
+
+#processingOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  z-index: 999;
+  flex-direction: column;
+}
+#progressText {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+</style>
+</head>
+<body>
+
+<div class="back-btn" id="backBtn">←</div>
+
+<h2>Send Video Message</h2>
+
+<textarea id="messageContent" placeholder="Type a message..."></textarea>
+
+<input type="file" id="videoFile" accept="video/*">
+
+<div id="previewContainer">
+  <video id="videoPreview" controls></video>
+</div>
+
+<button id="sendBtn" class="primary" style="width:100%; margin-top:15px;">Send</button>
+
+<div id="processingOverlay">
+  <div>
+    <div id="progressText">0%</div>
+    Uploading...
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const params = new URLSearchParams(window.location.search);
+const conversationId = params.get("conversationId");
+
+const overlay = document.getElementById("processingOverlay");
+const videoFileEl = document.getElementById("videoFile");
+const videoPreviewEl = document.getElementById("videoPreview");
+const messageContentEl = document.getElementById("messageContent");
+const sendBtn = document.getElementById("sendBtn");
+const backBtn = document.getElementById("backBtn");
+const progressText = document.getElementById("progressText");
+
+let currentUserId;
+let selectedVideoFile = null;
+let uploadedVideoUrl = null;
+let uploadedVideoId = null;
+
+/* AUTH */
+(async () => {
+  const { data:{session} } = await supabase.auth.getSession();
+  if(!session) window.location.href="index.html";
+  currentUserId = session.user.id;
+})();
+
+/* BACK BUTTON */
+backBtn.onclick = () => {
+  window.location.href = `media-preview.html?conversationId=${conversationId}`;
+};
+
+/* Ensure conversationId exists */
+if(!conversationId){
+  alert("Conversation not found! Please open a chat first.");
+  throw new Error("Missing conversationId");
+}
+
+/* VIDEO SELECT & PREVIEW */
+videoFileEl.addEventListener("change", (e)=>{
+  selectedVideoFile = e.target.files[0];
+  if(!selectedVideoFile) return;
+  videoPreviewEl.src = URL.createObjectURL(selectedVideoFile);
+});
+
+/* SEND MESSAGE */
+sendBtn.onclick = async ()=>{
+  const content = messageContentEl.value.trim();
+  if(!content && !selectedVideoFile){
+    alert("Message cannot be empty");
+    return;
+  }
+
+  overlay.style.display="flex";
+  progressText.textContent = "0%";
+
+  try{
+    if(selectedVideoFile){
+      // Upload video to Cloudinary
+      const { signature, timestamp, apiKey, cloudName } = await fetch("/api/video.js").then(r=>r.json());
+
+      const formData = new FormData();
+      formData.append("file", selectedVideoFile);
+      formData.append("api_key", apiKey);
+      formData.append("timestamp", timestamp);
+      formData.append("signature", signature);
+      formData.append("folder", "videos");
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+
+      xhr.upload.onprogress = function(e){
+        if(e.lengthComputable){
+          const percent = Math.round((e.loaded / e.total) * 100);
+          progressText.textContent = percent + "%";
+        }
+      };
+
+      const videoData = await new Promise((resolve,reject)=>{
+        xhr.onload = ()=>xhr.status>=200 && xhr.status<300 ? resolve(JSON.parse(xhr.responseText)) : reject(new Error("Upload failed"));
+        xhr.onerror = ()=>reject(new Error("Upload error"));
+        xhr.send(formData);
+      });
+
+      uploadedVideoUrl = videoData.secure_url;
+      uploadedVideoId = videoData.public_id;
+    }
+
+    // Insert message into Supabase messages table
+    const { error } = await supabase.from("messages").insert([{
+      conversation_id: conversationId,
+      sender_id: currentUserId,
+      content,
+      media_url: uploadedVideoUrl,
+      media_id: uploadedVideoId
+    }]);
+
+    if(error) throw error;
+
+    window.location.href = `view-chat.html?conversationId=${conversationId}`;
+
+  }catch(err){
+    console.error(err);
+    alert("Failed to send message: "+err.message);
+  }finally{
+    overlay.style.display="none";
+  }
+};
+</script>
+
+</body>
+</html>
