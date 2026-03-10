@@ -456,7 +456,7 @@ createMenu();
 document.addEventListener('click', hideMenu);
 sendBtn.onclick=sendMessage;
 input.addEventListener("keypress",e=>{if(e.key==="Enter")sendMessage();});
-attachBtn.onclick=()=>{location.href=`media-preview.html?conversationId=${conversationId}`;};
+attachBtn.onclick=()=>{location.href=`messages.html?conversationId=${conversationId}`;};
 
 await loadUser();
 await loadMessages();
