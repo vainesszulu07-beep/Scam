@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>View Image</title>
+<style>
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Segoe UI, Arial, sans-serif;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.image-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  font-size: 24px;
+  color: white;
+  background: rgba(0,0,0,0.5);
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.message-text {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  background: rgba(0,0,0,0.5);
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 16px;
+  max-width: 90%;
+  text-align: center;
+  z-index: 10;
+}
+</style>
+</head>
+<body>
+
+<div class="image-container">
+  <div class="back-btn" onclick="history.back()">← Back</div>
+  <img id="image">
+  <div id="messageText" class="message-text" style="display:none;"></div>
+</div>
+
+<script>
+// Get URL parameters
+const params = new URLSearchParams(window.location.search);
+const imageUrl = params.get("url");
+const text = params.get("text"); // optional text
+
+const img = document.getElementById("image");
+img.src = decodeURIComponent(imageUrl);
+
+const messageTextDiv = document.getElementById("messageText");
+if(text && text.trim() !== ""){
+  messageTextDiv.style.display = "block";
+  messageTextDiv.textContent = decodeURIComponent(text);
+}
+</script>
+
+</body>
+</html>
