@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
+background:#f0f2f5;
+height:100vh;
+overflow:hidden;
+display:flex;
+justify-content:center;
+}
+
+/* APP WRAPPER */
+
+.app{
+width:100%;
+max-width:500px;
+height:100vh;
+display:flex;
+flex-direction:column;
+background:white;
+}
+
+/* HEADER */
+
+.header{
+height:60px;
+display:flex;
+align-items:center;
+padding:0 16px;
+font-size:20px;
+font-weight:bold;
+border-bottom:1px solid #ddd;
+flex-shrink:0;
+}
+
+/* USERS BAR */
+
+.users-bar{
+display:flex;
+gap:12px;
+overflow-x:auto;
+padding:10px;
+border-bottom:1px solid #eee;
+background:white;
+}
+
+.user{
+display:flex;
+flex-direction:column;
+align-items:center;
+min-width:60px;
+cursor:pointer;
+}
+
+.user img{
+width:50px;
+height:50px;
+border-radius:50%;
+object-fit:cover;
+border:2px solid #1877f2;
+}
+
+.user span{
+font-size:12px;
+margin-top:4px;
+text-align:center;
+}
+
+/* CONVERSATIONS */
+
+.conversations{
+flex:1;
+overflow-y:auto;
+background:#f0f2f5;
+}
+
+.conversation{
+display:flex;
+align-items:center;
+padding:10px;
+background:white;
+border-bottom:1px solid #eee;
+cursor:pointer;
+transition:0.2s;
+}
+
+.conversation:hover{
+background:#f5f5f5;
+}
+
+.conversation.unread{
+background:#e7f3ff;
+}
+
+.conversation img{
+width:45px;
+height:45px;
+border-radius:50%;
+margin-right:10px;
+object-fit:cover;
+}
+
+.conv-info{
+display:flex;
+flex-direction:column;
+}
+
+.conv-name{
+font-weight:600;
+}
+
+.conv-last{
+font-size:13px;
+color:#666;
+}
+
+.typing{
+color:#1877f2;
+font-style:italic;
+}
+
+.no-chats{
+padding:20px;
+text-align:center;
+color:#777;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<div class="header">
+Messages
+</div>
+
+<div class="users-bar" id="usersBar"></div>
+
+<div class="conversations" id="conversations">
+<div class="no-chats">Loading chats...</div>
+</div>
+
+</div>
+
+<script type="module">
+
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+"https://eimecuiixwgmpfpedxpr.supabase.co",
+"sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersBar = document.getElementById("usersBar");
+const conversationsDiv = document.getElementById("conversations");
+
+let userId;
+
+const { data:{session} } = await supabase.auth.getSession();
+
+if(!session){
+window.location.href="login.html";
+}
+
+userId = session.user.id;
+
+/* LOAD USERS */
+
+async function loadUsers(){
+
+const { data } = await supabase
+.from("profile")
+.select("*")
+.neq("id",userId)
+.limit(20);
+
+usersBar.innerHTML="";
+
+data.forEach(user=>{
+
+const div=document.createElement("div");
+div.className="user";
+
+div.innerHTML=`
+<img src="${user.avatar_url || 'https://via.placeholder.com/50'}">
+<span>${user.full_name || 'User'}</span>
+`;
+
+div.onclick=()=>startConversation(user.id);
+
+usersBar.appendChild(div);
+
+});
+
+}
+
+/* START CONVERSATION */
+
+async function startConversation(otherId){
+
+let { data } = await supabase
+.from("conversations")
+.select("*")
+.or(`and(user1_id.eq.${userId},user2_id.eq.${otherId}),and(user1_id.eq.${otherId},user2_id.eq.${userId})`)
+.single();
+
+if(!data){
+
+const { data:newConv } = await supabase
+.from("conversations")
+.insert({
+user1_id:userId,
+user2_id:otherId
+})
+.select()
+.single();
+
+data=newConv;
+
+}
+
+window.location.href=`view-chat.html?conversationId=${data.id}`;
+
+}
+
+/* LOAD CONVERSATIONS */
+
+async function loadConversations(){
+
+const { data } = await supabase
+.from("conversations")
+.select(`
+id,
+user1_id,
+user2_id,
+user1:profile!user1_id(full_name,avatar_url),
+user2:profile!user2_id(full_name,avatar_url)
+`)
+.or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+
+conversationsDiv.innerHTML="";
+
+if(!data || data.length===0){
+conversationsDiv.innerHTML=`<div class="no-chats">No chats yet</div>`;
+return;
+}
+
+data.forEach(conv=>{
+
+let other;
+
+if(conv.user1_id===userId){
+other=conv.user2;
+}else{
+other=conv.user1;
+}
+
+const div=document.createElement("div");
+div.className="conversation";
+
+div.innerHTML=`
+<img src="${other.avatar_url || 'https://via.placeholder.com/45'}">
+<div class="conv-info">
+<div class="conv-name">${other.full_name || 'User'}</div>
+<div class="conv-last" id="last-${conv.id}">Open chat</div>
+</div>
+`;
+
+div.onclick=()=>{
+div.classList.remove("unread");
+window.location.href=`view-chat.html?conversationId=${conv.id}`;
+};
+
+conversationsDiv.appendChild(div);
+
+});
+
+}
+
+/* MESSAGE REALTIME */
+
+supabase
+.channel("messages-listener")
+.on(
+"postgres_changes",
+{
+event:"INSERT",
+schema:"public",
+table:"messages"
+},
+(payload)=>{
+
+const msg = payload.new;
+
+if(msg.sender_id===userId) return;
+
+const last=document.getElementById("last-"+msg.conversation_id);
+
+if(last){
+
+last.textContent=msg.content || "Media";
+
+const conv=last.closest(".conversation");
+conv.classList.add("unread");
+
+}
+
+}
+)
+.subscribe();
+
+/* TYPING INDICATOR */
+
+const typingChannel = supabase.channel("typing-channel");
+
+typingChannel
+.on("broadcast",{event:"typing"},(payload)=>{
+
+const {conversationId}=payload;
+
+const last=document.getElementById("last-"+conversationId);
+
+if(last){
+
+last.textContent="Typing...";
+last.classList.add("typing");
+
+setTimeout(()=>{
+last.classList.remove("typing");
+last.textContent="Open chat";
+},2000);
+
+}
+
+})
+.subscribe();
+
+/* INIT */
+
+loadUsers();
+loadConversations();
+
+</script>
+
+</body>
+  </html>
