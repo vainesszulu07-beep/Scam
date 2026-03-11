@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Segoe UI,Arial,sans-serif;
+  background:#f0f2f5;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+}
+
+.chat-container{
+  width:100%;
+  max-width:500px;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  background:white;
+  position:relative;
+}
+
+.chat-header{
+  height:60px;
+  display:flex;
+  align-items:center;
+  padding:0 12px;
+  border-bottom:1px solid #ddd;
+  background:white;
+}
+
+.back-btn{
+  font-size:22px;
+  margin-right:10px;
+  cursor:pointer;
+}
+
+.chat-header img{
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  margin-right:10px;
+  object-fit:cover;
+}
+
+.chat-header h3{
+  margin:0;
+  font-size:16px;
+}
+
+.typing-indicator{
+  position:absolute;
+  bottom:75px;
+  left:12px;
+  display:none;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:18px;
+  background:#f1f5f9;
+  font-size:13px;
+}
+
+.typing-avatar{
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.typing-name{
+  font-weight:600;
+}
+
+.typing-dots span{
+  animation:blink 1.4s infinite;
+}
+
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+
+@keyframes blink{
+  0%{opacity:0}
+  50%{opacity:1}
+  100%{opacity:0}
+}
+
+.messages{
+  flex:1;
+  overflow-y:auto;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  background:#f0f2f5;
+}
+
+.message{
+  max-width:70%;
+  padding:10px 14px;
+  border-radius:18px;
+  font-size:14px;
+  word-wrap:break-word;
+  position:relative;
+  user-select:none;
+}
+
+.sent{align-self:flex-end;background:#1877f2;color:white;}
+.received{align-self:flex-start;background:#e4e6eb;color:black;}
+
+.message img{
+  max-width:100%;
+  border-radius:12px;
+  margin-top:6px;
+  cursor:pointer;
+}
+
+.video-wrapper{
+  position:relative;
+  width:100%;
+  margin-top:6px;
+  cursor:pointer;
+}
+
+.video-wrapper video{
+  width:100%;
+  border-radius:12px;
+  pointer-events:none;
+}
+
+.play-overlay{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background:rgba(0,0,0,0.6);
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.play-overlay:before{
+  content:'';
+  border-style:solid;
+  border-width:12px 0 12px 20px;
+  border-color:transparent transparent transparent white;
+}
+
+.timestamp{
+  display:block;
+  font-size:10px;
+  margin-top:4px;
+  opacity:0.7;
+  text-align:right;
+}
+
+.read-tick{
+  font-size:12px;
+  margin-left:4px;
+  color:#4fc3f7;
+}
+
+.chat-input{
+  height:65px;
+  display:flex;
+  align-items:center;
+  padding:8px 12px;
+  border-top:1px solid #ddd;
+  background:white;
+  gap:8px;
+}
+
+.chat-input input{
+  flex:1;
+  border:none;
+  background:#f0f2f5;
+  padding:12px 16px;
+  border-radius:25px;
+  outline:none;
+}
+
+#sendBtn{
+  background:#1877f2;
+  color:white;
+  padding:10px 18px;
+  border:none;
+  border-radius:25px;
+  cursor:pointer;
+}
+
+.icon-btn{
+  background:#1877f2;
+  padding:8px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:none;
+  cursor:pointer;
+}
+
+.icon-btn svg{
+  width:20px;
+  height:20px;
+  fill:white;
+}
+</style>
+</head>
+
+<body>
+
+<div class="chat-container">
+
+<div class="chat-header">
+  <div class="back-btn" onclick="history.back()">←</div>
+  <img id="avatar">
+  <h3 id="username">Loading...</h3>
+</div>
+
+<div id="typingIndicator" class="typing-indicator">
+  <img id="typingAvatar" class="typing-avatar">
+  <span id="typingName" class="typing-name"></span>
+  <span class="typing-dots"><span>•</span><span>•</span><span>•</span></span>
+</div>
+
+<div id="messages" class="messages"></div>
+
+<div class="chat-input">
+  <input id="messageInput" placeholder="Message...">
+  <button class="icon-btn" id="attachBtn">
+    <svg viewBox="0 0 24 24">
+      <path d="M16.5 6.5l-7.79 7.79a3 3 0 104.24 4.24l8.49-8.49a5 5 0 10-7.07-7.07L5.88 12.46"/>
+    </svg>
+  </button>
+  <button id="sendBtn">Send</button>
+</div>
+
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const messagesDiv = document.getElementById("messages");
+const input = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const attachBtn = document.getElementById("attachBtn");
+const username = document.getElementById("username");
+const avatar = document.getElementById("avatar");
+const typingIndicator = document.getElementById("typingIndicator");
+const typingAvatar = document.getElementById("typingAvatar");
+const typingName = document.getElementById("typingName");
+
+const params = new URLSearchParams(window.location.search);
+const conversationId = params.get("conversationId");
+
+const { data:{session} } = await supabase.auth.getSession();
+const userId = session.user.id;
+
+let conversationData;
+let typingTimeout;
+
+/* SCROLL TO BOTTOM */
+function scrollBottom(){ messagesDiv.scrollTop = messagesDiv.scrollHeight; }
+
+/* ADD MESSAGE */
+function addMessage(msg){
+  const div = document.createElement("div");
+  div.classList.add("message");
+  if(msg.sender_id === userId){ div.classList.add("sent"); } 
+  else{ div.classList.add("received"); }
+
+  let content = msg.content || "";
+  if(msg.media_url){
+    const isVideo = /\.(mp4|webm|ogg)$/i.test(msg.media_url);
+    if(isVideo){
+      content += `<div class="video-wrapper"><video muted preload="metadata"><source src="${msg.media_url}"></video><div class="play-overlay"></div></div>`;
+    } else{
+      content += `<img src="${msg.media_url}">`;
+    }
+  }
+
+  div.innerHTML = content +
+    `<span class="timestamp">${new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>` +
+    (msg.sender_id === userId ? `<span class="read-tick">${msg.read ? '✔✔' : '✔'}</span>` : '');
+
+  messagesDiv.appendChild(div);
+  scrollBottom();
+}
+
+/* LOAD USER INFO */
+async function loadUser(){
+  const {data} = await supabase
+    .from("conversations")
+    .select(`
+      user1_id,
+      user2_id,
+      typing,
+      user1:profile!user1_id(full_name,avatar_url),
+      user2:profile!user2_id(full_name,avatar_url)
+    `)
+    .eq("id",conversationId)
+    .single();
+  conversationData = data;
+  const other = data.user1_id === userId ? data.user2 : data.user1;
+  username.textContent = other.full_name;
+  avatar.src = other.avatar_url;
+  typingAvatar.src = other.avatar_url;
+  typingName.textContent = other.full_name;
+}
+
+/* LOAD MESSAGES */
+async function loadMessages(){
+  const {data} = await supabase
+    .from("messages")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", {ascending:true});
+  messagesDiv.innerHTML = "";
+  data.forEach(addMessage);
+}
+
+/* SEND MESSAGE */
+async function sendMessage(){
+  const text = input.value.trim();
+  if(!text) return;
+
+  await supabase.from("messages").insert({
+    conversation_id: conversationId,
+    sender_id: userId,
+    content: text,
+    read: false
+  });
+
+  // broadcast to messages.html for new message badge
+  supabase.channel("messages-channel").send({
+    type:"broadcast",
+    event:"new-message",
+    payload:{conversationId}
+  });
+
+  input.value = "";
+  scrollBottom();
+
+  // clear typing in DB
+  const newTyping = {...(conversationData.typing||{})};
+  newTyping[userId] = false;
+  await supabase.from('conversations').update({typing:newTyping}).eq('id', conversationId);
+}
+
+/* TYPING BROADCAST */
+/* TYPING BROADCAST */
+input.addEventListener("input", async ()=>{
+  const newTyping = {...(conversationData.typing||{})};
+  newTyping[userId] = true;
+
+  // Update typing status in DB
+  await supabase.from('conversations').update({typing:newTyping}).eq('id', conversationId);
+
+  // Broadcast to messages.html so it shows "Typing..."
+  supabase.channel("typing-channel").send({
+    type: "broadcast",
+    event: "typing",
+    payload: { conversationId }
+  });
+
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(async ()=>{
+    newTyping[userId] = false;
+    await supabase.from('conversations').update({typing:newTyping}).eq('id', conversationId);
+  }, 1500);
+});
+
+/* REALTIME MESSAGES */
+supabase.channel("chat-"+conversationId)
+  .on("postgres_changes",{
+    event:"INSERT",
+    schema:"public",
+    table:"messages",
+    filter:`conversation_id=eq.${conversationId}`
+ad=>{
+    addMessage(payload.new);
+  })
+  .subscribe();
+
+/* TYPING INDICATOR LISTENER */
+supabase.channel("typing-channel")
+  .on("postgres_changes",{
+    event:"UPDATE",
+    schema:"public",
+    table:"conversations",
+    filter:`id=eq.${conversationId}`
+  }, payload=>{
+    const typingData = payload.new.typing || {};
+    if(typingData[userId]) return;
+    const otherId = conversationData.user1_id===userId ? conversationData.user2_id : conversationData.user1_id;
+    if(typingData[otherId]){
+      typingIndicator.style.display = "flex";
+    } else{
+      typingIndicator.style.display = "none";
+    }
+  })
+  .subscribe();
+
+/* INIT */
+await loadUser();
+await loadMessages();
+
+sendBtn.onclick = sendMessage;
+input.addEventListener("keypress", e=>{if(e.key==="Enter") sendMessage();});
+attachBtn.onclick = ()=>{ location.href=`messages.html?conversationId=${conversationId}`; };
+</script>
+
+</body>
+</html>
