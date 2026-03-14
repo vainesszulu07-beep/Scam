@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messenger - Messages</title>
+<style>
+  body { margin:0; font-family:Segoe UI, Arial, sans-serif; background:#f0f2f5; }
+  .container { max-width:800px; margin:auto; padding:10px; }
+  h2 { margin-bottom:10px; font-size:18px; color:#333; }
+  .users-top { display:flex; overflow-x:auto; padding-bottom:10px; gap:12px; }
+  .user-card { position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; cursor:pointer; flex:0 0 auto; }
+  .user-card img { width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid transparent; transition:border 0.2s; }
+  .user-card:hover img { border-color:#1877f2; }
+  .online-dot { position:absolute; bottom:4px; right:4px; width:14px; height:14px; border-radius:50%; border:2px solid white; box-shadow:0 0 2px rgba(0,0,0,0.3); }
+  .last-seen { position:absolute; top:-8px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.6); color:white; font-size:10px; padding:2px 4px; border-radius:4px; display:none; white-space:nowrap; }
+  .conversation-list { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .conversation { display:flex; align-items:center; gap:12px; padding:10px 12px; background:white; border-radius:12px; cursor:pointer; position:relative; transition:background 0.2s; }
+  .conversation:hover { background:#e8f0fe; }
+  .conversation img { width:50px; height:50px; border-radius:50%; object-fit:cover; }
+  .conv-info { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .conv-name { font-weight:600; font-size:15px; color:#111; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+  .conv-last { font-size:13px; color:#555; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+  .conv-dot { position:absolute; top:14px; right:14px; width:12px; height:12px; border-radius:50%; border:2px solid white; box-shadow:0 0 2px rgba(0,0,0,0.3); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>Users</h2>
+  <div id="usersTop" class="users-top"></div>
+  <h2>Conversations</h2>
+  <div id="conversationList" class="conversation-list"></div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersTop = document.getElementById("usersTop");
+const conversationList = document.getElementById("conversationList");
+
+const { data: { session } } = await supabase.auth.getSession();
+if(!session) { alert("Not logged in"); throw new Error("No session"); }
+const userId = session.user.id;
+
+// ---------------- Helper: Lusaka time as UTC ----------------
+function nowLusakaUTC() {
+  const nowLocal = new Date();
+  const offsetMinutes = -120;
+  return new Date(nowLocal.getTime() - offsetMinutes * 60 * 1000);
+}
+
+// ---------------- Update logged-in user's last_seen ----------------
+async function updateLastSeen() {
+  const lusakaUTC = nowLusakaUTC().toISOString();
+  await supabase.from("profile").update({ last_seen: lusakaUTC }).eq("id", userId);
+}
+updateLastSeen();
+setInterval(updateLastSeen, 30000);
+
+// ---------------- Calculate if user is active ----------------
+function isActive(lastSeenUTC) {
+  if(!lastSeenUTC) return false;
+  const nowUTC = nowLusakaUTC();
+  const diffMinutes = (nowUTC.getTime() - new Date(lastSeenUTC).getTime()) / 1000 / 60;
+  return diffMinutes < 2;
+}
+
+// ---------------- Format Last Seen Friendly ----------------
+function formatLastSeen(lastSeenUTC){
+  if(!lastSeenUTC) return "Never";
+  const d = new Date(lastSeenUTC);
+  return d.toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+// ---------------- Load all users ----------------
+async function loadUsers() {
+  const { data: users, error } = await supabase
+    .from("profile")
+    .select("id, full_name, avatar_url, last_seen")
+    .neq("id", userId);
+
+  if(error){ console.error(error); return; }
+
+  usersTop.innerHTML = "";
+  users.forEach(u => {
+    const active = isActive(u.last_seen);
+    const card = document.createElement("div");
+    card.className = "user-card";
+    card.innerHTML = `
+      <img src="${u.avatar_url || 'https://via.placeholder.com/60'}">
+      <span class="online-dot" style="background:${active?'green':'grey'}"></span>
+      <div class="last-seen" style="display:${active?'none':'block'};">${formatLastSeen(u.last_seen)}</div>
+      <div>${u.full_name || u.id}</div>
+    `;
+    card.onclick = () => openConversation(u.id);
+    usersTop.appendChild(card);
+  });
+}
+
+// ---------------- Load all conversations ----------------
+async function loadConversations() {
+  const { data: convs, error } = await supabase
+    .from("conversations")
+    .select(`
+      id,
+      user1_id,
+      user2_id,
+      user1:profile!user1_id(full_name, avatar_url, last_seen),
+      user2:profile!user2_id(full_name, avatar_url, last_seen)
+    `)
+    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+    .order('updated_at',{ascending:false});
+
+  if(error){ console.error(error); return; }
+
+  conversationList.innerHTML = "";
+  for(const c of convs){
+    const other = c.user1_id === userId ? c.user2 : c.user1;
+    const active = isActive(other.last_seen);
+
+    // Get last message
+    const { data: messages } = await supabase
+      .from("messages")
+      .select("content")
+      .eq("conversation_id", c.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const lastMsg = messages && messages.length ? messages[0].content : "";
+
+    const conv = document.createElement("div");
+    conv.className = "conversation";
+    conv.innerHTML = `
+      <img src="${other.avatar_url || 'https://via.placeholder.com/50'}">
+      <div class="conv-info">
+        <div class="conv-name">${other.full_name || other.id}</div>
+        <div class="conv-last">${lastMsg}</div>
+      </div>
+      <span class="conv-dot" style="background:${active?'green':'grey'}"></span>
+      <div class="last-seen" style="display:${active?'none':'block'};">${formatLastSeen(other.last_seen)}</div>
+    `;
+    conv.onclick = () => openConversation(c.id);
+    conversationList.appendChild(conv);
+  }
+}
+
+// ---------------- Open conversation ----------------
+function openConversation(conversationId){
+  window.location.href = `view-chat.html?conversationId=${conversationId}`;
+}
+
+// ---------------- Refresh ----------------
+loadUsers();
+loadConversations();
+setInterval(() => { loadUsers(); loadConversations(); }, 30000);
+</script>
+</body>
+  </html>
