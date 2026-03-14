@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Users Last Seen</title>
+<style>
+body{ font-family:Arial; background:#f4f4f4; padding:20px; }
+.user{ background:white; padding:10px; margin-bottom:8px; border-radius:6px; }
+</style>
+</head>
+<body>
+
+<h2>Users Last Seen</h2>
+<div id="users"></div>
+
+<script type="module">
+
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
+
+const supabase = createClient(
+"https://eimecuiixwgmpfpedxpr.supabase.co",
+"sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+)
+
+const container = document.getElementById("users")
+
+function minutesAgo(time){
+
+  // Convert PostgreSQL timestamptz to ISO format
+  // Example input: 2026-03-14 17:49:25.710789+00
+  let iso = time.replace(" ", "T")   // space -> T
+  if(!iso.endsWith("Z") && iso.includes("+")) {
+    iso = iso.replace(/\+\d{2}:\d{2}$/, "Z")  // +00 -> Z
+  } else if(!iso.endsWith("Z")) {
+    iso += "Z"
+  }
+
+  const last = new Date(iso).getTime()
+  const now = new Date().getTime()
+
+  let diff = now - last
+  if(diff < 0) diff = 0
+
+  return (diff / 1000 / 60).toFixed(2)
+}
+
+async function loadUsers(){
+
+  const { data, error } = await supabase
+    .from("profile")
+    .select("id, full_name, last_seen")
+
+  if(error){
+    container.innerHTML = "Error loading users"
+    console.log(error)
+    return
+  }
+
+  container.innerHTML = ""
+
+  data.forEach(user => {
+
+    let text = "No last_seen"
+
+    if(user.last_seen){
+      text = minutesAgo(user.last_seen) + " minutes ago"
+    }
+
+    const div = document.createElement("div")
+    div.className = "user"
+    div.innerHTML =
+      `<b>${user.full_name || user.id}</b><br>${text}`
+
+    container.appendChild(div)
+
+  })
+
+}
+
+loadUsers()
+setInterval(loadUsers, 30000)
+
+</script>
+
+</body>
+</html>
