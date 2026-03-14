@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Users Presence (Lusaka)</title>
+<style>
+  body {
+    font-family:Segoe UI, Tahoma, Geneva, Verdana, sans-serif;
+    background:#f0f2f5;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+  }
+  .user {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+    background:white;
+    padding:10px;
+    border-radius:6px;
+    width:300px;
+    justify-content:space-between;
+  }
+  .user img {
+    width:50px;
+    height:50px;
+    border-radius:50%;
+    object-fit:cover;
+    border:2px solid #1877f2;
+    position:relative;
+  }
+  .online-dot {
+    width:10px;
+    height:10px;
+    background:green;
+    border-radius:50%;
+    border:2px solid white;
+    position:absolute;
+    top:0;
+    right:0;
+    display:none;
+  }
+  .status-text {
+    font-weight:bold;
+  }
+  .online { color:green; }
+  .offline { color:red; }
+</style>
+</head>
+<body>
+
+<h2>Users Online Status</h2>
+<div id="usersContainer"></div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// ---------------- Supabase Setup ----------------
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const container = document.getElementById("usersContainer");
+
+// ---------------- Session ----------------
+const { data: { session } } = await supabase.auth.getSession();
+if(!session){
+  alert("Not logged in");
+  throw new Error("No session");
+}
+const userId = session.user.id;
+
+// ---------------- Helper: Lusaka time as UTC ----------------
+function nowLusakaUTC() {
+  const nowLocal = new Date();
+  const offsetMinutes = -120; // UTC+2 Lusaka
+  return new Date(nowLocal.getTime() - offsetMinutes * 60 * 1000);
+}
+
+// ---------------- Update logged-in user last_seen ----------------
+async function updateLastSeen() {
+  const lusakaUTC = nowLusakaUTC().toISOString();
+  const { error } = await supabase
+    .from("profile")
+    .update({ last_seen: lusakaUTC })
+    .eq("id", userId);
+  if(error) console.error("Failed to update last_seen:", error);
+}
+
+// Update immediately and every 30s
+updateLastSeen();
+setInterval(updateLastSeen, 30000);
+
+// ---------------- Check if user is active ----------------
+function isActive(lastSeenUTC) {
+  if(!lastSeenUTC) return false;
+  const nowUTC = nowLusakaUTC();
+  const diffMs = nowUTC.getTime() - new Date(lastSeenUTC).getTime();
+  const diffMinutes = diffMs / 1000 / 60;
+  return diffMinutes < 2; // active if last seen < 2 minutes
+}
+
+// ---------------- Load all users ----------------
+async function loadUsers() {
+  const { data, error } = await supabase
+    .from("profile")
+    .select("id, full_name, avatar_url, last_seen")
+    .neq("id", userId);
+
+  if(error){
+    container.innerHTML = "Error loading users";
+    console.error(error);
+    return;
+  }
+
+  container.innerHTML = "";
+
+  data.forEach(user => {
+    const active = isActive(user.last_seen);
+
+    const div = document.createElement("div");
+    div.className = "user";
+
+    div.innerHTML = `
+      <div style="position:relative;">
+        <img src="${user.avatar_url || 'https://via.placeholder.com/50'}">
+        <div class="online-dot" style="display:${active ? 'block':'none'}"></div>
+      </div>
+      <span class="status-text ${active ? 'online':'offline'}">
+        ${active ? 'Active now':'Offline'}
+      </span>
+    `;
+    container.appendChild(div);
+  });
+}
+
+// Initial load + refresh every 30s
+loadUsers();
+setInterval(loadUsers, 30000);
+
+</script>
+</body>
+  </html>
