@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Last Seen Difference</title>
+<style>
+  body { font-family:Segoe UI, sans-serif; background:#f0f2f5; padding:20px; }
+  h2 { margin-bottom:20px; }
+  .user { margin-bottom:10px; padding:10px; background:white; border-radius:6px; }
+  .user span { font-weight:bold; }
+</style>
+</head>
+<body>
+
+<h2>Users Last Seen Differences</h2>
+<div id="usersContainer"></div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// ---------------- Supabase Setup ----------------
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+// ---------------- Session ----------------
+const { data: { session } } = await supabase.auth.getSession();
+if(!session){
+  alert("Not logged in");
+  throw new Error("No session");
+}
+const userId = session.user.id;
+const usersContainer = document.getElementById("usersContainer");
+
+// ---------------- Fetch users and display differences ----------------
+async function checkLastSeen() {
+  const { data, error } = await supabase
+    .from("profile")
+    .select("id, full_name, last_seen")
+    .neq("id", userId); // exclude yourself
+
+  if(error){
+    usersContainer.innerHTML = "Error fetching users";
+    console.error(error);
+    return;
+  }
+
+  const now = new Date();
+  usersContainer.innerHTML = ""; // clear previous
+
+  data.forEach(user => {
+    let diffText;
+    if(user.last_seen){
+      const lastSeenDate = new Date(user.last_seen);
+      const diffMs = now - lastSeenDate;             // milliseconds
+      const diffMin = (diffMs / 1000 / 60).toFixed(2); // minutes
+      diffText = `${diffMin} min ago`;               // just the difference
+    } else {
+      diffText = "No last_seen info";
+    }
+
+    const div = document.createElement("div");
+    div.className = "user";
+    div.innerHTML = `<span>${user.full_name || user.id}</span>: ${diffText}`;
+    usersContainer.appendChild(div);
+  });
+}
+
+// Initial run
+checkLastSeen();
+
+// Refresh every 30 seconds
+setInterval(checkLastSeen, 30000);
+
+</script>
+</body>
+</html>
