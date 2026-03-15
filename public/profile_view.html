@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>View Profile</title>
+<style>
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  color: #050505;
+  padding-bottom: 80px;
+}
+
+.profile-container {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.profile-header {
+  padding: 20px;
+  text-align: center;
+  background: linear-gradient(135deg,#6a11cb,#2575fc);
+  color: white;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+.profile-header img {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 4px solid white;
+  object-fit: cover;
+  margin-bottom: 10px;
+}
+
+.username {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.bio {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-top: 5px;
+}
+
+.chat-btn {
+  margin-top: 15px;
+  padding: 10px 16px;
+  background: #1877f2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  width: 90%;
+}
+
+.posts-container {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.post-card {
+  background: #fff;
+  border-radius: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.15s ease;
+}
+
+.post-card:hover {
+  transform: translateY(-2px);
+}
+
+.post-header {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  gap: 12px;
+}
+
+.post-header img {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.post-header .name {
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.post-content {
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.post-media {
+  position: relative;
+  cursor: pointer;
+}
+
+.post-media img,
+.post-media video {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  border-bottom-left-radius: 15px;
+  border-bottom-right-radius: 15px;
+}
+
+.video-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-overlay svg {
+  width: 60px;
+  height: 60px;
+}
+
+.navbar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  min-width: 300px;
+  max-width: 480px;
+  height: 60px;
+  background: #fff;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  box-shadow: 0 -1px 5px rgba(0,0,0,0.15);
+  border-radius: 30px;
+  padding: 0 10px;
+  z-index: 1000;
+}
+
+.nav-icon {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.nav-icon:hover {
+  background: #e4e6eb;
+}
+
+.nav-icon svg {
+  width: 28px;
+  height: 28px;
+  fill: #1877f2;
+}
+
+.nav-icon.active svg {
+  fill: #050505;
+}
+</style>
+</head>
+<body>
+
+<div class="profile-container">
+  <div class="profile-header">
+    <img id="avatar" src="https://via.placeholder.com/120">
+    <div class="username" id="username">Username</div>
+    <div class="bio" id="bio">User bio</div>
+    <button class="chat-btn" id="chatBtn">Chat</button>
+  </div>
+
+  <div class="posts-container" id="postsContainer">
+    <div style="text-align:center;color:#777;">Loading posts...</div>
+  </div>
+</div>
+
+<!-- NAVBAR -->
+<div class="navbar">
+  <div class="nav-icon" id="toHome">
+    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+  </div>
+  <div class="nav-icon" id="toProfile">
+    <svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2c-3.3 0-9.9 1.7-9.9 5v3h19.8v-3c0-3.3-6.6-5-9.9-5z"/></svg>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const avatar = document.getElementById("avatar");
+const username = document.getElementById("username");
+const bio = document.getElementById("bio");
+const postsContainer = document.getElementById("postsContainer");
+const chatBtn = document.getElementById("chatBtn");
+
+document.getElementById("toHome").onclick = ()=>location.href="social.html";
+document.getElementById("toProfile").onclick = ()=>location.href="profile.html";
+
+// Get profileId from URL
+const params = new URLSearchParams(window.location.search);
+const profileId = params.get("profileId");
+
+async function loadProfile(){
+  const { data: { session } } = await supabase.auth.getSession();
+  if(!session) return;
+  const userId = session.user.id;
+
+  // Fetch profile
+  const { data: profile } = await supabase.from("profile").select("*").eq("id", profileId).single();
+  if(!profile) return alert("Profile not found");
+
+  avatar.src = profile.avatar_url || "https://via.placeholder.com/120";
+  username.textContent = profile.full_name;
+  bio.textContent = profile.bio || "";
+
+  // Chat button: hide if visiting own profile
+  if(profileId === userId){
+    chatBtn.style.display = "none";
+  } else {
+    chatBtn.onclick = () => location.href = `chat.html?profileId=${profileId}`;
+  }
+
+  // Load posts
+  const { data: posts } = await supabase.from("posts").select("*").eq("user_id", profileId).order("created_at",{ascending:false});
+  postsContainer.innerHTML = "";
+  if(!posts.length){ postsContainer.innerHTML = `<div style="text-align:center;color:#777;">No posts yet</div>`; return; }
+
+  posts.forEach(post=>{
+    const card = document.createElement("div");
+    card.className="post-card";
+
+    let media = "";
+    if(post.image_url) media = `<div class="post-media"><img src="${post.image_url}" alt="post image"></div>`;
+    if(post.video_url) media = `<div class="post-media"><video src="${post.video_url}" muted loop></video>
+      <div class="video-overlay">
+        <svg width="60" height="60" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="32" fill="rgba(0,0,0,0.5)"/>
+          <polygon points="26,20 26,44 46,32" fill="white"/>
+        </svg>
+      </div>
+    </div>`;
+
+    card.innerHTML = `
+      <div class="post-header">
+        <img src="${avatar.src}" alt="avatar">
+        <div class="name">${username.textContent}</div>
+      </div>
+      ${post.content ? `<div class="post-content">${post.content}</div>` : ""}
+      ${media}
+    `;
+    postsContainer.appendChild(card);
+
+    // Clicking video opens it
+    const videoEl = card.querySelector("video");
+    if(videoEl) videoEl.parentElement.addEventListener("click",()=>window.location.href=`view-video.html?video=${encodeURIComponent(post.video_url)}`);
+  });
+}
+
+loadProfile();
+</script>
+
+</body>
+</html>
