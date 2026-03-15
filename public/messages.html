@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages</title>
+
+<style>
+
+body{
+margin:0;
+font-family:system-ui,-apple-system,Segoe UI,Roboto;
+background:#f4f4f4;
+}
+
+.container{
+max-width:520px;
+margin:auto;
+}
+
+.header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:14px;
+background:white;
+border-bottom:1px solid #e5e5e5;
+font-size:18px;
+font-weight:600;
+}
+
+.search-btn{
+cursor:pointer;
+display:flex;
+align-items:center;
+justify-content:center;
+width:34px;
+height:34px;
+border-radius:50%;
+}
+
+.search-btn:hover{
+background:#f1f1f1;
+}
+
+/* USERS TOP */
+
+.users-top{
+display:flex;
+overflow-x:auto;
+gap:14px;
+padding:10px;
+background:white;
+border-bottom:1px solid #eee;
+}
+
+.user-card{
+position:relative;
+flex:0 0 auto;
+display:flex;
+flex-direction:column;
+align-items:center;
+font-size:12px;
+color:#444;
+cursor:pointer;
+}
+
+.user-card img{
+width:48px;
+height:48px;
+border-radius:50%;
+object-fit:cover;
+}
+
+.online-dot{
+position:absolute;
+bottom:2px;
+right:2px;
+width:11px;
+height:11px;
+border-radius:50%;
+border:2px solid white;
+}
+
+/* CONVERSATIONS */
+
+.conversation-list{
+margin-top:6px;
+}
+
+.conversation{
+display:flex;
+align-items:center;
+gap:12px;
+padding:12px;
+background:white;
+border-bottom:1px solid #eee;
+cursor:pointer;
+}
+
+.conversation img{
+width:44px;
+height:44px;
+border-radius:50%;
+object-fit:cover;
+}
+
+.conv-info{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+.conv-name{
+font-size:14px;
+font-weight:600;
+display:flex;
+justify-content:space-between;
+}
+
+.conv-last{
+font-size:12px;
+color:#555;
+display:flex;
+align-items:center;
+gap:5px;
+}
+
+.last-message-time{
+font-size:11px;
+color:#888;
+}
+
+.unread-message{
+background:#f2f5ff;
+}
+
+.unread-count{
+background:#1877f2;
+color:white;
+font-size:11px;
+border-radius:10px;
+padding:1px 6px;
+margin-left:5px;
+}
+
+.typing-indicator{
+font-size:12px;
+color:#1877f2;
+font-style:italic;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+Messages
+
+<span id="searchUsers" class="search-btn">
+
+<svg viewBox="0 0 24 24" width="22" height="22">
+<circle cx="11" cy="11" r="7" stroke="#333" stroke-width="2" fill="none"/>
+<line x1="16.5" y1="16.5" x2="21" y2="21" stroke="#333" stroke-width="2"/>
+</svg>
+
+</span>
+
+</div>
+
+<div id="usersTop" class="users-top"></div>
+
+<div id="conversationList" class="conversation-list"></div>
+
+</div>
+
+<script type="module">
+
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+"https://eimecuiixwgmpfpedxpr.supabase.co",
+"sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersTop = document.getElementById("usersTop");
+const conversationList = document.getElementById("conversationList");
+const searchUsers = document.getElementById("searchUsers");
+
+const { data:{ session } } = await supabase.auth.getSession();
+if(!session){ alert("Not logged in"); throw new Error("No session"); }
+
+const userId = session.user.id;
+
+
+/* helpers */
+
+function nowLusakaUTC(){
+const now=new Date();
+const offset=-120;
+return new Date(now.getTime()-offset*60*1000);
+}
+
+function isActive(lastSeen){
+if(!lastSeen) return false;
+const diff=(nowLusakaUTC()-new Date(lastSeen))/1000/60;
+return diff<2;
+}
+
+
+/* update own last seen */
+
+async function updateLastSeen(){
+await supabase
+.from("profile")
+.update({last_seen:nowLusakaUTC().toISOString()})
+.eq("id",userId);
+}
+
+updateLastSeen();
+setInterval(updateLastSeen,30000);
+
+
+/* search redirect */
+
+searchUsers.addEventListener("click",()=>{
+window.location.href="search.html";
+});
+
+
+/* load users */
+
+let allUsers=[];
+
+async function loadUsers(){
+
+const {data:users,error} =
+await supabase
+.from("profile")
+.select("id,full_name,avatar_url,last_seen")
+.neq("id",userId);
+
+if(error){ console.error(error); return; }
+
+allUsers=users;
+
+renderUsers();
+
+}
+
+function renderUsers(){
+
+usersTop.innerHTML="";
+
+allUsers.forEach(u=>{
+
+const active=isActive(u.last_seen);
+
+const card=document.createElement("div");
+card.className="user-card";
+
+card.innerHTML=`
+
+<img src="${u.avatar_url||'https://via.placeholder.com/60'}">
+
+<span class="online-dot"
+style="background:${active?'green':'grey'}"></span>
+
+<div>${u.full_name||u.id}</div>
+
+<div class="typing-indicator"
+style="display:none"></div>
+
+`;
+
+card.onclick=()=>openConversation(u.id);
+
+usersTop.appendChild(card);
+
+});
+
+}
+
+
+/* conversations */
+
+let convElements={};
+
+async function loadConversations(){
+
+const {data:convs,error} =
+await supabase
+.from("conversations")
+.select(`
+id,
+user1_id,
+user2_id,
+typing,
+user1:profile!user1_id(full_name,avatar_url,last_seen),
+user2:profile!user2_id(full_name,avatar_url,last_seen)
+`)
+.or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+.order("updated_at",{ascending:false});
+
+if(error){ console.error(error); return; }
+
+for(const c of convs){
+
+const other =
+c.user1_id===userId ? c.user2 : c.user1;
+
+const active=isActive(other.last_seen);
+
+const {data:messages} =
+await supabase
+.from("messages")
+.select("*")
+.eq("conversation_id",c.id)
+.order("created_at",{ascending:false})
+.limit(1);
+
+let lastMsg=messages.length?messages[0].content:"";
+let lastMsgSender=messages.length?messages[0].sender_id:null;
+let lastMsgRead=messages.length?messages[0].read:false;
+let lastMsgMedia=messages.length?messages[0].media_url:null;
+
+if(lastMsgMedia){
+
+const ext=lastMsgMedia.split(".").pop().toLowerCase();
+
+if(['png','jpg','jpeg','gif','bmp','webp'].includes(ext))
+lastMsg=`${other.full_name} sent an image`;
+
+else if(['mp4','mov','avi','mkv','webm'].includes(ext))
+lastMsg=`${other.full_name} sent a video`;
+
+else
+lastMsg=`${other.full_name} sent a file`;
+
+}
+
+const {data:unread} =
+await supabase
+.from("messages")
+.select("id")
+.eq("conversation_id",c.id)
+.eq("read",false)
+.neq("sender_id",userId);
+
+const unreadCount=unread.length;
+
+let conv=convElements[c.id];
+
+if(!conv){
+
+conv=document.createElement("div");
+conv.className="conversation";
+
+conv.onclick=()=>openConversation(c.id);
+
+conversationList.appendChild(conv);
+
+convElements[c.id]=conv;
+
+}
+
+conv.className="conversation";
+if(unreadCount>0) conv.classList.add("unread-message");
+
+conv.innerHTML=`
+
+<img src="${other.avatar_url||'https://via.placeholder.com/50'}">
+
+<span class="online-dot"
+style="position:absolute;top:10px;left:44px;width:10px;height:10px;background:${active?'green':'grey'}"></span>
+
+<div class="conv-info">
+
+<div class="conv-name">
+
+${other.full_name || other.id}
+
+${unreadCount>0?`<span class="unread-count">${unreadCount}</span>`:''}
+
+</div>
+
+<div class="conv-last">
+
+${lastMsg}
+
+<span class="last-message-time">
+
+${messages.length?new Date(messages[0].created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):''}
+
+</span>
+
+${lastMsgSender===userId?`<span class="last-message-time">${lastMsgRead?'✔✔':'✔'}</span>`:''}
+
+</div>
+
+<div class="typing-indicator" style="display:none">
+
+typing...
+
+</div>
+
+</div>
+
+`;
+
+supabase
+.channel("chat-"+c.id)
+.on('postgres_changes',
+{event:'UPDATE',schema:'public',table:'conversations',filter:`id=eq.${c.id}`},
+payload=>{
+
+const typingUsers=
+Object.keys(payload.new.typing||{})
+.filter(uid=>payload.new.typing[uid] && uid!==userId);
+
+const typingDiv=
+conv.querySelector(".typing-indicator");
+
+typingDiv.style.display=
+typingUsers.length?"block":"none";
+
+})
+
+.on('postgres_changes',
+{event:'INSERT',schema:'public',table:'messages',filter:`conversation_id=eq.${c.id}`},
+payload=>{
+
+const lastMsgDiv=conv.querySelector(".conv-last");
+
+const tick=
+payload.new.sender_id===userId ?
+(payload.new.read?'✔✔':'✔') : '';
+
+if(payload.new.sender_id!==userId){
+
+conv.classList.add("unread-message");
+
+const countSpan=conv.querySelector(".unread-count");
+
+if(countSpan)
+countSpan.textContent=parseInt(countSpan.textContent)+1;
+
+else{
+
+const span=document.createElement("span");
+span.className="unread-count";
+span.textContent="1";
+
+conv.querySelector(".conv-name").appendChild(span);
+
+}
+
+}
+
+let msgContent=payload.new.content;
+
+if(payload.new.media_url){
+
+const ext=payload.new.media_url.split('.').pop().toLowerCase();
+
+if(['png','jpg','jpeg','gif','bmp','webp'].includes(ext))
+msgContent=`${other.full_name} sent an image`;
+
+else if(['mp4','mov','avi','mkv','webm'].includes(ext))
+msgContent=`${other.full_name} sent a video`;
+
+else
+msgContent=`${other.full_name} sent a file`;
+
+}
+
+lastMsgDiv.textContent=msgContent+" ";
+
+const timeSpan=document.createElement("span");
+timeSpan.className="last-message-time";
+timeSpan.textContent=
+new Date(payload.new.created_at)
+.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+
+lastMsgDiv.appendChild(timeSpan);
+
+if(tick)
+lastMsgDiv.appendChild(document.createTextNode(" "+tick));
+
+})
+
+.subscribe();
+
+}
+
+}
+
+
+/* open conversation */
+
+function openConversation(id){
+window.location.href=`view-chat.html?conversationId=${id}`;
+}
+
+
+/* initial */
+
+await loadUsers();
+await loadConversations();
+
+setInterval(()=>{
+loadUsers();
+loadConversations();
+},30000);
+
+</script>
+
+</body>
+  </html>
