@@ -293,7 +293,7 @@ async function loadProfile(){
         if(error) return alert("Error creating conversation");
         conversationId = newConv.id;
       }
-      window.location.href = `chat.html?conversationId=${conversationId}`;
+      window.location.href = `view-chat.html?conversationId=${conversationId}`;
     };
   }
 
