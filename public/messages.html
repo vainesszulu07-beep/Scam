@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages</title>
+
+<style>
+
+body{
+margin:0;
+font-family:system-ui,-apple-system,Segoe UI,Roboto;
+background:#f4f4f4;
+}
+
+.container{
+max-width:520px;
+margin:auto;
+}
+
+/* HEADER */
+
+.header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:14px;
+background:white;
+border-bottom:1px solid #e5e5e5;
+font-size:18px;
+font-weight:600;
+}
+
+.search-btn{
+cursor:pointer;
+display:flex;
+align-items:center;
+justify-content:center;
+width:34px;
+height:34px;
+border-radius:50%;
+}
+
+.search-btn:hover{
+background:#f1f1f1;
+}
+
+/* LOADING */
+
+.loader{
+display:flex;
+justify-content:center;
+align-items:center;
+padding:30px;
+}
+
+.spinner{
+width:26px;
+height:26px;
+border:3px solid #ddd;
+border-top:3px solid #555;
+border-radius:50%;
+animation:spin 0.8s linear infinite;
+}
+
+@keyframes spin{
+0%{transform:rotate(0deg)}
+100%{transform:rotate(360deg)}
+}
+
+/* USERS */
+
+.users-top{
+display:flex;
+overflow-x:auto;
+gap:14px;
+padding:10px;
+background:white;
+border-bottom:1px solid #eee;
+}
+
+.user-card{
+position:relative;
+flex:0 0 auto;
+display:flex;
+flex-direction:column;
+align-items:center;
+font-size:12px;
+color:#444;
+cursor:pointer;
+}
+
+.user-card img{
+width:48px;
+height:48px;
+border-radius:50%;
+object-fit:cover;
+}
+
+.online-dot{
+position:absolute;
+bottom:2px;
+right:2px;
+width:11px;
+height:11px;
+border-radius:50%;
+border:2px solid white;
+}
+
+/* CONVERSATIONS */
+
+.conversation-list{
+margin-top:6px;
+}
+
+.conversation{
+display:flex;
+align-items:center;
+gap:12px;
+padding:12px;
+background:white;
+border-bottom:1px solid #eee;
+cursor:pointer;
+position:relative;
+touch-action:pan-y;
+}
+
+.conv-avatar{
+position:relative;
+}
+
+.conv-avatar img{
+width:44px;
+height:44px;
+border-radius:50%;
+object-fit:cover;
+}
+
+.conv-avatar .online-dot{
+bottom:0;
+right:0;
+}
+
+.conv-info{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+.conv-name{
+font-size:14px;
+font-weight:600;
+display:flex;
+justify-content:space-between;
+}
+
+.conv-last{
+font-size:12px;
+color:#555;
+display:flex;
+align-items:center;
+gap:5px;
+}
+
+.last-message-time{
+font-size:11px;
+color:#888;
+}
+
+.unread-message{
+background:#f2f5ff;
+}
+
+.unread-count{
+background:#1877f2;
+color:white;
+font-size:11px;
+border-radius:10px;
+padding:1px 6px;
+margin-left:5px;
+}
+
+.typing-indicator{
+font-size:12px;
+color:#1877f2;
+font-style:italic;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+Messages
+
+<span id="searchUsers" class="search-btn">
+
+<svg viewBox="0 0 24 24" width="22" height="22">
+<circle cx="11" cy="11" r="7" stroke="#333" stroke-width="2" fill="none"/>
+<line x1="16.5" y1="16.5" x2="21" y2="21" stroke="#333" stroke-width="2"/>
+</svg>
+
+</span>
+
+</div>
+
+<div id="usersTop" class="users-top"></div>
+
+<div id="conversationList" class="conversation-list">
+
+<div class="loader" id="loadingChats">
+<div class="spinner"></div>
+</div>
+
+</div>
+
+</div>
+
+<script type="module">
+
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+"https://eimecuiixwgmpfpedxpr.supabase.co",
+"sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersTop = document.getElementById("usersTop");
+const conversationList = document.getElementById("conversationList");
+const searchUsers = document.getElementById("searchUsers");
+const loadingChats = document.getElementById("loadingChats");
+
+const { data:{ session } } = await supabase.auth.getSession();
+if(!session){ alert("Not logged in"); throw new Error("No session"); }
+
+const userId = session.user.id;
+
+
+/* helpers */
+
+function nowLusakaUTC(){
+const now=new Date();
+const offset=-120;
+return new Date(now.getTime()-offset*60*1000);
+}
+
+function isActive(lastSeen){
+if(!lastSeen) return false;
+const diff=(nowLusakaUTC()-new Date(lastSeen))/1000/60;
+return diff<2;
+}
+
+
+/* update own last seen */
+
+async function updateLastSeen(){
+await supabase
+.from("profile")
+.update({last_seen:nowLusakaUTC().toISOString()})
+.eq("id",userId);
+}
+
+updateLastSeen();
+setInterval(updateLastSeen,30000);
+
+
+/* search redirect */
+
+searchUsers.addEventListener("click",()=>{
+window.location.href="search.html";
+});
+
+
+/* load users */
+
+let allUsers=[];
+
+async function loadUsers(){
+
+const {data:users,error} =
+await supabase
+.from("profile")
+.select("id,full_name,avatar_url,last_seen")
+.neq("id",userId);
+
+if(error){ console.error(error); return; }
+
+allUsers=users;
+
+renderUsers();
+
+}
+
+function renderUsers(){
+
+usersTop.innerHTML="";
+
+allUsers.forEach(u=>{
+
+const active=isActive(u.last_seen);
+
+const card=document.createElement("div");
+card.className="user-card";
+
+card.innerHTML=`
+
+<img src="${u.avatar_url||'https://via.placeholder.com/60'}">
+
+<span class="online-dot"
+style="background:${active?'green':'grey'}"></span>
+
+<div>${u.full_name||u.id}</div>
+
+<div class="typing-indicator"
+style="display:none"></div>
+
+`;
+
+card.onclick=()=>openConversation(u.id);
+
+usersTop.appendChild(card);
+
+});
+
+}
+
+
+/* swipe gesture */
+
+function enableSwipe(element, callback){
+
+let startX=0;
+
+element.addEventListener("touchstart",e=>{
+startX=e.touches[0].clientX;
+});
+
+element.addEventListener("touchend",e=>{
+let endX=e.changedTouches[0].clientX;
+if(Math.abs(endX-startX)>60){
+callback();
+}
+});
+
+}
+
+
+/* conversations */
+
+let convElements={};
+
+async function loadConversations(){
+
+const {data:convs,error} =
+await supabase
+.from("conversations")
+.select(`
+id,
+user1_id,
+user2_id,
+typing,
+user1:profile!user1_id(full_name,avatar_url,last_seen),
+user2:profile!user2_id(full_name,avatar_url,last_seen)
+`)
+.or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+.order("updated_at",{ascending:false});
+
+if(error){ console.error(error); return; }
+
+loadingChats.style.display="none";
+
+for(const c of convs){
+
+const other =
+c.user1_id===userId ? c.user2 : c.user1;
+
+const active=isActive(other.last_seen);
+
+let conv=convElements[c.id];
+
+if(!conv){
+
+conv=document.createElement("div");
+conv.className="conversation";
+
+conv.onclick=()=>openConversation(c.id);
+
+enableSwipe(conv,()=>openConversation(c.id));
+
+conversationList.appendChild(conv);
+
+convElements[c.id]=conv;
+
+}
+
+conv.innerHTML=`
+
+<div class="conv-avatar">
+
+<img src="${other.avatar_url||'https://via.placeholder.com/50'}">
+
+<span class="online-dot"
+style="background:${active?'green':'grey'}"></span>
+
+</div>
+
+<div class="conv-info">
+
+<div class="conv-name">
+
+${other.full_name || other.id}
+
+</div>
+
+<div class="conv-last">
+
+loading...
+
+</div>
+
+<div class="typing-indicator" style="display:none">
+
+typing...
+
+</div>
+
+</div>
+
+`;
+
+}
+
+}
+
+
+/* open conversation */
+
+function openConversation(id){
+window.location.href=`view-chat.html?conversationId=${id}`;
+}
+
+
+/* initial */
+
+await loadUsers();
+await loadConversations();
+
+setInterval(()=>{
+loadUsers();
+loadConversations();
+},30000);
+
+</script>
+
+</body>
+  </html>
