@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile</title>
+
+<style>
+
+/* ------------------ BASIC BODY ------------------ */
+body{
+margin:0;
+font-family:"Segoe UI",Tahoma,Verdana;
+background:#f0f2f5;
+color:#050505;
+padding-bottom:80px;
+}
+
+body:not(.loaded) .profile-container{
+visibility:hidden;
+}
+
+/* ------------------ PROFILE CONTAINER ------------------ */
+
+.profile-container{
+max-width:480px;
+margin:0 auto;
+position:relative;
+padding-bottom:40px;
+}
+
+/* ------------------ HEADER ------------------ */
+
+.profile-header{
+padding:20px 10px 40px 10px;
+text-align:center;
+background:linear-gradient(135deg,#6a11cb,#2575fc);
+color:white;
+border-bottom-left-radius:20px;
+border-bottom-right-radius:20px;
+box-shadow:0 3px 8px rgba(0,0,0,0.15);
+position:relative;
+}
+
+/* ------------------ AVATAR ------------------ */
+
+.profile-header img{
+width:110px;
+height:110px;
+border-radius:50%;
+border:4px solid white;
+object-fit:cover;
+cursor:pointer;
+transition:transform .15s;
+}
+
+.profile-header img:active{
+transform:scale(.95);
+}
+
+/* ------------------ THOUGHT CLOUD ------------------ */
+
+.thought-container{
+position:absolute;
+top:-5px;
+left:50%;
+transform:translateX(-50%);
+display:flex;
+flex-direction:column;
+align-items:center;
+}
+
+.bubble-small{
+width:8px;
+height:8px;
+background:white;
+border-radius:50%;
+margin-top:3px;
+}
+
+.bubble-mid{
+width:14px;
+height:14px;
+background:white;
+border-radius:50%;
+margin-top:3px;
+}
+
+.note-cloud{
+background:white;
+color:#333;
+padding:6px 12px;
+border-radius:25px;
+font-size:13px;
+max-width:140px;
+box-shadow:0 4px 12px rgba(0,0,0,0.2);
+display:flex;
+align-items:center;
+gap:6px;
+}
+
+.note-action{
+cursor:pointer;
+font-size:14px;
+font-weight:bold;
+color:#1877f2;
+}
+
+/* ------------------ USERNAME ------------------ */
+
+.username{
+font-size:20px;
+font-weight:bold;
+margin-top:10px;
+}
+
+.bio{
+font-size:14px;
+opacity:.9;
+margin-top:5px;
+}
+
+/* ------------------ BUTTONS ------------------ */
+
+.buttons-container{
+margin-top:15px;
+display:flex;
+gap:10px;
+justify-content:center;
+}
+
+.profile-btn{
+flex:1;
+padding:10px 0;
+border:none;
+border-radius:8px;
+font-size:15px;
+cursor:pointer;
+color:white;
+}
+
+#addPostBtn{background:#1877f2;}
+#startChatBtn{background:#4CAF50;}
+
+/* ------------------ POSTS ------------------ */
+
+.posts-container{
+padding:10px;
+display:flex;
+flex-direction:column;
+gap:15px;
+}
+
+.post-card{
+background:#fff;
+border-radius:15px;
+box-shadow:0 2px 8px rgba(0,0,0,0.12);
+overflow:hidden;
+position:relative;
+}
+
+.post-header{
+display:flex;
+align-items:center;
+padding:12px;
+gap:12px;
+}
+
+.post-header img{
+width:45px;
+height:45px;
+border-radius:50%;
+}
+
+.post-header .name{
+font-weight:bold;
+font-size:15px;
+}
+
+.post-options{
+margin-left:auto;
+cursor:pointer;
+font-size:20px;
+}
+
+.delete-menu{
+position:absolute;
+right:10px;
+top:35px;
+background:white;
+border-radius:8px;
+box-shadow:0 2px 8px rgba(0,0,0,0.2);
+display:none;
+}
+
+.delete-menu button{
+border:none;
+background:none;
+padding:8px 16px;
+cursor:pointer;
+width:100%;
+text-align:left;
+}
+
+.delete-menu button:hover{
+background:#eee;
+}
+
+/* ------------------ NAVBAR ------------------ */
+
+.navbar{
+position:fixed;
+bottom:0;
+left:50%;
+transform:translateX(-50%);
+min-width:300px;
+max-width:480px;
+height:60px;
+background:#fff;
+display:flex;
+justify-content:space-around;
+align-items:center;
+box-shadow:0 -1px 5px rgba(0,0,0,0.15);
+border-radius:30px;
+z-index:1000;
+}
+
+.nav-icon{
+width:50px;
+height:50px;
+display:flex;
+align-items:center;
+justify-content:center;
+cursor:pointer;
+}
+
+.nav-icon svg{
+width:28px;
+height:28px;
+fill:#1877f2;
+}
+
+.nav-icon.active svg{
+fill:#050505;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="profile-container">
+
+<div class="profile-header">
+
+<div class="thought-container">
+
+<div class="note-cloud">
+<span id="noteText">Write something</span>
+<span id="noteAction" class="note-action">+</span>
+</div>
+
+<div class="bubble-mid"></div>
+<div class="bubble-small"></div>
+
+</div>
+
+<img id="avatar" src="https://via.placeholder.com/120">
+
+<div class="username" id="username">Username</div>
+<div class="bio" id="bio">User bio</div>
+
+<div class="buttons-container">
+<button class="profile-btn" id="addPostBtn">Add Post</button>
+<button class="profile-btn" id="startChatBtn">Chat</button>
+</div>
+
+</div>
+
+<div class="posts-container" id="postsContainer">
+<div style="text-align:center;color:#777;">Loading posts...</div>
+</div>
+
+</div>
+
+<div class="navbar">
+<div class="nav-icon" id="toHome"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>
+<div class="nav-icon active" id="toProfile"><svg viewBox="0 0 24 24"><path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2c-3.3 0-9.9 1.7-9.9 5v3h19.8v-3c0-3.3-6.6-5-9.9-5z"/></svg></div>
+<div class="nav-icon" id="toUsers"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 3-1.57 3-3.5S17.66 4 16 4s-3 1.57-3 3.5S14.34 11 16 11zm-8 0c1.66 0 3-1.57 3-3.5S9.66 4 8 4 5 5.57 5 7.5 6.34 11 8 11z"/></svg></div>
+<div class="nav-icon" id="toSettings"><svg viewBox="0 0 24 24"><path d="M19.4 12.9c.04-.3.06-.6.06-.9s-.02-.6-.06-.9l2.1-1.6-2-3.5-2.5 1c-.5-.4-1-.7-1.6-.9L14.5 2h-5l-.4 2.9c-.6.2-1.2.5-1.6.9l-2.5-1-2 3.5 2.1 1.6c-.04.3-.06.6-.06.9s.02.6.06.9l-2.1 1.6 2 3.5 2.5-1c.5.4 1 .7 1.6.9l.4 2.9h5l.4-2.9c.6-.2 1.2-.5 1.6-.9l2.5 1 2-3.5-2.1-1.6z"/></svg></div>
+</div>
+
+<script type="module">
+
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase=createClient(
+"https://eimecuiixwgmpfpedxpr.supabase.co",
+"sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const avatar=document.getElementById("avatar");
+const username=document.getElementById("username");
+const bio=document.getElementById("bio");
+
+const noteText=document.getElementById("noteText");
+const noteAction=document.getElementById("noteAction");
+
+const postsContainer=document.getElementById("postsContainer");
+
+let editing=false;
+
+/* NAV */
+
+toUsers.onclick=()=>location.href="users.html";
+toHome.onclick=()=>location.href="social.html";
+toSettings.onclick=()=>location.href="settings.html";
+
+async function loadProfile(){
+
+const {data:{session}}=await supabase.auth.getSession();
+const logged=session.user.id;
+
+const params=new URLSearchParams(location.search);
+const profileId=params.get("profileId")||logged;
+
+const {data:profile}=await supabase
+.from("profile")
+.select("*")
+.eq("id",profileId)
+.single();
+
+avatar.src=profile.avatar_url||"https://via.placeholder.com/120";
+username.textContent=profile.full_name;
+bio.textContent=profile.bio||"";
+
+noteText.textContent=profile.notes||"Write something";
+
+const isOwn=logged===profileId;
+
+avatar.onclick=()=>{
+if(isOwn) location.href="manage.html";
+};
+
+if(!isOwn) noteAction.style.display="none";
+
+noteAction.onclick=async()=>{
+
+if(!editing){
+editing=true;
+noteText.contentEditable=true;
+noteText.focus();
+noteAction.textContent="✔";
+}else{
+
+editing=false;
+noteText.contentEditable=false;
+noteAction.textContent="+";
+
+await supabase
+.from("profile")
+.update({
+notes:noteText.textContent,
+note_created_at:new Date()
+})
+.eq("id",profileId);
+
+}
+
+};
+
+/* LOAD POSTS */
+
+const {data:posts}=await supabase
+.from("posts")
+.select("*")
+.eq("user_id",profileId)
+.order("created_at",{ascending:false});
+
+postsContainer.innerHTML="";
+
+if(!posts || posts.length===0){
+
+postsContainer.innerHTML='<div style="text-align:center;color:#777;">No posts yet</div>';
+
+}else{
+
+posts.forEach(post=>{
+
+const card=document.createElement("div");
+card.className="post-card";
+
+let menuHTML="";
+
+if(isOwn){
+menuHTML=`
+<div class="post-options">⋮</div>
+<div class="delete-menu">
+<button class="deleteBtn">Delete</button>
+</div>
+`;
+}
+
+card.innerHTML=`
+
+<div class="post-header">
+
+<img src="${avatar.src}">
+<div class="name">${username.textContent}</div>
+
+${menuHTML}
+
+</div>
+
+${post.content ? `<div style="padding:10px">${post.content}</div>`:""}
+
+${post.image_url ? `<img src="${post.image_url}" style="width:100%">`:""}
+
+${post.video_url ? `<video src="${post.video_url}" controls style="width:100%"></video>`:""}
+
+`;
+
+postsContainer.appendChild(card);
+
+/* DELETE MENU */
+
+if(isOwn){
+
+const options=card.querySelector(".post-options");
+const menu=card.querySelector(".delete-menu");
+const deleteBtn=card.querySelector(".deleteBtn");
+
+options.onclick=()=>{
+
+menu.style.display=menu.style.display==="block"?"none":"block";
+
+};
+
+deleteBtn.onclick=async()=>{
+
+if(!confirm("Delete this post?")) return;
+
+if(post.image_url){
+
+await fetch("api/delete-image.js",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({url:post.image_url,postId:post.id})
+});
+
+}
+
+if(post.video_url){
+
+await fetch("api/delete-video.js",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({url:post.video_url,postId:post.id})
+});
+
+}
+
+card.remove();
+
+};
+
+}
+
+});
+
+}
+
+document.body.classList.add("loaded");
+
+}
+
+loadProfile();
+
+</script>
+
+</body>
+                                     </html>
