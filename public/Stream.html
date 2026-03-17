@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Live Stream</title>
+
+<style>
+/* BODY */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto;
+  background: #f0f2f5;
+  padding-bottom: 90px;
+}
+
+/* APP CONTAINER */
+.app {
+  max-width: 480px;
+  margin: auto;
+  background: white;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* COVER */
+.cover {
+  height: 200px;
+  position: relative;
+  overflow: hidden;
+  background: #ddd;
+}
+
+/* PROFILE PIC */
+.profile-pic {
+  position: absolute;
+  bottom: -40px;
+  left: 16px;
+  width: 95px;
+  height: 95px;
+  border-radius: 50%;
+  border: 4px solid white;
+  object-fit: cover;
+  background: #eee;
+}
+
+/* INFO */
+.info {
+  margin-top: 50px;
+  padding: 0 16px;
+}
+.name {
+  font-size: 20px;
+  font-weight: 600;
+}
+.bio {
+  font-size: 14px;
+  color: #65676b;
+  margin-top: 4px;
+}
+
+/* BUTTONS */
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+.btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.add { background: #1877f2; color: white; }
+.chat { background: #e4e6eb; }
+
+/* LIVE STATUS */
+.status {
+  margin-top: 10px;
+  font-weight: 600;
+  color: green;
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- COVER -->
+  <div class="cover">
+    <img id="avatar" class="profile-pic">
+  </div>
+
+  <!-- INFO -->
+  <div class="info">
+    <div class="name" id="name">Loading...</div>
+    <div class="bio" id="bio"></div>
+    <div class="status" id="status">Status: Offline</div>
+
+    <div class="buttons">
+      <button id="startStreamBtn" class="btn add">Start Stream</button>
+      <button id="watchStreamBtn" class="btn chat">Watch Stream</button>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// Supabase front-end (publishable key)
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+// Elements
+const avatar = document.getElementById('avatar');
+const nameEl = document.getElementById('name');
+const bioEl = document.getElementById('bio');
+const statusEl = document.getElementById('status');
+const startBtn = document.getElementById('startStreamBtn');
+const watchBtn = document.getElementById('watchStreamBtn');
+
+let loggedUser = null;
+
+// Get current session user
+async function getSessionUser() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if(error || !session) {
+    alert("Login required");
+    window.location.href = "login.html";
+    return;
+  }
+  loggedUser = session.user.id;
+}
+
+// Load profile info
+async function loadProfile() {
+  const { data: profile, error } = await supabase
+    .from('profile')
+    .select('*')
+    .eq('id', loggedUser)
+    .single();
+  if(error) return console.error(error);
+
+  avatar.src = profile.avatar_url || 'https://via.placeholder.com/100';
+  nameEl.textContent = profile.full_name;
+  bioEl.textContent = profile.bio || '';
+  statusEl.textContent = profile.is_live ? 'Status: Live' : 'Status: Offline';
+}
+
+// Start live stream (calls your backend)
+startBtn.onclick = async () => {
+  const response = await fetch('/api/create-stream', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ userId: loggedUser })
+  });
+  const data = await response.json();
+  if(data.success){
+    statusEl.textContent = 'Status: Live';
+    alert('Stream started! Stream Key: ' + data.data.mux_stream_key);
+  } else {
+    alert('Error: ' + data.error);
+  }
+};
+
+// Watch your own stream
+watchBtn.onclick = async () => {
+  const { data: profile } = await supabase
+    .from('profile')
+    .select('mux_playback_id')
+    .eq('id', loggedUser)
+    .single();
+  
+  if(profile && profile.mux_playback_id){
+    window.open(`https://stream.mux.com/${profile.mux_playback_id}.m3u8`, '_blank');
+  } else {
+    alert('No active stream.');
+  }
+};
+
+// Initialize
+await getSessionUser();
+await loadProfile();
+</script>
+</body>
+  </html>
