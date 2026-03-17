@@ -10,7 +10,7 @@ const mux = new Mux({
 
 const supabase = createClient(
   'https://eimecuiixwgmpfpedxpr.supabase.co', // Supabase URL
-  'YOUR_SUPABASE_SERVICE_ROLE_KEY_HERE'      // Service Role Key
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVpbWVjdWlpeHdnbXBmcGVkeHByIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA0MjQ3NCwiZXhwIjoyMDg2NjE4NDc0fQ.735Jlm22UZ3JICXCxsP5CyVIN-Bsn4j0XqFTU61bILg'      // Service Role Key
 );
 
 // ---------- API HANDLER ----------
