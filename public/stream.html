@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stream Minimal</title>
+<style>
+  body { font-family: system-ui; padding: 20px; background: #f0f2f5; }
+  #msg { white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 6px; }
+  button { padding: 10px 16px; font-size: 14px; margin-top: 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h2>Streamer Dashboard</h2>
+<button id="startBtn">Start / Get Stream</button>
+<div id="msg">Press button to start stream...</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const msgEl = document.getElementById('msg');
+const startBtn = document.getElementById('startBtn');
+let userId = null;
+
+async function getUser() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if(error || !session){
+    msgEl.textContent = "Login required";
+    return;
+  }
+  userId = session.user.id;
+}
+
+startBtn.onclick = async () => {
+  if(!userId){
+    msgEl.textContent = "Fetching user session...";
+    await getUser();
+    if(!userId) return;
+  }
+
+  try {
+    const res = await fetch('/api/create-daily-room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
+
+    let data;
+    try { data = await res.json(); }
+    catch(e){
+      const text = await res.text();
+      msgEl.textContent = "Non-JSON response:\n" + text;
+      return;
+    }
+
+    if(data.success){
+      msgEl.textContent = "Stream ready!\nRoom URL: " + data.roomUrl;
+    } else {
+      msgEl.textContent = "Error:\n" + JSON.stringify(data.error, null, 2);
+    }
+
+  } catch(err){
+    msgEl.textContent = "Network / JS error:\n" + err.message;
+  }
+}
+
+await getUser();
+</script>
+
+</body>
+</html>
