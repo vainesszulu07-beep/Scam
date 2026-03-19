@@ -1,0 +1,22 @@
+{
+  "name": "live-stream-app",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Live streaming platform with Supabase & Daily.co",
+  "scripts": {
+    "dev": "npx live-server --port=5500"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.33.0",
+    "cloudinary": "^2.9.0",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
+    "@daily-co/daily-js": "^0.41.0"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}
