@@ -155,7 +155,7 @@ async function loadProfile() {
 
 // Start live stream (calls your backend)
 startBtn.onclick = async () => {
-  const response = await fetch('/api/create-stream', {
+  const response = await fetch('/api/create-stream.js', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ userId: loggedUser })
