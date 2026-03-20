@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streamer Live</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui;
+    background: #f0f2f5;
+    padding: 20px;
+  }
+
+  h2 {
+    margin-bottom: 10px;
+  }
+
+  #controls {
+    margin-bottom: 10px;
+  }
+
+  button {
+    padding: 10px 16px;
+    margin-right: 6px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #1877f2;
+    color: white;
+  }
+
+  button:hover {
+    opacity: 0.9;
+  }
+
+  video {
+    width: 100%;
+    height: 60vh;
+    background: black;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+
+  #msg {
+    white-space: pre-wrap;
+    background: #fff;
+    padding: 10px;
+    border-radius: 6px;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>🔴 Live Streamer</h2>
+
+<div id="controls">
+  <button id="cameraBtn">Stop Camera</button>
+  <button id="micBtn">Mute Mic</button>
+  <button id="endBtn">End Stream</button>
+</div>
+
+<video id="localVideo" autoplay muted playsinline></video>
+
+<div id="msg">Initializing...</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+import { io } from "https://cdn.jsdelivr.net/npm/socket.io-client/dist/socket.io.esm.min.js";
+
+// =========================
+// CONFIG
+// =========================
+const BACKEND_URL = "https://scamming-lg3v.onrender.com";
+
+// =========================
+// SUPABASE
+// =========================
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+// =========================
+// ELEMENTS
+// =========================
+const msgEl = document.getElementById('msg');
+const videoEl = document.getElementById('localVideo');
+const cameraBtn = document.getElementById('cameraBtn');
+const micBtn = document.getElementById('micBtn');
+const endBtn = document.getElementById('endBtn');
+
+// =========================
+// STATE
+// =========================
+let userId = null;
+let localStream = null;
+let socket = null;
+let peers = {};
+
+let cameraOn = true;
+let micOn = true;
+
+// =========================
+// GET USER
+// =========================
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    msgEl.textContent = "❌ Login required";
+    return false;
+  }
+
+  userId = session.user.id;
+  return true;
+}
+
+// =========================
+// START STREAM
+// =========================
+async function startStream() {
+  try {
+    // Get camera & mic
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    });
+
+    videoEl.srcObject = localStream;
+
+    // Connect socket
+    socket = io(BACKEND_URL);
+
+    // Join as streamer
+    socket.emit('join-room', {
+      roomId: userId,
+      isStreamer: true
+    });
+
+    msgEl.textContent = "🔴 LIVE\nRoom ID: " + userId;
+
+    // =====================
+    // VIEWER JOINS
+    // =====================
+    socket.on('viewer-joined', async ({ viewerSocketId }) => {
+      msgEl.textContent = "👀 Viewer joined";
+
+      const pc = new RTCPeerConnection();
+      peers[viewerSocketId] = pc;
+
+      // Send video/audio
+      localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream);
+      });
+
+      // ICE
+      pc.onicecandidate = event => {
+        if (event.candidate) {
+          socket.emit('signal', {
+            to: viewerSocketId,
+            signalData: { candidate: event.candidate }
+          });
+        }
+      };
+
+      // Create offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      socket.emit('signal', {
+        to: viewerSocketId,
+        signalData: { sdp: pc.localDescription }
+      });
+    });
+
+    // =====================
+    // RECEIVE SIGNALS
+    // =====================
+    socket.on('signal', async ({ from, signalData }) => {
+      const pc = peers[from];
+      if (!pc) return;
+
+      if (signalData.sdp) {
+        await pc.setRemoteDescription(signalData.sdp);
+      }
+
+      if (signalData.candidate) {
+        await pc.addIceCandidate(signalData.candidate);
+      }
+    });
+
+  } catch (err) {
+    msgEl.textContent = "❌ Camera error: " + err.message;
+  }
+}
+
+// =========================
+// CONTROLS
+// =========================
+cameraBtn.onclick = () => {
+  if (!localStream) return;
+
+  cameraOn = !cameraOn;
+  localStream.getVideoTracks()[0].enabled = cameraOn;
+
+  cameraBtn.textContent = cameraOn ? "Stop Camera" : "Start Camera";
+};
+
+micBtn.onclick = () => {
+  if (!localStream) return;
+
+  micOn = !micOn;
+  localStream.getAudioTracks()[0].enabled = micOn;
+
+  micBtn.textContent = micOn ? "Mute Mic" : "Unmute Mic";
+};
+
+endBtn.onclick = async () => {
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+  }
+
+  if (socket) socket.disconnect();
+
+  peers = {};
+
+  await supabase
+    .from('profile')
+    .update({
+      is_live: false,
+      stream_ended_at: new Date(),
+      stream_camera_on: false,
+      stream_mic_on: false
+    })
+    .eq('id', userId);
+
+  msgEl.textContent = "⛔ Stream ended";
+};
+
+// =========================
+// INIT
+// =========================
+getUser().then(ok => {
+  if (ok) startStream();
+});
+</script>
+
+</body>
+  </html>
