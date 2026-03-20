@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viewer</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: system-ui;
+    background: #f0f2f5;
+    padding: 20px;
+  }
+
+  h2 {
+    margin-bottom: 10px;
+  }
+
+  input, button {
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 6px;
+    border: none;
+  }
+
+  button {
+    background: #1877f2;
+    color: white;
+    cursor: pointer;
+  }
+
+  video {
+    width: 100%;
+    height: 60vh;
+    background: black;
+    border-radius: 10px;
+    margin-top: 10px;
+  }
+
+  #msg {
+    margin-top: 10px;
+    background: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>👀 Viewer</h2>
+
+<input type="text" id="roomInput" placeholder="Enter Streamer Room ID">
+<br>
+<button id="joinBtn">Join Stream</button>
+
+<video id="remoteVideo" autoplay playsinline></video>
+
+<div id="msg">Enter room ID and join.</div>
+
+<script type="module">
+import { io } from "https://cdn.jsdelivr.net/npm/socket.io-client/dist/socket.io.esm.min.js";
+
+// =========================
+// CONFIG
+// =========================
+const BACKEND_URL = "https://scamming-lg3v.onrender.com";
+
+// 🔥 HARDCODED VIEWER ID
+const viewerId = "viewer_12345";
+
+// =========================
+// ELEMENTS
+// =========================
+const joinBtn = document.getElementById('joinBtn');
+const roomInput = document.getElementById('roomInput');
+const videoEl = document.getElementById('remoteVideo');
+const msgEl = document.getElementById('msg');
+
+// =========================
+// STATE
+// =========================
+let socket = null;
+let pc = null;
+
+// =========================
+// JOIN STREAM
+// =========================
+joinBtn.onclick = async () => {
+  const roomId = roomInput.value.trim();
+
+  if (!roomId) {
+    msgEl.textContent = "❌ Enter room ID";
+    return;
+  }
+
+  msgEl.textContent = "Connecting...";
+
+  socket = io(BACKEND_URL);
+
+  pc = new RTCPeerConnection();
+
+  // Receive stream
+  pc.ontrack = event => {
+    videoEl.srcObject = event.streams[0];
+    msgEl.textContent = "✅ Watching stream";
+  };
+
+  // ICE
+  pc.onicecandidate = event => {
+    if (event.candidate) {
+      socket.emit('signal', {
+        roomId,
+        signalData: { candidate: event.candidate }
+      });
+    }
+  };
+
+  // Join room as viewer
+  socket.emit('join-room', {
+    roomId,
+    viewerId
+  });
+
+  // Receive signaling
+  socket.on('signal', async ({ from, signalData }) => {
+    try {
+      if (signalData.sdp) {
+        await pc.setRemoteDescription(signalData.sdp);
+
+        // If offer → send answer
+        if (signalData.sdp.type === 'offer') {
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          socket.emit('signal', {
+            to: from,
+            signalData: { sdp: pc.localDescription }
+          });
+        }
+      }
+
+      if (signalData.candidate) {
+        await pc.addIceCandidate(signalData.candidate);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  // Stream ended
+  socket.on('stream-ended', () => {
+    msgEl.textContent = "⛔ Stream ended";
+    videoEl.srcObject = null;
+  });
+};
+</script>
+
+</body>
+</html>
