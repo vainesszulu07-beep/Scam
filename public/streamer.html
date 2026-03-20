@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streamer Minimal</title>
+<style>
+  body { font-family: system-ui; padding: 20px; background: #f0f2f5; }
+  button { padding: 10px 16px; margin-right: 6px; margin-top: 10px; cursor: pointer; }
+  video { width: 100%; height: 60vh; background: black; margin-top: 10px; }
+  #msg { white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 6px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h2>Streamer Dashboard</h2>
+<button id="startBtn">Start Stream</button>
+<button id="cameraBtn">Stop Camera</button>
+<button id="micBtn">Mute Mic</button>
+<button id="endBtn">End Stream</button>
+
+<video id="localVideo" autoplay muted playsinline></video>
+<div id="msg">Initializing...</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+import { io } from "https://cdn.jsdelivr.net/npm/socket.io-client/dist/socket.io.esm.min.js";
+
+// --- Supabase client ---
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const msgEl = document.getElementById('msg');
+const videoEl = document.getElementById('localVideo');
+
+let userId = null;
+let localStream = null;
+let pc = null;
+let socket = null;
+let cameraOn = true;
+let micOn = true;
+
+// --- Get logged-in user ---
+async function getUser() {
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session) {
+    msgEl.textContent = "Login required";
+    return false;
+  }
+  userId = session.user.id;
+  return true;
+}
+
+// --- Start Stream ---
+async function startStream() {
+  if (!userId) {
+    const ok = await getUser();
+    if (!ok) return;
+  }
+
+  msgEl.textContent = "Starting stream...";
+
+  // 1️⃣ Update backend table
+  const res = await fetch('/api/start-stream', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ userId })
+  });
+  const data = await res.json();
+  if (!data.success) {
+    msgEl.textContent = "Error starting stream:\n" + JSON.stringify(data.error);
+    return;
+  }
+
+  // 2️⃣ Get camera & mic
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  videoEl.srcObject = localStream;
+
+  // 3️⃣ Setup WebRTC peer connection
+  pc = new RTCPeerConnection();
+
+  // Add local tracks
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  // Handle ICE candidates
+  pc.onicecandidate = event => {
+    if (event.candidate) {
+      socket.emit('signal', { roomId: userId, signalData: { candidate: event.candidate } });
+    }
+  };
+
+  // 4️⃣ Connect to backend Socket.IO
+  socket = io("https://scamming-lg3v.onrender.com"); // your backend URL
+  socket.emit('join-room', userId);
+
+  socket.on('signal', async ({ from, signalData }) => {
+    try {
+      if (signalData.sdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription(signalData.sdp));
+        if (signalData.sdp.type === 'offer') {
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          socket.emit('signal', { roomId: userId, to: from, signalData: pc.localDescription });
+        }
+      }
+      if (signalData.candidate) {
+        await pc.addIceCandidate(signalData.candidate);
+      }
+    } catch(e) {
+      console.error("Signal error", e);
+    }
+  });
+
+  // 5️⃣ Create initial offer
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('signal', { roomId: userId, signalData: offer });
+
+  msgEl.textContent = "Streaming live! Room ID: " + userId;
+}
+
+// --- Buttons ---
+document.getElementById('cameraBtn').onclick = async () => {
+  if (!localStream) return;
+  cameraOn = !cameraOn;
+  localStream.getVideoTracks()[0].enabled = cameraOn;
+  document.getElementById('cameraBtn').textContent = cameraOn ? "Stop Camera" : "Start Camera";
+
+  await fetch('/api/update-stream', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ userId, stream_camera_on: cameraOn })
+  });
+};
+
+document.getElementById('micBtn').onclick = async () => {
+  if (!localStream) return;
+  micOn = !micOn;
+  localStream.getAudioTracks()[0].enabled = micOn;
+  document.getElementById('micBtn').textContent = micOn ? "Mute Mic" : "Unmute Mic";
+
+  await fetch('/api/update-stream', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ userId, stream_mic_on: micOn })
+  });
+};
+
+document.getElementById('endBtn').onclick = async () => {
+  if (pc) pc.close();
+  if (socket) socket.disconnect();
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+
+  await fetch('/api/stop-stream', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ userId })
+  });
+
+  msgEl.textContent = "Stream ended.";
+};
+
+// --- Initialize ---
+if (await getUser()) startStream();
+</script>
+
+</body>
+</html>
