@@ -53,7 +53,7 @@
       output.innerText = "✅ User ID: " + userId + "\nCreating room...";
 
       // 2️⃣ Call backend to create room using this userId
-      const res = await fetch("https://YOUR_BACKEND_URL/api/create-room", {
+      const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId })
