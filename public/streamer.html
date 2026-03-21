@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoSDK Auto Room + Live Stream</title>
+<style>
+  body {
+    font-family: Arial;
+    padding: 20px;
+    background: #f4f4f4;
+  }
+  button {
+    padding: 10px;
+    margin: 5px 0;
+    width: 250px;
+    cursor: pointer;
+  }
+  #output {
+    margin-top: 20px;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #ccc;
+    white-space: pre-wrap;
+  }
+  video {
+    margin-top: 20px;
+    width: 100%;
+    max-height: 400px;
+    background: black;
+  }
+</style>
+</head>
+<body>
+
+<h2>Auto Create Your Room + Start Live Stream</h2>
+
+<button id="createBtn">Create Room & Start Stream</button>
+
+<div id="output">Loading session...</div>
+<video id="video" autoplay muted playsinline></video>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// Initialize Supabase
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const btn = document.getElementById("createBtn");
+const output = document.getElementById("output");
+const videoEl = document.getElementById("video");
+
+let stream;
+let pc;
+
+btn.onclick = async () => {
+  try {
+    output.innerText = "Getting your user session from Supabase...";
+
+    // 1️⃣ Get current session
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (!session) throw new Error("❌ No active user session");
+
+    const userId = session.user.id;
+    output.innerText = "✅ Session found!\nUser ID: " + userId + "\nCreating room...";
+
+    // 2️⃣ Call backend to create room
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+
+    const dataRoom = await res.json();
+    if (!dataRoom.success) throw new Error(JSON.stringify(dataRoom));
+
+    output.innerText =
+      "✅ Room Created!\nRoom ID: " + dataRoom.roomId + "\nStarting stream...";
+
+    // 3️⃣ Get camera + mic
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    videoEl.srcObject = stream;
+
+    // 4️⃣ Create WebRTC connection
+    pc = new RTCPeerConnection();
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // 5️⃣ Send SDP to VideoSDK
+    const sdpResp = await fetch(
+      `https://api.videosdk.live/v2/rooms/${dataRoom.roomId}/webrtc`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${dataRoom.hostToken}`,
+          "Content-Type": "application/sdp"
+        },
+        body: offer.sdp
+      }
+    );
+
+    const answer = await sdpResp.text();
+    await pc.setRemoteDescription({ type: "answer", sdp: answer });
+
+    output.innerText += "\n✅ Live Stream Started!";
+    console.log("ROOM ID:", dataRoom.roomId);
+    console.log("HOST TOKEN:", dataRoom.hostToken);
+
+  } catch (err) {
+    output.innerText = "❌ Error: " + err.message;
+    console.error(err);
+  }
+};
+</script>
+
+</body>
+</html>
