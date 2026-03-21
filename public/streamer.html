@@ -1,0 +1,57 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VideoSDK Room Creator</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, button { padding: 10px; margin: 5px 0; width: 200px; }
+    #result { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>Create a VideoSDK Room</h2>
+
+  <label for="userId">User ID:</label><br>
+  <input type="text" id="userId" placeholder="Enter user ID"><br>
+  <button id="createRoomBtn">Create Room</button>
+
+  <div id="result"></div>
+
+  <script>
+    const button = document.getElementById("createRoomBtn");
+    const resultDiv = document.getElementById("result");
+
+    button.addEventListener("click", async () => {
+      const userId = document.getElementById("userId").value.trim();
+      if (!userId) {
+        resultDiv.textContent = "Please enter a User ID.";
+        return;
+      }
+
+      resultDiv.textContent = "Creating room...";
+
+      try {
+        const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          resultDiv.textContent = `✅ Room created! Room ID: ${data.roomId}`;
+        } else {
+          resultDiv.textContent = `❌ Error: ${data.error || JSON.stringify(data.raw)}`;
+        }
+
+      } catch (err) {
+        resultDiv.textContent = `❌ Network error: ${err.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
