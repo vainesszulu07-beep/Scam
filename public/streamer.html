@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Stream</title>
+
+<style>
+  body {
+    font-family: system-ui;
+    background: #f0f2f5;
+    padding: 20px;
+  }
+
+  video {
+    width: 100%;
+    height: 60vh;
+    background: black;
+    margin-bottom: 10px;
+  }
+
+  button {
+    padding: 10px 15px;
+    margin-right: 5px;
+    cursor: pointer;
+  }
+
+  #msg {
+    white-space: pre-wrap;
+    background: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>🎥 Live Stream</h2>
+
+<video id="video" autoplay muted playsinline></video>
+
+<div>
+  <button id="start">Start Stream</button>
+  <button id="stop">Stop Stream</button>
+</div>
+
+<div id="msg">Ready...</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// 🔥 PUT YOUR BACKEND URL HERE
+const BACKEND_URL = "https://scamming-lg3v.onrender.com/";
+
+// Supabase
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const msg = document.getElementById("msg");
+
+let stream;
+let pc;
+
+// =====================
+// GET USER SESSION
+// =====================
+const { data: { session } } = await supabase.auth.getSession();
+
+if (!session) {
+  msg.textContent = "❌ Not logged in";
+  throw new Error("No session");
+}
+
+const userId = session.user.id;
+
+// =====================
+// START STREAM
+// =====================
+document.getElementById("start").onclick = async () => {
+  try {
+    msg.textContent = "Starting...";
+
+    // 1. Get camera + mic
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    });
+
+    video.srcObject = stream;
+
+    // 2. Create room
+    const resp = await fetch(`${BACKEND_URL}/api/create-room`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId })
+    });
+
+    const data = await resp.json();
+
+    if (!data.success) {
+      console.error("BACKEND ERROR:", data);
+      throw new Error(JSON.stringify(data, null, 2));
+    }
+
+    const { roomId, hostToken } = data;
+
+    msg.textContent = `Room: ${roomId}`;
+
+    // 3. WebRTC setup
+    pc = new RTCPeerConnection();
+
+    stream.getTracks().forEach(track => {
+      pc.addTrack(track, stream);
+    });
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // 4. Send SDP
+    const sdpResp = await fetch(
+      `https://api.videosdk.live/v2/rooms/${roomId}/webrtc`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${hostToken}`,
+          "Content-Type": "application/sdp"
+        },
+        body: offer.sdp
+      }
+    );
+
+    const answer = await sdpResp.text();
+
+    console.log("RAW SDP RESPONSE:", answer);
+
+    // 🔥 Catch HTML errors
+    if (!answer.startsWith("v=")) {
+      throw new Error("Invalid SDP:\n\n" + answer);
+    }
+
+    await pc.setRemoteDescription({
+      type: "answer",
+      sdp: answer
+    });
+
+    msg.textContent += "\n\n✅ LIVE";
+
+  } catch (err) {
+    console.error("STREAM ERROR:", err);
+    msg.textContent = "❌ ERROR:\n\n" + err.message;
+  }
+};
+
+// =====================
+// STOP STREAM
+// =====================
+document.getElementById("stop").onclick = async () => {
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (pc) pc.close();
+
+    await fetch(`${BACKEND_URL}/api/stop-stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId })
+    });
+
+    msg.textContent = "🛑 Stopped";
+
+  } catch (err) {
+    msg.textContent = "Stop error:\n" + err.message;
+  }
+};
+</script>
+
+</body>
+  </html>
