@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VideoSDK Room + Host</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+      width: 250px;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Create Room + Host Token</h2>
+
+<input type="text" id="userId" placeholder="Enter user ID" />
+<br>
+<button id="createBtn">Create Room</button>
+
+<div id="output"></div>
+
+<script>
+  const btn = document.getElementById("createBtn");
+  const output = document.getElementById("output");
+
+  let roomId = "";
+  let hostToken = "";
+
+  btn.onclick = async () => {
+    const userId = document.getElementById("userId").value.trim();
+
+    if (!userId) {
+      output.innerText = "❌ Enter a user ID";
+      return;
+    }
+
+    output.innerText = "Creating room...";
+
+    try {
+      const res = await fetch("http://localhost:3000/api/create-room", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        output.innerText = "❌ Error:\n" + JSON.stringify(data, null, 2);
+        return;
+      }
+
+      // Save values
+      roomId = data.roomId;
+      hostToken = data.hostToken;
+
+      // Display result
+      output.innerText =
+        "✅ SUCCESS!\n\n" +
+        "User ID: " + data.userId + "\n" +
+        "Room ID: " + roomId + "\n\n" +
+        "Host Token:\n" + hostToken;
+
+      console.log("ROOM ID:", roomId);
+      console.log("HOST TOKEN:", hostToken);
+
+    } catch (err) {
+      output.innerText = "❌ Network error: " + err.message;
+    }
+  };
+</script>
+
+</body>
+</html>
