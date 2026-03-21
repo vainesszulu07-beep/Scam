@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VideoSDK Live Stream</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f4f4f4; color: #333; }
+    .container { max-width: 800px; margin: 0 auto; }
+    video { width: 100%; height: 60vh; background: #000; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .controls { display: flex; gap: 10px; margin-bottom: 15px; }
+    button { padding: 12px 24px; cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: opacity 0.2s; }
+    #start { background: #007bff; color: white; }
+    #stop { background: #dc3545; color: white; }
+    button:hover { opacity: 0.9; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    #output { white-space: pre-wrap; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>🎥 VideoSDK Live Stream</h2>
+  
+  <video id="videoElement" autoplay muted playsinline></video>
+
+  <div class="controls">
+    <button id="start">Start Stream</button>
+    <button id="stop" disabled>Stop Stream</button>
+  </div>
+
+  <div id="output">Ready...</div>
+</div>
+
+<!-- ✅ Correct deferred VideoSDK library -->
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js" defer></script>
+
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+  const supabase = createClient(
+    "https://eimecuiixwgmpfpedxpr.supabase.co",
+    "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+  );
+
+  const video = document.getElementById("videoElement");
+  const output = document.getElementById("output");
+  const startBtn = document.getElementById("start");
+  const stopBtn = document.getElementById("stop");
+
+  let meeting = null;
+
+  async function getUserSession() {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (!session) throw new Error("❌ Please log in to Supabase first.");
+    return session.user.id;
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    if (typeof VideoSDK === 'undefined') {
+      console.error("VideoSDK not loaded. Check your internet or script URL.");
+      output.textContent = "❌ VideoSDK not loaded.";
+      return;
+    }
+
+    startBtn.onclick = async () => {
+      try {
+        startBtn.disabled = true;
+        output.textContent = "Checking session...";
+        
+        const userId = await getUserSession();
+        output.textContent = `✅ User verified: ${userId}\nContacting backend...`;
+
+        const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId })
+        });
+
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "Backend error");
+
+        output.textContent = `✅ Room: ${data.roomId}\nInitializing Camera...`;
+
+        // ✅ Create custom camera track
+        const customTrack = await VideoSDK.createCameraVideoTrack({
+          optimizationMode: "motion",       // "motion" for moving objects, "detail" for static/text
+          encoderConfig: "h720p_30fps",     // Options: h1080p_30fps, h720p_15fps, etc.
+          facingMode: "user",               // "user" = front camera, "environment" = back camera
+        });
+
+        // Initialize VideoSDK with custom track
+        VideoSDK.config(data.hostToken);
+
+        meeting = VideoSDK.initMeeting({
+          meetingId: data.roomId,
+          name: "Host User",
+          micEnabled: true,
+          webcamEnabled: true,
+          customVideoTrack: customTrack, // <--- Use custom track
+        });
+
+        meeting.join();
+
+        // ✅ Correct event for local participant
+        meeting.on("meeting-joined", () => {
+          output.textContent += "\n✅ Joined Room!";
+          stopBtn.disabled = false;
+
+          const localParticipant = meeting.localParticipant;
+
+          localParticipant.on("stream-enabled", (stream) => {
+            if (stream.kind === "video") {
+              const mediaStream = new MediaStream();
+              mediaStream.addTrack(stream.track);
+              video.srcObject = mediaStream;
+              output.textContent += "\n🎥 STREAM LIVE!";
+            }
+          });
+        });
+
+        meeting.on("meeting-left", () => {
+          output.textContent = "🛑 Stream Ended.";
+          video.srcObject = null;
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+        });
+
+      } catch (err) {
+        output.textContent = "❌ ERROR: " + err.message;
+        startBtn.disabled = false;
+        console.error(err);
+      }
+    };
+
+    stopBtn.onclick = () => {
+      if (meeting) {
+        meeting.leave();
+        meeting = null;
+      }
+    };
+  });
+</script>
+
+</body>
+</html>
