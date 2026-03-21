@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Token Tester</title>
+
+<style>
+  body {
+    font-family: system-ui;
+    padding: 20px;
+    background: #f0f2f5;
+  }
+
+  input, select, button {
+    padding: 10px;
+    margin: 5px 0;
+    width: 100%;
+    max-width: 400px;
+    display: block;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  #output {
+    margin-top: 20px;
+    background: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>🔑 VideoSDK Token Tester</h2>
+
+<label>User ID</label>
+<input id="userId" placeholder="e.g. user_123" />
+
+<label>Room ID (optional)</label>
+<input id="roomId" placeholder="e.g. room_abc" />
+
+<label>Role</label>
+<select id="role">
+  <option value="host">Host</option>
+  <option value="viewer">Viewer</option>
+</select>
+
+<button id="getToken">Generate Token</button>
+
+<div id="output">Waiting...</div>
+
+<script>
+const BACKEND_URL = "https://scamming-lg3v.onrender.com"; // 🔥 change if needed
+
+const output = document.getElementById("output");
+
+document.getElementById("getToken").onclick = async () => {
+  try {
+    output.textContent = "Generating token...";
+
+    const userId = document.getElementById("userId").value;
+    const roomId = document.getElementById("roomId").value;
+    const role = document.getElementById("role").value;
+
+    const resp = await fetch(`${BACKEND_URL}/api/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId,
+        roomId,
+        role
+      })
+    });
+
+    const data = await resp.json();
+
+    output.textContent = JSON.stringify(data, null, 2);
+
+    console.log("TOKEN RESPONSE:", data);
+
+  } catch (err) {
+    console.error(err);
+    output.textContent = "❌ ERROR:\n\n" + err.message;
+  }
+};
+</script>
+
+</body>
+</html>
