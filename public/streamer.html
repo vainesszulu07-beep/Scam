@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Token Test</title>
+
+<style>
+  body {
+    font-family: system-ui;
+    padding: 20px;
+    background: #f0f2f5;
+  }
+
+  button {
+    padding: 10px 15px;
+    cursor: pointer;
+  }
+
+  #output {
+    margin-top: 20px;
+    background: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>🔑 Generate VideoSDK Token</h2>
+
+<button id="getToken">Get Token</button>
+
+<div id="output">Waiting...</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// 🔥 YOUR BACKEND
+const BACKEND_URL = "https://scamming-lg3v.onrender.com";
+
+// Supabase
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const output = document.getElementById("output");
+
+// =====================
+// BUTTON CLICK
+// =====================
+document.getElementById("getToken").onclick = async () => {
+  try {
+    output.textContent = "Getting session...";
+
+    // 1. Get session
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error("User not logged in");
+    }
+
+    const userId = session.user.id;
+
+    output.textContent = "Calling backend...";
+
+    // 2. Call backend
+    const resp = await fetch(`${BACKEND_URL}/api/create-room`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId })
+    });
+
+    const data = await resp.json();
+
+    // 3. Print EVERYTHING
+    output.textContent = JSON.stringify(data, null, 2);
+
+    // 4. Extra logs
+    console.log("FULL RESPONSE:", data);
+
+  } catch (err) {
+    console.error(err);
+    output.textContent = "❌ ERROR:\n\n" + err.message;
+  }
+};
+</script>
+
+</body>
+</html>
