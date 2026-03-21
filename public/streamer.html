@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoSDK Live Stream Test</title>
+<style>
+  body { font-family: system-ui; padding: 20px; background: #f0f2f5; }
+  input, button { padding: 8px 12px; margin: 5px 0; }
+  #output { margin-top: 15px; white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 6px; }
+  video { width: 100%; height: 50vh; background: black; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h2>🎥 VideoSDK Live Stream Test</h2>
+
+<label>User ID:</label><br>
+<input type="text" id="userId" placeholder="Enter user ID" value="test-user-123"><br>
+<button id="createRoomBtn">Create Room & Get Token</button>
+
+<div id="output">Room info and token will appear here...</div>
+<video id="video" autoplay muted playsinline></video>
+
+<script type="module">
+const BACKEND_URL = "https://scamming-lg3v.onrender.com"; // replace with your backend URL
+
+const output = document.getElementById("output");
+const video = document.getElementById("video");
+
+document.getElementById("createRoomBtn").onclick = async () => {
+  try {
+    const userId = document.getElementById("userId").value.trim();
+    if (!userId) return alert("Enter a user ID");
+
+    output.textContent = "Creating room...";
+
+    const resp = await fetch(`${BACKEND_URL}/api/create-room`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+
+    const data = await resp.json();
+
+    if (!data.success) {
+      output.textContent = "❌ Error:\n" + JSON.stringify(data, null, 2);
+      return;
+    }
+
+    const { roomId, hostToken } = data;
+
+    output.textContent = `
+✅ Room Created!
+User ID: ${userId}
+Room ID: ${roomId}
+Host Token: ${hostToken}
+`;
+
+    // Optional: start camera preview
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    video.srcObject = stream;
+
+    // You now have: userId, roomId, hostToken ready for SDP / WebRTC
+    // The actual SDP exchange can be done using hostToken and VideoSDK WebRTC API
+
+  } catch (err) {
+    console.error(err);
+    output.textContent = "❌ Fetch error:\n" + err.message;
+  }
+};
+</script>
+
+</body>
+</html>
