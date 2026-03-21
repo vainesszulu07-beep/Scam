@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoSDK Token & Room Test</title>
+<style>
+  body { font-family: system-ui; padding: 20px; background: #f0f2f5; }
+  button { padding: 10px 16px; cursor: pointer; margin-right: 10px; }
+  #output { margin-top: 10px; white-space: pre-wrap; background: #fff; padding: 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+
+<h2>🎯 VideoSDK Token & Room Test</h2>
+
+<button id="getTokenBtn">Generate Token</button>
+<button id="createRoomBtn" disabled>Create Room</button>
+
+<div id="output">Output will appear here...</div>
+
+<script>
+const BACKEND_URL = "https://scamming-lg3v.onrender.com"; // replace with your backend URL
+const output = document.getElementById("output");
+
+let generatedToken = null; // will store token for room creation
+
+// =====================
+// Step 1: Generate token
+// =====================
+document.getElementById("getTokenBtn").onclick = async () => {
+  try {
+    output.textContent = "Generating token...";
+
+    const payload = {
+      userId: "test-user-123" // you can change this
+    };
+
+    const resp = await fetch(`${BACKEND_URL}/api/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await resp.json();
+
+    if (!data.success) {
+      output.textContent = "❌ Error generating token:\n" + JSON.stringify(data, null, 2);
+      return;
+    }
+
+    generatedToken = data.token;
+    output.textContent = "✅ Token generated:\n" + generatedToken + "\n\nPayload:\n" + JSON.stringify(data.payload, null, 2);
+
+    document.getElementById("createRoomBtn").disabled = false;
+
+  } catch (err) {
+    output.textContent = "❌ Fetch error:\n" + err.message;
+  }
+};
+
+// =====================
+// Step 2: Create room using generated token
+// =====================
+document.getElementById("createRoomBtn").onclick = async () => {
+  if (!generatedToken) {
+    output.textContent = "❌ Generate token first!";
+    return;
+  }
+
+  try {
+    output.textContent = "Creating room...";
+
+    const payload = {
+      userId: "test-user-123", // same as token
+      token: generatedToken
+    };
+
+    const resp = await fetch(`${BACKEND_URL}/api/create-room`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await resp.json();
+
+    if (!data.success) {
+      output.textContent = "❌ Error creating room:\n" + JSON.stringify(data, null, 2);
+      return;
+    }
+
+    output.textContent = "✅ Room created!\n\nRoom ID: " + data.roomId + "\nHost Token:\n" + data.hostToken;
+
+  } catch (err) {
+    output.textContent = "❌ Fetch error:\n" + err.message;
+  }
+};
+</script>
+
+</body>
+  </html>
