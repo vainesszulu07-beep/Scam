@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VideoSDK Server Token Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f0f2f5;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    pre {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-top: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>VideoSDK Server Token Generator</h1>
+  <button id="generateBtn">Generate Server Token</button>
+
+  <pre id="result">Click the button to generate a token...</pre>
+
+  <script>
+    const button = document.getElementById("generateBtn");
+    const result = document.getElementById("result");
+
+    button.addEventListener("click", async () => {
+      result.textContent = "Generating token...";
+
+      try {
+        const response = await fetch("https://scamming-lg3v.onrender.com/api/server-token");
+        const data = await response.json();
+
+        if (data.success) {
+          result.textContent = JSON.stringify(data, null, 2);
+        } else {
+          result.textContent = "Error generating token:\n" + JSON.stringify(data, null, 2);
+        }
+      } catch (err) {
+        result.textContent = "Fetch error:\n" + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
