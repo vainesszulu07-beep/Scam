@@ -158,11 +158,17 @@ startBtn.onclick = async () => {
     await meeting.localParticipant.enableMic(audioTrack);
 
     // 5️⃣ Attach video once webcam is enabled
-    meeting.localParticipant.on("webcam-enabled", () => {
-      attachVideo(meeting.localParticipant);
-      status.textContent = "🔴 LIVE";
-      stopBtn.disabled = false;
-    });
+    // 5️⃣ Attach video once webcam track is enabled
+meeting.localParticipant.on("stream-enabled", (stream) => {
+  if (stream.kind === "video") {
+    const mediaStream = new MediaStream();
+    mediaStream.addTrack(stream.track);
+    video.srcObject = mediaStream;
+    video.play();
+    status.textContent = "🔴 LIVE";
+    stopBtn.disabled = false;
+  }
+});
 
     meeting.on("meeting-left", () => {
       video.srcObject = null;
