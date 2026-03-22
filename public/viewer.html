@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Streams with Floating Chat</title>
+
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; }
+  h2 { text-align: center; padding: 10px; }
+  #users { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
+  .card { background: white; border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; }
+  .card img { width: 80px; height: 80px; border-radius: 50%; }
+  .live { color: green; font-weight: bold; }
+  .offline { color: gray; }
+  #player { position: fixed; top: 0; left: 0; width: 100%; height: 60vh; background: black; display: none; }
+  video { width: 100%; height: 100%; }
+  #close { position: absolute; top: 10px; right: 10px; padding: 8px; background: red; color: white; border: none; }
+
+  /* Twitch-style floating chat */
+  #chat-container { position: absolute; bottom: 50px; left: 10px; width: 30%; pointer-events: none; }
+  .chat-message {
+    position: absolute;
+    right: 0;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    white-space: nowrap;
+    animation: moveUp 6s linear forwards;
+  }
+
+  @keyframes moveUp {
+    0% { transform: translateY(100%); opacity: 1; }
+    100% { transform: translateY(-300%); opacity: 0; }
+  }
+
+  /* Input for sending messages */
+  #chat-input-container {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    width: 30%;
+    display: flex;
+    pointer-events: auto;
+  }
+  #chat-input {
+    flex: 1;
+    padding: 5px;
+    border-radius: 5px 0 0 5px;
+    border: none;
+  }
+  #chat-send {
+    padding: 5px 10px;
+    border: none;
+    background: #007bff;
+    color: white;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<h2>📡 Live Users</h2>
+<div id="users"></div>
+
+<div id="player">
+  <button id="close">Close</button>
+  <video id="video" autoplay playsinline></video>
+  <div id="chat-container"></div>
+  <div id="chat-input-container">
+    <input type="text" id="chat-input" placeholder="Type a message..." />
+    <button id="chat-send">Send</button>
+  </div>
+</div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersDiv = document.getElementById("users");
+const video = document.getElementById("video");
+const player = document.getElementById("player");
+const closeBtn = document.getElementById("close");
+const chatContainer = document.getElementById("chat-container");
+const chatInput = document.getElementById("chat-input");
+const chatSend = document.getElementById("chat-send");
+
+let viewerId = "e0330e1d-4766-4bea-bed1-4c166a9104fa"; // Hardcoded viewer ID
+let viewerName = "Viewer";
+let meeting = null;
+let currentRoomId = null;
+
+// 📡 LOAD USERS
+async function loadUsers() {
+  const { data, error } = await supabase.from("profile").select("*");
+  if (error) { console.error(error); return; }
+
+  usersDiv.innerHTML = "";
+
+  data.forEach(user => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const isLive = user.is_live;
+
+    card.innerHTML = `
+      <img src="${user.avatar_url || 'https://via.placeholder.com/80'}">
+      <h4>${user.full_name || "No Name"}</h4>
+      <p class="${isLive ? 'live' : 'offline'}">${isLive ? '🟢 LIVE' : '⚫ OFFLINE'}</p>
+    `;
+
+    card.onclick = () => joinStream(user);
+    usersDiv.appendChild(card);
+  });
+}
+
+// 🎥 JOIN STREAM
+async function joinStream(user) {
+  if (!user.is_live) return;
+
+  try {
+    player.style.display = "block";
+    chatContainer.style.display = "block";
+
+    const token = user.videosdk_viewer_token;
+    const roomId = user.videosdk_room_id;
+    currentRoomId = roomId;
+    if (!token || !roomId) return;
+
+    VideoSDK.config(token);
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: roomId,
+      name: "Viewer",
+      participantId: viewerId,
+      micEnabled: false,
+      webcamEnabled: false
+    });
+
+    meeting.join();
+
+    meeting.on("participant-joined", participant => {
+      participant.on("stream-enabled", stream => {
+        if (stream.kind === "video") {
+          const mediaStream = new MediaStream();
+          mediaStream.addTrack(stream.track);
+          video.srcObject = mediaStream;
+          video.play();
+        }
+      });
+    });
+
+    meeting.on("meeting-left", () => {
+      video.srcObject = null;
+      player.style.display = "none";
+      chatContainer.style.display = "none";
+    });
+
+    loadMessages(roomId);
+    subscribeMessages(roomId);
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// ❌ CLOSE PLAYER
+closeBtn.onclick = () => {
+  if (meeting) { meeting.leave(); meeting = null; }
+  video.srcObject = null;
+  player.style.display = "none";
+  chatContainer.style.display = "none";
+};
+
+// ✉️ SEND MESSAGE
+async function sendMessage(msg) {
+  if (!msg) return;
+  await supabase.from("chat_messages").insert({
+    room_id: currentRoomId,
+    user_id: viewerId,
+    user_name: viewerName,
+    message: msg
+  });
+  chatInput.value = ""; // clear input
+}
+
+// 🔄 LOAD MESSAGES
+async function loadMessages(roomId) {
+  const { data } = await supabase.from("chat_messages")
+    .select("*")
+    .eq("room_id", roomId)
+    .order("created_at", { ascending: true });
+
+  data.forEach(msg => displayChatMessage(msg));
+}
+
+// 🔄 SUBSCRIBE TO REALTIME MESSAGES
+function subscribeMessages(roomId) {
+  supabase.from(`chat_messages:room_id=eq.${roomId}`)
+    .on("INSERT", payload => displayChatMessage(payload.new))
+    .subscribe();
+}
+
+// 💬 DISPLAY CHAT MESSAGE (floating)
+function displayChatMessage(msg) {
+  const div = document.createElement("div");
+  div.className = "chat-message";
+  div.textContent = `${msg.user_name}: ${msg.message}`;
+  chatContainer.appendChild(div);
+
+  setTimeout(async () => {
+    div.remove();
+    await supabase.from("chat_messages").delete()
+      .eq("id", msg.id);
+  }, 6000);
+}
+
+// 🔹 Send message on button click
+chatSend.onclick = () => sendMessage(chatInput.value);
+
+// 🔹 Send message on Enter key
+chatInput.addEventListener("keydown", e => {
+  if (e.key === "Enter") sendMessage(chatInput.value);
+});
+
+// 🔄 AUTO REFRESH USERS
+setInterval(loadUsers, 5000);
+
+// 🚀 INITIAL LOAD
+loadUsers();
+</script>
+
+</body>
+  </html>
