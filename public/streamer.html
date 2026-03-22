@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live</title>
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; text-align: center; }
+  video { width: 100%; height: 55vh; background: black; }
+  button {
+    padding: 12px; width: 90%; margin: 10px;
+    border: none; border-radius: 8px; font-weight: bold;
+  }
+  #start { background: green; color: white; }
+  #stop { background: red; color: white; }
+  #status { padding: 10px; background: white; }
+</style>
+</head>
+<body>
+
+<h2>🎥 Go Live</h2>
+
+<video id="video" autoplay muted playsinline></video>
+<div id="status">Ready...</div>
+<button id="start">Start Stream</button>
+<button id="stop" disabled>Stop Stream</button>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+
+let meeting = null;
+let currentUserId = null;
+
+// 🎥 Attach camera video to <video>
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(stream.track);
+      video.srcObject = mediaStream;
+      video.play();
+      status.textContent = "🔴 LIVE";
+    }
+  });
+}
+
+// 👤 Get logged-in user
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+// 💾 Save stream info to DB
+async function saveStreamToDB(userId, data) {
+  const { error } = await supabase
+    .from("profile")
+    .update({
+      is_live: true,
+      stream_started_at: new Date().toISOString(),
+      videosdk_room_id: data.roomId,
+      videosdk_host_token: data.hostToken,
+      videosdk_viewer_token: data.viewerToken,
+      stream_camera_on: true,
+      stream_mic_on: true
+    })
+    .eq("id", userId);
+  if (error) throw error;
+}
+
+// 🧹 Clear stream from DB
+async function clearStreamFromDB(userId) {
+  const { data, error } = await supabase
+    .from("profile")
+    .update({
+      is_live: false,
+      stream_ended_at: new Date().toISOString(),
+      videosdk_room_id: null,
+      videosdk_host_token: null,
+      videosdk_viewer_token: null,
+      stream_camera_on: false,
+      stream_mic_on: false
+    })
+    .eq("id", userId)
+    .select();
+  if (error) throw error;
+
+  const updated = data[0];
+  if (
+    updated.is_live === false &&
+    updated.videosdk_room_id === null &&
+    updated.videosdk_host_token === null &&
+    updated.videosdk_viewer_token === null &&
+    updated.stream_camera_on === false &&
+    updated.stream_mic_on === false
+  ) return true;
+
+  throw new Error("Database cleanup failed");
+}
+
+// 🚀 START STREAM (1080p high-quality, single resolution)
+startBtn.onclick = async () => {
+  try {
+    startBtn.disabled = true;
+    status.textContent = "Starting HD stream...";
+
+    const userId = await getUser();
+    currentUserId = userId;
+
+    // 1️⃣ Create high-quality custom video track
+    const customTrack = await VideoSDK.createCameraVideoTrack({
+      optimizationMode: "detail",
+      encoderConfig: "h1080p_w1920p",
+      bitrateMode: "high_quality",
+      multiStream: false,   // Force single highest quality
+      maxLayer: 3
+    });
+
+    // 2️⃣ Create room on backend
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error("Failed to create stream");
+
+    await saveStreamToDB(userId, data);
+    VideoSDK.config(data.hostToken);
+
+    // 3️⃣ Init meeting with webcam disabled (we attach customTrack manually)
+    meeting = VideoSDK.initMeeting({
+      meetingId: data.roomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: true,
+      webcamEnabled: false
+    });
+
+    await meeting.join();
+
+    // 4️⃣ Get audio track and enable both video & audio
+    const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const audioTrack = audioStream.getAudioTracks()[0];
+
+    await meeting.localParticipant.enableWebcam(customTrack);
+    await meeting.localParticipant.enableMic(audioTrack);
+
+    // 5️⃣ Attach video once webcam is enabled
+    meeting.localParticipant.on("webcam-enabled", () => {
+      attachVideo(meeting.localParticipant);
+      status.textContent = "🔴 LIVE";
+      stopBtn.disabled = false;
+    });
+
+    meeting.on("meeting-left", () => {
+      video.srcObject = null;
+      status.textContent = "Stream ended";
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ " + err.message;
+    startBtn.disabled = false;
+  }
+};
+
+// 🛑 STOP STREAM
+stopBtn.onclick = async () => {
+  try {
+    status.textContent = "Stopping stream...";
+    const success = await clearStreamFromDB(currentUserId);
+
+    if (success) {
+      if (meeting) {
+        meeting.leave();
+        meeting = null;
+      }
+      if (customTrack) {
+        customTrack.stop();
+      }
+      video.srcObject = null;
+      status.textContent = "🛑 Stream Ended";
+    }
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Failed to stop cleanly: " + err.message;
+  }
+
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+};
+</script>
+
+</body>
+  </html>
