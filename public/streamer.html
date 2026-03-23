@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live with Server Recording</title>
+
+<style>
+body { margin: 0; font-family: Arial; background: #f4f4f4; text-align: center; }
+video { width: 100%; height: 55vh; background: black; }
+
+button {
+  padding: 12px; width: 90%; margin: 10px;
+  border: none; border-radius: 8px; font-weight: bold;
+}
+
+#start { background: green; color: white; }
+#stop { background: red; color: white; }
+#frontCam, #backCam { background: #007bff; color: white; }
+
+#status { padding: 10px; background: white; }
+
+#uploadProgressOverlay {
+  display:none;
+  position: fixed;
+  top:0; left:0; width:100%; height:100%;
+  background: rgba(0,0,0,0.5);
+  color: white; font-size: 20px;
+  justify-content: center; align-items: center;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🎥 Go Live</h2>
+<video id="video" autoplay muted playsinline></video>
+<div id="status">Ready...</div>
+
+<button id="start">Start Stream</button>
+<button id="stop" disabled>Stop Stream</button>
+<button id="frontCam">Front Camera</button>
+<button id="backCam">Back Camera</button>
+
+<div id="uploadProgressOverlay">
+  Uploading: <span id="progressPercent">0%</span>
+</div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+// UI
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const frontBtn = document.getElementById("frontCam");
+const backBtn = document.getElementById("backCam");
+const overlay = document.getElementById("uploadProgressOverlay");
+const progress = document.getElementById("progressPercent");
+
+// STATE
+let meeting = null;
+let currentUserId = null;
+let customTrack = null;
+let currentXHR = null;
+
+// Attach video
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const ms = new MediaStream();
+      ms.addTrack(stream.track);
+      video.srcObject = ms;
+      video.play();
+      status.textContent = "🔴 LIVE";
+    }
+  });
+}
+
+// Switch camera
+async function switchCamera(facingMode) {
+  try {
+    if (!meeting) return;
+
+    status.textContent = "Switching camera...";
+
+    if (customTrack) {
+      await meeting.disableWebcam();
+      customTrack.stop?.();
+      customTrack.close?.();
+    }
+
+    customTrack = await VideoSDK.createCameraVideoTrack({
+      facingMode,
+      encoderConfig: "h1080p_w1920p"
+    });
+
+    await meeting.enableWebcam(customTrack);
+    attachVideo(meeting.localParticipant);
+
+    status.textContent = "Camera switched";
+  } catch (err) {
+    status.textContent = "❌ " + err.message;
+  }
+}
+
+frontBtn.onclick = () => switchCamera("user");
+backBtn.onclick = () => switchCamera("environment");
+
+// Get user
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+// START STREAM
+startBtn.onclick = async () => {
+  try {
+    startBtn.disabled = true;
+    status.textContent = "Authorizing...";
+
+    const userId = await getUser();
+    currentUserId = userId;
+
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ userId })
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error("Room creation failed");
+
+    await VideoSDK.config(data.hostToken);
+
+    // START RECORDING (SERVER)
+    await fetch("/api/start-recording", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ roomId: data.roomId })
+    });
+
+    customTrack = await VideoSDK.createCameraVideoTrack({
+      facingMode: "user",
+      encoderConfig: "h1080p_w1920p"
+    });
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: data.roomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: true,
+      webcamEnabled: false
+    });
+
+    meeting.join();
+
+    meeting.on("meeting-joined", async () => {
+      stopBtn.disabled = false;
+
+      while (!meeting.localParticipant) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      await meeting.enableWebcam(customTrack);
+      attachVideo(meeting.localParticipant);
+    });
+
+  } catch (err) {
+    status.textContent = "❌ " + err.message;
+    startBtn.disabled = false;
+  }
+};
+
+// STOP STREAM
+stopBtn.onclick = async () => {
+  try {
+    status.textContent = "🛑 Stopping stream...";
+
+    // Stop recording
+    const res = await fetch("/api/stop-recording", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ roomId: meeting.roomId })
+    });
+
+    const text = await res.text();
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error("RAW:", text);
+      throw new Error("Invalid recording response");
+    }
+
+    const recordingUrl = data.recordingUrl;
+
+    status.textContent = "🎬 Processing recording...";
+    await new Promise(r => setTimeout(r, 5000));
+
+    if (recordingUrl) {
+      await uploadToCloudinary(recordingUrl);
+    }
+
+    meeting.leave();
+    video.srcObject = null;
+
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+  } catch (err) {
+    status.textContent = "❌ " + err.message;
+  }
+};
+
+// UPLOAD FUNCTION
+async function uploadToCloudinary(url) {
+  try {
+    status.textContent = "⬇️ Fetching video...";
+    overlay.style.display = "flex";
+
+    const res = await fetch(url);
+    const blob = await res.blob();
+
+    status.textContent = "☁️ Uploading...";
+
+    const sigRes = await fetch("/api/video.js");
+    const sig = await sigRes.json();
+
+    const formData = new FormData();
+    formData.append("file", blob);
+    formData.append("api_key", sig.apiKey);
+    formData.append("timestamp", sig.timestamp);
+    formData.append("signature", sig.signature);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloudName}/video/upload`);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        progress.textContent = Math.round((e.loaded/e.total)*100) + "%";
+      }
+    };
+
+    const upload = new Promise((resolve, reject) => {
+      xhr.onload = () => resolve(JSON.parse(xhr.responseText));
+      xhr.onerror = () => reject("Upload failed");
+    });
+
+    xhr.send(formData);
+
+    const result = await upload;
+
+    await supabase.from("posts").insert([{
+      user_id: currentUserId,
+      video_url: result.secure_url
+    }]);
+
+    status.textContent = "✅ Done!";
+    alert("Uploaded!");
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Upload failed";
+  } finally {
+    overlay.style.display = "none";
+  }
+}
+</script>
+
+</body>
+                                    </html>
