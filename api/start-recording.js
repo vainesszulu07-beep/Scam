@@ -21,7 +21,7 @@ export default async function startRecording(req, res) {
       },
       body: JSON.stringify({
         roomId,
-        webhookUrl: "https://your-vercel-domain.vercel.app/api/webhook", // ✅ webhook endpoint
+        webhookUrl: "https://scam-gamma.vercel.app/api/webhook", // ✅ webhook endpoint
         config: {
           quality: "h1080p",
           outputMode: "composite",
