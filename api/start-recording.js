@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     const options = {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${VIDEOSDK_API_KEY}`, // Use crawler/API key here
+        Authorization: VIDEOSDK_API_KEY, // Use crawler/API key here
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
