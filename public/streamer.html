@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live</title>
+
+<style>
+body { margin: 0; font-family: Arial; background: #f4f4f4; text-align: center; }
+video { width: 100%; height: 55vh; background: black; }
+button {
+  padding: 12px; width: 90%; margin: 10px;
+  border: none; border-radius: 8px; font-weight: bold;
+}
+#start { background: green; color: white; }
+#stop { background: red; color: white; }
+#status { padding: 10px; background: white; }
+#recordingUrl { margin-top: 15px; color: blue; word-break: break-word; }
+</style>
+
+</head>
+<body>
+
+<h2>🎥 Go Live</h2>
+
+<video id="video" autoplay muted playsinline></video>
+
+<div id="status">Ready...</div>
+<button id="start">Start Stream</button>
+<button id="stop" disabled>Stop Stream</button>
+
+<div id="recordingUrl"></div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const recordingUrlDiv = document.getElementById("recordingUrl");
+
+let meeting = null;
+let currentUserId = null;
+let customTrack = null;
+let currentRoomId = null;
+let currentRecordingId = null;
+let liveSubscription = null;
+
+// Attach participant video
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const ms = new MediaStream();
+      ms.addTrack(stream.track);
+      video.srcObject = ms;
+      video.play();
+      status.textContent = "🔴 LIVE";
+    }
+  });
+}
+
+// Get logged-in user
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+// Subscribe to Supabase profile changes for recording URL
+function subscribeToRecordingUrl(userId) {
+  if (liveSubscription) liveSubscription.unsubscribe();
+
+  liveSubscription = supabase
+    .from(`profile:id=eq.${userId}`)
+    .on("UPDATE", payload => {
+      const newUrl = payload.new.recording_url; // Make sure your Supabase column name is recording_url
+      if (newUrl) {
+        recordingUrlDiv.innerHTML = `Recording URL: <a href="${newUrl}" target="_blank">${newUrl}</a>`;
+        status.textContent = "Stream stopped!";
+      }
+    })
+    .subscribe();
+}
+
+// START STREAM + SERVER RECORD
+startBtn.onclick = async () => {
+  try {
+    startBtn.disabled = true;
+    status.textContent = "Authorizing...";
+
+    const userId = await getUser();
+    currentUserId = userId;
+
+    // 1️⃣ Create room and get hostToken
+    const roomRes = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+    const roomData = await roomRes.json();
+    if (!roomData.success) throw new Error("Failed to create room");
+
+    currentRoomId = roomData.roomId;
+
+    // 2️⃣ Save roomId in profile table (for webhook updates)
+    await supabase
+      .from("profile")
+      .update({ videosdk_room_id: currentRoomId })
+      .eq("id", userId);
+
+    // 3️⃣ Start recording using backend
+    const recRes = await fetch("/api/start-recording", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId: currentRoomId, hostToken: roomData.hostToken })
+    });
+    const recData = await recRes.json();
+    if (!recData.success) throw new Error("Failed to start recording");
+    currentRecordingId = recData.recordingId;
+
+    // 4️⃣ Subscribe to recording URL updates
+    subscribeToRecordingUrl(userId);
+
+    // 5️⃣ Configure VideoSDK
+    await VideoSDK.config(roomData.hostToken);
+    status.textContent = "Setting up camera...";
+
+    // 6️⃣ Initialize meeting
+    customTrack = await VideoSDK.createCameraVideoTrack({ facingMode: "user" });
+    meeting = VideoSDK.initMeeting({
+      meetingId: currentRoomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: true,
+      webcamEnabled: false
+    });
+    meeting.join();
+
+    meeting.on("meeting-joined", async () => {
+      stopBtn.disabled = false;
+      await meeting.enableWebcam(customTrack);
+      attachVideo(meeting.localParticipant);
+      status.textContent = "🔴 LIVE & Recording";
+    });
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ " + err.message;
+    startBtn.disabled = false;
+  }
+};
+
+// STOP STREAM
+stopBtn.onclick = async () => {
+  try {
+    status.textContent = "Stopping stream...";
+    stopBtn.disabled = true;
+
+    // Stop meeting
+    if (meeting) {
+      await meeting.disableWebcam();
+      meeting.leave();
+      meeting = null;
+    }
+
+    if (customTrack) {
+      customTrack.stop?.();
+      customTrack.close?.();
+      customTrack = null;
+    }
+    video.srcObject = null;
+
+    // Stop recording on backend
+    await fetch("/api/stop-recording", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordingId: currentRecordingId })
+    });
+
+    status.textContent = "Waiting for recording URL...";
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ " + err.message;
+    stopBtn.disabled = false;
+  }
+};
+</script>
+
+</body>
+  </html>
