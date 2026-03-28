@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 // ⚠️ Hardcoded Supabase credentials (server-side only)
 const supabase = createClient(
   "https://eimecuiixwgmpfpedxpr.supabase.co", // Your Supabase URL
-  ""      // Your Supabase Service Role Key
+  "sb_secret_HRrrL83uTSSDXlbksd-7Vw_yzpPS0Y9"      // Your Supabase Service Role Key
 );
 
 export default async function stopRecording(req, res) {
