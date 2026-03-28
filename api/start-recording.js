@@ -46,7 +46,7 @@ export default async function startRecording(req, res) {
     const response = await fetch("https://api.videosdk.live/v2/recordings/start", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${hostToken}`,
+        Authorization: hostToken,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
