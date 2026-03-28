@@ -1,0 +1,23 @@
+app.post("/api/recording-webhook", (req, res) => {
+  try {
+    console.log("📩 Webhook received:", req.body);
+
+    const { event, data } = req.body;
+
+    if (event === "recording-completed") {
+      const recordingUrl = data?.file?.fileUrl;
+
+      console.log("✅ Recording ready:", recordingUrl);
+
+      // 👉 You can save this to database (Supabase)
+      // 👉 Or cache it to return later
+
+    }
+
+    res.status(200).json({ received: true });
+
+  } catch (err) {
+    console.error("❌ Webhook error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
