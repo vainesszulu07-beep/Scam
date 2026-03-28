@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 // Hardcoded Supabase (server-side only)
 const supabase = createClient(
   "https://eimecuiixwgmpfpedxpr.supabase.co",
-  ""
+  "sb_secret_HRrrL83uTSSDXlbksd-7Vw_yzpPS0Y9"
 );
 
 export default async function webhook(req, res) {
