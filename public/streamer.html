@@ -156,7 +156,7 @@ startBtn.onclick = async () => {
       log("❌ Recording skipped: DB not updated with room info yet");
     } else {
       log("🎬 Starting recording via backend...");
-      const recRes = await fetch("/api/start-recording", {
+      const recRes = await fetch("/api/start-recording.js", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId })
