@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live</title>
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; text-align: center; }
+  video { width: 100%; height: 55vh; background: black; }
+  button { padding: 12px; width: 90%; margin: 10px; border: none; border-radius: 8px; font-weight: bold; }
+  #start { background: green; color: white; }
+  #stop { background: red; color: white; }
+  #switchCam { background: #007bff; color: white; }
+  #status { padding: 10px; background: white; min-height: 40px; }
+  #recordingUrl { padding: 10px; margin-top: 10px; background: #e0e0e0; word-break: break-word; }
+  #log { white-space: pre-line; margin-top: 10px; background: #000; color: #0f0; padding: 10px; font-size: 12px; text-align: left; }
+</style>
+</head>
+<body>
+
+<h2>🎥 Go Live</h2>
+
+<video id="video" autoplay muted playsinline></video>
+<div id="status">Ready...</div>
+
+<button id="start">Start Stream</button>
+<button id="stop" disabled>Stop Stream</button>
+<button id="switchCam">Switch Camera</button>
+
+<div id="recordingUrl"></div>
+<div id="log"></div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// --- Supabase client ---
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const switchBtn = document.getElementById("switchCam");
+const logDiv = document.getElementById("log");
+
+let meeting = null;
+let currentUserId = null;
+let customTrack = null;
+let currentRoomId = null;
+let currentHostToken = null;
+
+// --- Logging helper ---
+function log(msg) {
+  console.log(msg);
+  logDiv.innerHTML += msg + "\n";
+}
+
+// --- Get current Supabase user ---
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+// --- Attach video stream ---
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(stream.track);
+      video.srcObject = mediaStream;
+      video.play();
+      status.textContent = "🔴 LIVE";
+    }
+  });
+}
+
+// --- Save stream info to Supabase profile ---
+async function saveStreamInfo(userId, roomId, hostToken, viewerToken) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("profile")
+    .update({
+      is_live: true,
+      stream_started_at: now,
+      stream_ended_at: null,
+      stream_camera_on: true,
+      stream_mic_on: true,
+      videosdk_room_id: roomId,
+      videosdk_host_token: hostToken,
+      videosdk_viewer_token: viewerToken || null
+    })
+    .eq("id", userId);
+  if (error) throw error;
+  log("💾 Stream info saved to Supabase at " + now);
+}
+
+// --- Clear live flags ---
+async function clearLiveFlags(userId) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("profile")
+    .update({
+      is_live: false,
+      stream_ended_at: now,
+      stream_camera_on: false,
+      stream_mic_on: false
+    })
+    .eq("id", userId);
+  if (error) throw error;
+  log("🛑 Live flags cleared at " + now);
+}
+
+// --- START STREAM ---
+startBtn.onclick = async () => {
+  logDiv.innerHTML = "";
+  try {
+    status.textContent = "⏳ Starting...";
+    log("🚀 Starting stream...");
+
+    const userId = await getUser();
+    currentUserId = userId;
+    log("✅ User: " + userId);
+
+    // 1️⃣ Create VideoSDK room via backend
+    log("🏗 Creating room...");
+    const roomRes = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+    const roomData = await roomRes.json();
+    if (!roomData.success) throw new Error("Room creation failed");
+    currentRoomId = roomData.roomId;
+    currentHostToken = roomData.hostToken;
+    log("📡 Room created: " + JSON.stringify(roomData));
+
+    // 2️⃣ Save to Supabase immediately
+    await saveStreamInfo(userId, roomData.roomId, roomData.hostToken, roomData.viewerToken);
+
+    // 3️⃣ Start backend recording
+    log("🎬 Calling backend startRecording...");
+    const recRes = await fetch("/api/startRecording", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+    const recData = await recRes.json();
+    if (recData.messages) recData.messages.forEach(m => log(m));
+    if (!recData.success) throw new Error("Backend start failed");
+    log("✅ Recording started");
+
+    // 4️⃣ Configure VideoSDK meeting
+    await VideoSDK.config(roomData.hostToken);
+    customTrack = await VideoSDK.createCameraVideoTrack({
+      optimizationMode: "detail",
+      encoderConfig: "h1080p_w1920p"
+    });
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: roomData.roomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: true,
+      webcamEnabled: false
+    });
+    meeting.join();
+
+    meeting.on("meeting-joined", async () => {
+      await meeting.enableWebcam(customTrack);
+      attachVideo(meeting.localParticipant);
+      status.textContent = "✅ LIVE + RECORDING";
+      stopBtn.disabled = false;
+      log("🎉 Stream fully live!");
+    });
+
+  } catch (err) {
+    log("💥 ERROR: " + err.message);
+    status.textContent = "❌ " + err.message;
+    startBtn.disabled = false;
+  }
+};
+
+// --- STOP STREAM ---
+stopBtn.onclick = async () => {
+  try {
+    status.textContent = "Stopping...";
+    log("🛑 Stopping stream...");
+
+    // Stop backend recording
+    await fetch("/api/stop-recording", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: currentUserId })
+    });
+
+    await clearLiveFlags(currentUserId);
+
+    if (meeting) {
+      await meeting.disableWebcam();
+      meeting.leave();
+      meeting = null;
+    }
+    if (customTrack) {
+      if (customTrack.stop) customTrack.stop();
+      if (customTrack.close) customTrack.close();
+      customTrack = null;
+    }
+
+    video.srcObject = null;
+    status.textContent = "🛑 Stopped";
+    log("🛑 Stream fully stopped");
+
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+  } catch (err) {
+    log("❌ Stop error: " + err.message);
+  }
+};
+</script>
+</body>
+  </html>
