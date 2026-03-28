@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live</title>
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; text-align: center; }
+  video { width: 100%; height: 55vh; background: black; }
+  button { padding: 12px; width: 90%; margin: 10px; border: none; border-radius: 8px; font-weight: bold; }
+  #start { background: green; color: white; }
+  #stop { background: red; color: white; }
+  #switchCam { background: #007bff; color: white; }
+  #status { padding: 10px; background: white; }
+  #recordingUrl { padding: 10px; margin-top: 10px; background: #e0e0e0; word-break: break-word; }
+</style>
+</head>
+<body>
+
+<h2>🎥 Go Live</h2>
+<video id="video" autoplay muted playsinline></video>
+<div id="status">Ready...</div>
+<button id="start">Start Stream</button>
+<button id="stop" disabled>Stop Stream</button>
+<button id="switchCam">Switch Camera</button>
+<div id="recordingUrl"></div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const switchBtn = document.getElementById("switchCam");
+const recordingUrlDiv = document.getElementById("recordingUrl");
+
+let meeting = null;
+let currentUserId = null;
+let customTrack = null;
+let currentFacing = "user";
+let currentRoomId = null;
+
+// Attach participant video
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(stream.track);
+      video.srcObject = mediaStream;
+      video.play();
+      status.textContent = "🔴 LIVE";
+    }
+  });
+}
+
+// Get logged-in user
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+// Save stream info to DB
+async function saveStreamToDB(userId, data) {
+  const { error } = await supabase
+    .from("profile")
+    .update({
+      is_live: true,
+      stream_started_at: new Date().toISOString(),
+      stream_ended_at: null,
+      stream_camera_on: true,
+      stream_mic_on: true,
+      videosdk_room_id: data.roomId,
+      videosdk_host_token: data.hostToken,
+      videosdk_viewer_token: data.viewerToken || null
+    })
+    .eq("id", userId);
+  if (error) throw error;
+}
+
+// Clear live flags only
+async function clearLiveFlags(userId) {
+  const { error } = await supabase
+    .from("profile")
+    .update({
+      is_live: false,
+      stream_ended_at: new Date().toISOString(),
+      stream_camera_on: false,
+      stream_mic_on: false
+    })
+    .eq("id", userId);
+  if (error) throw error;
+}
+
+// Switch camera
+async function switchCamera() {
+  if (!meeting) return;
+  try {
+    currentFacing = currentFacing === "user" ? "environment" : "user";
+    status.textContent = `Switching to ${currentFacing} camera...`;
+
+    if (customTrack) {
+      await meeting.disableWebcam();
+      if (typeof customTrack.stop === "function") customTrack.stop();
+      if (typeof customTrack.close === "function") customTrack.close();
+    }
+
+    customTrack = await VideoSDK.createCameraVideoTrack({
+      optimizationMode: "detail",
+      encoderConfig: "h1080p_w1920p",
+      multiStream: false,
+      facingMode: currentFacing
+    });
+
+    await meeting.enableWebcam(customTrack);
+    attachVideo(meeting.localParticipant);
+    status.textContent = `🔄 Switched to ${currentFacing} camera`;
+  } catch (err) {
+    console.error("Camera switch failed:", err);
+    status.textContent = `❌ Camera switch error: ${err.message}`;
+  }
+}
+
+switchBtn.onclick = switchCamera;
+
+// Listen for recording URL updates
+async function listenForRecordingUrl(userId) {
+  supabase
+    .from(`profile:id=eq.${userId}`)
+    .on("UPDATE", payload => {
+      const url = payload.new.url;
+      if (url) {
+        recordingUrlDiv.innerHTML = `🎬 Recording URL: <a href="${url}" target="_blank">${url}</a>`;
+        stopBtn.disabled = false;
+        status.textContent = "🔴 LIVE - Recording Confirmed";
+      }
+    })
+    .subscribe();
+}
+
+// START STREAM
+startBtn.onclick = async () => {
+  try {
+    startBtn.disabled = true;
+    status.textContent = "Authorizing...";
+
+    const userId = await getUser();
+    currentUserId = userId;
+
+    listenForRecordingUrl(userId); // Listen for URL updates
+
+    // Step 1: Create VideoSDK room first
+    const roomRes = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+    const roomData = await roomRes.json();
+    if (!roomData.success) throw new Error("Failed to create room");
+
+    currentRoomId = roomData.roomId;
+
+    // Step 2: Save stream info to DB (with room info)
+    await saveStreamToDB(userId, roomData);
+
+    // Step 3: Ask backend to start recording
+    const recRes = await fetch("/api/start-recording", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, roomId: roomData.roomId })
+    });
+    const recData = await recRes.json();
+    if (!recData.success) {
+      status.textContent = `❌ Backend start failed: ${recData.error || "Unknown error"}`;
+      startBtn.disabled = false;
+      return;
+    }
+
+    // Step 4: Configure VideoSDK and start meeting
+    await VideoSDK.config(roomData.hostToken);
+    status.textContent = "Setting up camera...";
+
+    customTrack = await VideoSDK.createCameraVideoTrack({
+      optimizationMode: "detail",
+      encoderConfig: "h1080p_w1920p",
+      multiStream: false,
+      facingMode: "user"
+    });
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: roomData.roomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: true,
+      webcamEnabled: false
+    });
+    meeting.join();
+
+    meeting.on("meeting-joined", async () => {
+      status.textContent = "Connecting stream...";
+      stopBtn.disabled = true;
+
+      let waited = 0;
+      while (!meeting.localParticipant && waited < 5000) {
+        await new Promise(r => setTimeout(r, 50));
+        waited += 50;
+      }
+      if (!meeting.localParticipant) throw new Error("Local participant not ready");
+
+      await meeting.enableWebcam(customTrack);
+      attachVideo(meeting.localParticipant);
+      status.textContent = "✅ Stream started and recording initiated";
+    });
+
+  } catch (err) {
+    console.error("Stream Start Error:", err);
+    status.textContent = "❌ " + err.message;
+    startBtn.disabled = false;
+  }
+};
+
+// STOP STREAM
+stopBtn.onclick = async () => {
+  try {
+    status.textContent = "Stopping stream...";
+
+    // Stop recording
+    const res = await fetch("/api/stop-recording", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: currentUserId })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      status.textContent = `❌ Cannot stop: ${data.error || "Recording URL not ready"}`;
+      return;
+    }
+
+    await clearLiveFlags(currentUserId);
+
+    if (meeting) {
+      await meeting.disableWebcam();
+      meeting.leave();
+      meeting = null;
+    }
+
+    if (customTrack) {
+      if (typeof customTrack.stop === "function") customTrack.stop();
+      if (typeof customTrack.close === "function") customTrack.close();
+      customTrack = null;
+    }
+
+    video.srcObject = null;
+    status.textContent = "🛑 Stream Ended";
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Failed to stop cleanly: " + err.message;
+  }
+};
+</script>
+
+</body>
+  </html>
