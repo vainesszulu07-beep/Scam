@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     const options = {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${hostToken}`,
+        Authorization: hostToken,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
