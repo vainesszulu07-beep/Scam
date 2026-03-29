@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live</title>
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; text-align: center; }
+  video { width: 100%; height: 55vh; background: black; }
+  button {
+    padding: 12px; width: 90%; margin: 10px;
+    border: none; border-radius: 8px; font-weight: bold;
+  }
+  #start { background: green; color: white; }
+  #stop { background: red; color: white; }
+  #frontCam, #backCam { background: #007bff; color: white; }
+  #status { padding: 10px; background: white; }
+  #uploadProgressOverlay {
+    display:none;
+    position: fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.5);
+    color: white; font-size: 20px;
+    justify-content: center; align-items: center;
+  }
+</style>
+</head>
+<body>
+
+<h2>🎥 Go Live</h2>
+<video id="video" autoplay muted playsinline></video>
+<div id="status">Ready...</div>
+<button id="start">Start Stream</button>
+<button id="stop" disabled>Stop Stream</button>
+<button id="frontCam">Front Camera</button>
+<button id="backCam">Back Camera</button>
+
+<div id="uploadProgressOverlay">
+  Uploading: <span id="progressPercent">0%</span>
+</div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const frontBtn = document.getElementById("frontCam");
+const backBtn = document.getElementById("backCam");
+const uploadProgressOverlay = document.getElementById("uploadProgressOverlay");
+const progressPercent = document.getElementById("progressPercent");
+
+let meeting = null;
+let currentUserId = null;
+let customTrack = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let currentXHR = null;
+
+// --- Recording stream ---
+let recordingStream = new MediaStream();
+let videoSenderTrack = null;
+
+// Start recording
+function startRecording(track) {
+  if (mediaRecorder && mediaRecorder.state === "recording") return;
+
+  recordedChunks = [];
+  const trackClone = track.clone();
+  const videoEl = document.createElement("video");
+  videoEl.srcObject = new MediaStream([trackClone]);
+  videoEl.muted = true;
+  videoEl.play();
+
+  // Dynamically match canvas size to video
+  const canvas = document.createElement("canvas");
+  videoEl.onloadedmetadata = () => {
+    canvas.width = videoEl.videoWidth || 1280;
+    canvas.height = videoEl.videoHeight || 720;
+  };
+  const ctx = canvas.getContext("2d");
+
+  function drawFrame() {
+    if (!videoEl.paused && videoEl.videoWidth && videoEl.videoHeight) {
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    }
+    requestAnimationFrame(drawFrame);
+  }
+  drawFrame();
+
+  const streamForRecorder = canvas.captureStream(20); // 20 fps
+  mediaRecorder = new MediaRecorder(streamForRecorder, { mimeType: "video/webm;codecs=vp8,opus" });
+  mediaRecorder.ondataavailable = e => { if (e.data.size) recordedChunks.push(e.data); };
+  mediaRecorder.start(2000);
+  console.log("Recording started...");
+}
+
+// Stop recording
+async function stopRecording() {
+  return new Promise(resolve => {
+    if (!mediaRecorder) return resolve(null);
+    mediaRecorder.onstop = () => {
+      resolve(new Blob(recordedChunks, { type: "video/webm" }));
+    };
+    mediaRecorder.stop();
+  });
+}
+
+// Attach participant video
+function attachVideo(participant) {
+  participant.on("stream-enabled", stream => {
+    if (stream.kind !== "video") return;
+
+    if (videoSenderTrack) {
+      recordingStream.removeTrack(videoSenderTrack);
+      if (videoSenderTrack.stop) videoSenderTrack.stop();
+    }
+
+    recordingStream.addTrack(stream.track);
+    videoSenderTrack = stream.track;
+    startRecording(stream.track);
+
+    video.srcObject = new MediaStream([stream.track]);
+    video.play();
+    status.textContent = "🔴 LIVE";
+  });
+}
+
+// Switch camera
+async function switchCamera(facingMode) {
+  if (!meeting) return;
+  status.textContent = `Switching to ${facingMode} camera...`;
+
+  const newTrack = await VideoSDK.createCameraVideoTrack({
+    optimizationMode: "detail",
+    encoderConfig: "h1080p_w1920p",
+    multiStream: false,
+    facingMode
+  });
+
+  if (videoSenderTrack) {
+    recordingStream.removeTrack(videoSenderTrack);
+    if (videoSenderTrack.stop) videoSenderTrack.stop();
+  }
+
+  recordingStream.addTrack(newTrack);
+  videoSenderTrack = newTrack;
+  customTrack = newTrack;
+
+  await meeting.enableWebcam(newTrack);
+  attachVideo(meeting.localParticipant);
+  status.textContent = `🔄 Switched to ${facingMode} camera`;
+}
+
+frontBtn.onclick = () => switchCamera("user");
+backBtn.onclick = () => switchCamera("environment");
+
+// --- Supabase logic ---
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+async function saveStreamToDB(userId, data) {
+  const { error } = await supabase.from("profile").update({
+    is_live: true,
+    stream_started_at: new Date().toISOString(),
+    videosdk_room_id: data.roomId,
+    videosdk_host_token: data.hostToken,
+    videosdk_viewer_token: data.viewerToken,
+    stream_camera_on: true,
+    stream_mic_on: true
+  }).eq("id", userId);
+  if (error) throw error;
+}
+
+async function clearStreamFromDB(userId) {
+  const { error } = await supabase.from("profile").update({
+    is_live: false,
+    stream_ended_at: new Date().toISOString(),
+    videosdk_room_id: null,
+    videosdk_host_token: null,
+    videosdk_viewer_token: null,
+    stream_camera_on: false,
+    stream_mic_on: false
+  }).eq("id", userId);
+  if (error) throw error;
+  return true;
+}
+
+// START STREAM
+startBtn.onclick = async () => {
+  try {
+    startBtn.disabled = true;
+    status.textContent = "Authorizing...";
+    const userId = await getUser();
+    currentUserId = userId;
+
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error("Failed to create room");
+
+    await VideoSDK.config(data.hostToken);
+    status.textContent = "Setting up camera...";
+
+    customTrack = await VideoSDK.createCameraVideoTrack({
+      optimizationMode: "detail",
+      encoderConfig: "h1080p_w1920p",
+      multiStream: false,
+      facingMode: "user"
+    });
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: data.roomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: true,
+      webcamEnabled: false
+    });
+    meeting.join();
+
+    meeting.on("meeting-joined", async () => {
+      status.textContent = "Connecting stream...";
+      stopBtn.disabled = false;
+
+      let waited = 0;
+      while (!meeting.localParticipant && waited < 5000) {
+        await new Promise(r => setTimeout(r, 50));
+        waited += 50;
+      }
+      if (!meeting.localParticipant) throw new Error("Local participant not ready");
+
+      try { await meeting.enableWebcam(customTrack); }
+      catch (err) { status.textContent = "❌ Camera Error"; return; }
+
+      attachVideo(meeting.localParticipant);
+      await saveStreamToDB(userId, data);
+    });
+
+    meeting.on("participant-joined", p => { if (p.id === meeting.localParticipant.id) attachVideo(p); });
+    meeting.on("meeting-left", () => { video.srcObject = null; status.textContent = "Stream ended"; startBtn.disabled=false; stopBtn.disabled=true; });
+    meeting.on("error", err => { console.error(err); status.textContent="❌ Connection error"; });
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ "+err.message;
+    startBtn.disabled = false;
+  }
+};
+
+// STOP STREAM
+stopBtn.onclick = async () => {
+  try {
+    status.textContent = "Stopping stream...";
+    await clearStreamFromDB(currentUserId);
+
+    const recordedBlob = await stopRecording();
+
+    if (meeting) { await meeting.disableWebcam(); meeting.leave(); meeting=null; }
+    if (customTrack) { if(customTrack.stop) customTrack.stop(); if(customTrack.close) customTrack.close(); customTrack=null; }
+    video.srcObject = null;
+    status.textContent = "🛑 Stream Ended";
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+    if (recordedBlob) await uploadRecordedVideo(recordedBlob);
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Failed to stop cleanly: " + err.message;
+  }
+};
+
+// Upload to Cloudinary
+async function uploadRecordedVideo(blob) {
+  try {
+    status.textContent = "Uploading recorded video...";
+    uploadProgressOverlay.style.display = "flex";
+
+    const { signature, timestamp, apiKey, cloudName } = await fetch("/api/video.js").then(r => r.json());
+    const formData = new FormData();
+    formData.append("file", blob, "recorded-video.webm");
+    formData.append("api_key", apiKey);
+    formData.append("timestamp", timestamp);
+    formData.append("signature", signature);
+    formData.append("folder", "videos");
+
+    currentXHR = new XMLHttpRequest();
+    currentXHR.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+    currentXHR.upload.onprogress = e => { if(e.lengthComputable){ progressPercent.textContent=Math.round((e.loaded/e.total)*100)+"%"; } };
+
+    const uploadPromise = new Promise((resolve,reject) => {
+      currentXHR.onload = () => { if(currentXHR.status>=200 && currentXHR.status<300) resolve(JSON.parse(currentXHR.responseText)); else reject(new Error("Upload failed")); };
+      currentXHR.onerror = () => reject(new Error("Upload error"));
+      currentXHR.send(formData);
+    });
+
+    const videoData = await uploadPromise;
+
+    const { error } = await supabase.from("posts").insert([{
+      user_id: currentUserId,
+      video_url: videoData.secure_url,
+      video_public_id: videoData.public_id
+    }]);
+    if(error) throw error;
+
+    console.log("Upload complete!", videoData);
+    alert("Video uploaded and saved!");
+    window.location.href = "profile.html";
+  } catch(err) {
+    console.error(err);
+    alert("Error uploading video: " + err.message);
+  } finally {
+    uploadProgressOverlay.style.display = "none";
+    currentXHR=null;
+  }
+}
+</script>
+</body>
+  </html>
