@@ -90,7 +90,17 @@ export default async function handler(req, res) {
         },
       ]);
 
-    if (insertError) throw insertError;
+       if (insertError) throw insertError;
+
+    // 7️⃣ Delete individual segments from Cloudinary
+    for (const pid of publicIds) {
+      try {
+        await cloudinary.uploader.destroy(pid, { resource_type: "video" });
+      } catch (err) {
+        console.warn("Failed to delete segment from Cloudinary:", pid, err.message);
+      }
+    }
+ 
 
     // 7️⃣ Cleanup segments
     await supabase
