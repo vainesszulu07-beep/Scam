@@ -111,7 +111,7 @@ startBtn.onclick = async () => {
 
     // 2. Create Custom HD Tracks FIRST
     videoTrack = await VideoSDK.createCameraVideoTrack({
-      optimizationMode: "detail",
+      optimizationMode: "motion",
       encoderConfig: "h1080p_w1920p", // Standard HD string
       facingMode: "user",
       multiStream: true
