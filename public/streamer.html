@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live - High Quality</title>
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; text-align: center; }
+  
+  /* Video Container */
+  video { 
+    width: 100%; 
+    height: 55vh; 
+    background: black; 
+    object-fit: contain; 
+    transition: transform 0.3s ease; /* Smooth flip */
+  }
+
+  button {
+    padding: 12px; width: 90%; margin: 10px;
+    border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+  }
+  #start { background: #28a745; color: white; }
+  #switch { background: #007bff; color: white; display: none; }
+  #stop { background: #dc3545; color: white; }
+  
+  /* Camera List Modal */
+  #camListOverlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;
+  }
+  #camListContent {
+    background: white; width: 80%; max-width: 400px; padding: 20px; border-radius: 12px;
+  }
+  .cam-item {
+    padding: 15px; margin: 5px 0; background: #eee; border-radius: 5px; cursor: pointer; font-weight: bold; text-align: left;
+  }
+  .cam-item:hover { background: #ddd; }
+
+  #status { padding: 20px; border-radius: 8px; display: inline-block; font-weight: bold; margin-top: 10px; }
+  .loading { background: #fff3cd; color: #856404; }
+  .success { background: #d4edda; color: #155724; }
+  .error { background: #f8d7da; color: #721c24; }
+</style>
+</head>
+<body>
+
+<h2>🎥 HD Live Stream</h2>
+<video id="video" autoplay muted playsinline></video>
+<br>
+<div id="status" class="loading">⏳ Loading SDK...</div>
+<br>
+
+<button id="start" disabled>Start Stream</button>
+<button id="switch">🔄 Select Camera</button>
+<button id="stop" disabled>Stop Stream</button>
+
+<!-- Camera Selection Overlay -->
+<div id="camListOverlay">
+  <div id="camListContent">
+    <h3>Select Camera</h3>
+    <div id="camItemsContainer"></div>
+    <button onclick="document.getElementById('camListOverlay').style.display='none'" style="background:#666; color:white; width: 100%; margin: 10px 0 0 0;">Cancel</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@videosdk.live/js-sdk@0.7.0/videosdk.min.js"></script>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const statusEl = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const switchBtn = document.getElementById("switch");
+const camListOverlay = document.getElementById("camListOverlay");
+const camItemsContainer = document.getElementById("camItemsContainer");
+
+let meeting = null;
+let currentUserId = null;
+let videoTrack = null; 
+let audioTrack = null;
+
+window.onload = function() {
+    if (window.VideoSDK) {
+        statusEl.textContent = "✅ SDK Ready";
+        statusEl.className = "success";
+        startBtn.disabled = false;
+    }
+};
+
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+// --- LOGIC: Smart Mirroring ---
+// Flips the Front camera, keeps Back camera normal
+function applySmartMirror(stream) {
+  const track = stream.getVideoTracks()[0];
+  const settings = track.getSettings();
+  
+  if (settings.facingMode === 'environment') {
+    video.style.transform = "scaleX(1)"; // Normal (Back Cam)
+  } else {
+    video.style.transform = "scaleX(-1)"; // Mirrored (Selfie)
+  }
+}
+
+startBtn.onclick = async () => {
+  try {
+    startBtn.disabled = true;
+    statusEl.textContent = "Connecting...";
+    const userId = await getUser();
+    currentUserId = userId;
+
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+    const data = await res.json();
+    
+    window.VideoSDK.config(data.hostToken);
+
+    // 1. HD Video Setup
+    videoTrack = await window.VideoSDK.createCameraVideoTrack({
+      optimizationMode: "motion",
+      encoderConfig: "h1080p_w1920p",
+      facingMode: "user"
+    });
+
+    // 2. HD Audio Setup (Updated)
+    // This will use whatever mic the phone selects (Wired/Bluetooth/Internal)
+    audioTrack = await window.VideoSDK.createMicrophoneAudioTrack({
+      encoderConfig: "high_quality", // 128kbps
+      noiseConfig: {
+        noiseSuppression: true,
+        echoCancellation: true,
+        autoGainControl: true
+      }
+    });
+
+    meeting = window.VideoSDK.initMeeting({
+      meetingId: data.roomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: true,
+      webcamEnabled: true,
+      customCameraVideoTrack: videoTrack,
+      customMicrophoneAudioTrack: audioTrack
+    });
+
+    meeting.join();
+
+    meeting.on("meeting-joined", () => {
+      statusEl.textContent = "🔴 LIVE";
+      stopBtn.disabled = false;
+      switchBtn.style.display = "inline-block";
+      
+      video.srcObject = videoTrack;
+      applySmartMirror(videoTrack);
+    });
+
+  } catch (err) {
+    statusEl.textContent = "❌ " + err.message;
+    startBtn.disabled = false;
+  }
+};
+
+// --- CAMERA LIST ---
+switchBtn.onclick = async () => {
+  if (!meeting) return;
+  try {
+    const cameras = await window.VideoSDK.getCameras();
+    camItemsContainer.innerHTML = ""; 
+
+    cameras.forEach((cam) => {
+      const btn = document.createElement("div");
+      btn.className = "cam-item";
+      btn.textContent = cam.label || `Camera ${cam.deviceId.substring(0, 5)}`;
+      btn.onclick = () => changeCamera(cam.deviceId);
+      camItemsContainer.appendChild(btn);
+    });
+
+    camListOverlay.style.display = "flex";
+  } catch (err) {
+    console.error("Error listing cameras:", err);
+    statusEl.textContent = "❌ Camera List Failed";
+  }
+};
+
+// --- CAMERA SWITCH (Corrected) ---
+async function changeCamera(selectedDeviceId) {
+  camListOverlay.style.display = "none";
+  statusEl.textContent = "Switching...";
+
+  try {
+    if (videoTrack) {
+        videoTrack.getTracks().forEach(track => track.stop());
+    }
+
+    const newStream = await window.VideoSDK.createCameraVideoTrack({
+      cameraId: selectedDeviceId, // Using correct 'cameraId' param
+      optimizationMode: "motion",
+      encoderConfig: "h1080p_w1920p",
+      multiStream: false
+    });
+
+    await meeting.changeWebcam(newStream);
+
+    video.srcObject = newStream;
+    applySmartMirror(newStream); // Re-apply mirror logic
+
+    videoTrack = newStream;
+
+    statusEl.textContent = "🔴 LIVE";
+  } catch (err) {
+    console.error("Switch Error:", err);
+    statusEl.textContent = "❌ Switch Failed";
+  }
+}
+
+stopBtn.onclick = async () => {
+  if (meeting) meeting.leave();
+  
+  if (videoTrack) videoTrack.getTracks().forEach(t => t.stop());
+  if (audioTrack) audioTrack.getTracks().forEach(t => t.stop());
+  
+  video.srcObject = null;
+  statusEl.textContent = "🛑 Ended";
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  switchBtn.style.display = "none";
+};
+</script>
+</body>
+</html>
