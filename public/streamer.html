@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live - High Quality</title>
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; text-align: center; }
+  video { width: 100%; height: 55vh; background: black; object-fit: contain; }
+  button {
+    padding: 12px; width: 90%; margin: 10px;
+    border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+  }
+  #start { background: #28a745; color: white; }
+  #switch { background: #007bff; color: white; display: none; }
+  #stop { background: #dc3545; color: white; }
+  #start:disabled, #stop:disabled, #switch:disabled { background: #ccc; cursor: not-allowed; }
+  #status { padding: 20px; border-radius: 8px; display: inline-block; font-weight: bold; margin-top: 10px; }
+  .loading { background: #fff3cd; color: #856404; }
+  .success { background: #d4edda; color: #155724; }
+  .error { background: #f8d7da; color: #721c24; }
+</style>
+</head>
+<body>
+
+<h2>🎥 HD Live Stream</h2>
+<video id="video" autoplay muted playsinline></video>
+<br>
+<div id="status" class="loading">⏳ Loading from jsDelivr Mirror...</div>
+<br>
+
+<button id="start" disabled>Start Stream</button>
+<button id="switch">🔄 Switch Camera</button>
+<button id="stop" disabled>Stop Stream</button>
+
+<!-- Official jsDelivr Mirror Link -->
+<script src="https://cdn.jsdelivr.net/npm/@videosdk.live/js-sdk@0.7.0/videosdk.min.js"></script>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const statusEl = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const switchBtn = document.getElementById("switch");
+
+let meeting = null;
+let currentUserId = null;
+let videoTrack = null;
+let audioTrack = null;
+
+// --- EXACT FORCE LOAD METHOD ---
+window.onload = function() {
+    if (window.VideoSDK) {
+        statusEl.textContent = "✅ SDK v0.7.0 loaded successfully via jsDelivr!";
+        statusEl.className = "success";
+        startBtn.disabled = false; // Enable start button only after load
+    } else {
+        statusEl.textContent = "❌ SDK still missing. Check browser console.";
+        statusEl.className = "error";
+    }
+};
+
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(stream.track);
+      video.srcObject = mediaStream;
+      video.play().catch(e => console.error("Video Play Error:", e));
+      statusEl.textContent = "🔴 LIVE (HD Mode)";
+    }
+  });
+}
+
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+startBtn.onclick = async () => {
+  try {
+    startBtn.disabled = true;
+    statusEl.textContent = "Authorizing...";
+    statusEl.className = "loading";
+
+    const userId = await getUser();
+    currentUserId = userId;
+
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error("Failed to create room");
+
+    // Initialize VideoSDK
+    window.VideoSDK.config(data.hostToken);
+    statusEl.textContent = "Opening HD Camera...";
+
+    videoTrack = await window.VideoSDK.createCameraVideoTrack({
+      optimizationMode: "motion",
+      encoderConfig: "h1080p_w1920p",
+      facingMode: "user",
+      multiStream: true
+    });
+
+    audioTrack = await window.VideoSDK.createMicrophoneAudioTrack({
+      encoderConfig: "speech_standard",
+      noiseConfig: { 
+        noiseSuppression: true, 
+        echoCancellation: true,
+        autoGainControl: true 
+      }
+    });
+
+    meeting = window.VideoSDK.initMeeting({
+      meetingId: data.roomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: true,
+      webcamEnabled: true,
+      customCameraVideoTrack: videoTrack,
+      customMicrophoneAudioTrack: audioTrack,
+      quality: "high"
+    });
+
+    meeting.join();
+
+    meeting.on("meeting-joined", async () => {
+      statusEl.textContent = "🔴 LIVE";
+      statusEl.className = "success";
+      stopBtn.disabled = false;
+      switchBtn.style.display = "inline-block";
+
+      if (meeting.localParticipant) {
+        attachVideo(meeting.localParticipant);
+        meeting.localParticipant.setQuality("high");
+        
+        try {
+          await meeting.enableWebcam(videoTrack);
+          await meeting.enableMic(audioTrack);
+        } catch (e) {
+          console.error("Mic activation error", e);
+        }
+      }
+
+      // Update Supabase
+      await supabase.from("profile").update({
+        is_live: true,
+        stream_started_at: new Date().toISOString(),
+        videosdk_room_id: data.roomId,
+        videosdk_host_token: data.hostToken,
+        videosdk_viewer_token: data.viewerToken,
+        stream_camera_on: true,
+        stream_mic_on: true
+      }).eq("id", userId);
+    });
+
+    meeting.on("error", (err) => {
+      statusEl.textContent = "❌ Error: " + err.message;
+      statusEl.className = "error";
+      startBtn.disabled = false;
+    });
+
+  } catch (err) {
+    statusEl.textContent = "❌ " + err.message;
+    statusEl.className = "error";
+    startBtn.disabled = false;
+  }
+};
+
+// --- CAMERA SWITCH FUNCTION ---
+switchBtn.onclick = async () => {
+  if (!meeting) return;
+  try {
+    const webcams = await meeting.getWebcams();
+    const currentCamId = meeting.selectedWebcamId;
+    const nextCam = webcams.find(cam => cam.deviceId !== currentCamId);
+
+    if (nextCam) {
+      statusEl.textContent = "Switching Camera...";
+      await meeting.changeWebcam(nextCam.deviceId);
+      statusEl.textContent = "🔴 LIVE (HD Mode)";
+    } else {
+        alert("No other camera found");
+    }
+  } catch (err) {
+    console.error("Switch error:", err);
+  }
+};
+
+stopBtn.onclick = async () => {
+  try {
+    statusEl.textContent = "Stopping...";
+    statusEl.className = "loading";
+    
+    await supabase.from("profile").update({
+      is_live: false,
+      stream_ended_at: new Date().toISOString(),
+      videosdk_room_id: null,
+      videosdk_host_token: null,
+      videosdk_viewer_token: null,
+      stream_camera_on: false,
+      stream_mic_on: false
+    }).eq("id", currentUserId);
+
+    if (meeting) meeting.leave();
+    if (videoTrack) videoTrack.stop();
+    if (audioTrack) audioTrack.stop();
+    video.srcObject = null;
+    
+    statusEl.textContent = "🛑 Ended";
+    statusEl.className = "error";
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    switchBtn.style.display = "none";
+  } catch (err) {
+    statusEl.textContent = "❌ Stop Error";
+  }
+};
+</script>
+
+</body>
+</html>
