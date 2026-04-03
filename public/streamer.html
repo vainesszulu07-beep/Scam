@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live</title>
+
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; text-align: center; }
+  video { width: 100%; height: 55vh; background: black; object-fit: contain; }
+  button {
+    padding: 12px; width: 90%; margin: 10px;
+    border: none; border-radius: 8px; font-weight: bold;
+  }
+  #start { background: green; color: white; }
+  #stop { background: red; color: white; }
+  #status { padding: 10px; background: white; }
+</style>
+</head>
+
+<body>
+
+<h2>🎥 Go Live</h2>
+
+<video id="video" autoplay muted playsinline></video>
+<div id="status">Ready...</div>
+
+<button id="start">Start Stream</button>
+<button id="stop" disabled>Stop Stream</button>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+
+let meeting = null;
+let currentUserId = null;
+let videoTrack = null;
+let audioTrack = null;
+
+// Attach video
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(stream.track);
+      video.srcObject = mediaStream;
+      video.play();
+    }
+  });
+}
+
+// Get user
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Login required");
+  return session.user.id;
+}
+
+// Save stream
+async function saveStreamToDB(userId, data) {
+  await supabase.from("profile").update({
+    is_live: true,
+    stream_started_at: new Date().toISOString(),
+    videosdk_room_id: data.roomId,
+    videosdk_host_token: data.hostToken,
+    videosdk_viewer_token: data.viewerToken,
+    stream_camera_on: true,
+    stream_mic_on: true
+  }).eq("id", userId);
+}
+
+// Clear stream
+async function clearStreamFromDB(userId) {
+  await supabase.from("profile").update({
+    is_live: false,
+    stream_ended_at: new Date().toISOString(),
+    videosdk_room_id: null,
+    videosdk_host_token: null,
+    videosdk_viewer_token: null,
+    stream_camera_on: false,
+    stream_mic_on: false
+  }).eq("id", userId);
+}
+
+// START STREAM
+startBtn.onclick = async () => {
+  try {
+    startBtn.disabled = true;
+    status.textContent = "Authorizing...";
+
+    const userId = await getUser();
+    currentUserId = userId;
+
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId })
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error("Room creation failed");
+
+    await VideoSDK.config(data.hostToken);
+
+    status.textContent = "Setting up media...";
+
+    // ✅ VIDEO TRACK (adaptive with fallback)
+    try {
+      videoTrack = await VideoSDK.createCameraVideoTrack({
+        encoderConfig: "h1080p_w1920p",
+        optimizationMode: "detail",
+        multiStream: true
+      });
+    } catch (e) {
+      console.warn("1080p failed, falling back to 720p");
+      videoTrack = await VideoSDK.createCameraVideoTrack({
+        encoderConfig: "h720p_w1280p",
+        optimizationMode: "detail",
+        multiStream: true
+      });
+    }
+
+    // ✅ AUDIO TRACK
+    audioTrack = await VideoSDK.createMicrophoneAudioTrack({
+      encoderConfig: "high_quality",
+      noiseConfig: {
+        noiseSuppression: true,
+        echoCancellation: true,
+        autoGainControl: true
+      }
+    });
+
+    // ✅ MEETING INIT (safe adaptive start)
+    meeting = VideoSDK.initMeeting({
+      meetingId: data.roomId,
+      name: "Host",
+      participantId: userId,
+      micEnabled: false,
+      webcamEnabled: false,
+      quality: "balanced"
+    });
+
+    meeting.join();
+
+    meeting.on("meeting-joined", async () => {
+      stopBtn.disabled = false;
+      status.textContent = "Connecting...";
+
+      while (!meeting.localParticipant) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      const participant = meeting.localParticipant;
+
+      // ✅ WAIT for stream BEFORE scaling quality
+      participant.on("stream-enabled", (stream) => {
+        if (stream.kind === "video") {
+          participant.setQuality("high"); // 🔥 correct timing
+          status.textContent = "🔴 LIVE (HD Scaling)";
+        }
+      });
+
+      try {
+        await meeting.enableWebcam(videoTrack);
+        await meeting.enableMic(audioTrack);
+      } catch (err) {
+        console.error("Media error:", err);
+        status.textContent = "❌ Media Error: " + err.message;
+        return;
+      }
+
+      attachVideo(participant);
+      await saveStreamToDB(userId, data);
+    });
+
+    meeting.on("meeting-left", () => {
+      video.srcObject = null;
+      status.textContent = "Stream ended";
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+
+    meeting.on("error", (err) => {
+      console.error("SDK Error:", err);
+      status.textContent = "❌ " + err.message;
+    });
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ " + err.message;
+    startBtn.disabled = false;
+  }
+};
+
+// STOP STREAM
+stopBtn.onclick = async () => {
+  try {
+    status.textContent = "Stopping...";
+
+    await clearStreamFromDB(currentUserId);
+
+    if (meeting) {
+      await meeting.disableWebcam();
+      await meeting.disableMic();
+      meeting.leave();
+      meeting = null;
+    }
+
+    if (videoTrack) {
+      videoTrack.stop();
+      videoTrack = null;
+    }
+
+    if (audioTrack) {
+      audioTrack.stop();
+      audioTrack = null;
+    }
+
+    video.srcObject = null;
+    status.textContent = "🛑 Ended";
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Stop failed";
+  }
+};
+</script>
+
+</body>
+  </html>
