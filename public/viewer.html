@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Streams</title>
+
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; }
+  h2 { text-align: center; padding: 10px; }
+  #users { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
+  .card { background: white; border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; }
+  .card img { width: 80px; height: 80px; border-radius: 50%; }
+  .live { color: green; font-weight: bold; }
+  .offline { color: gray; }
+  #player { position: fixed; top: 0; left: 0; width: 100%; height: 60vh; background: black; display: none; }
+  video { width: 100%; height: 100%; object-fit: contain; }
+  #close { position: absolute; top: 10px; right: 10px; padding: 8px; background: red; color: white; border: none; z-index: 10; }
+  #status-overlay { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 4px; font-size: 12px; }
+  #quality {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    padding: 5px;
+    border-radius: 5px;
+    background: white;
+  }
+</style>
+</head>
+<body>
+
+<h2>📡 Live Users</h2>
+<div id="users"></div>
+
+<div id="player">
+  <div id="status-overlay">Connecting...</div>
+  <button id="close">Close</button>
+  <video id="video" autoplay playsinline></video>
+  <select id="quality">
+    <option value="low">360p (Data Saver)</option>
+    <option value="medium">720p (HD)</option>
+    <option value="high" selected>1080p (Full HD)</option>
+  </select>
+</div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersDiv = document.getElementById("users");
+const video = document.getElementById("video");
+const player = document.getElementById("player");
+const closeBtn = document.getElementById("close");
+const qualitySelect = document.getElementById("quality");
+const statusOverlay = document.getElementById("status-overlay");
+
+let viewerId = "e0330e1d-4766-4bea-bed1-4c166a9104fa"; 
+let meeting = null;
+
+async function loadUsers() {
+  const { data, error } = await supabase.from("profile").select("*");
+  if (error) { console.error(error); return; }
+
+  usersDiv.innerHTML = "";
+  data.forEach(user => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const isLive = user.is_live;
+
+    card.innerHTML = `
+      <img src="${user.avatar_url || 'https://via.placeholder.com/80'}">
+      <h4>${user.full_name || "No Name"}</h4>
+      <p class="${isLive ? 'live' : 'offline'}">${isLive ? '🟢 LIVE' : '⚫ OFFLINE'}</p>
+    `;
+
+    if (isLive) card.onclick = () => joinStream(user);
+    usersDiv.appendChild(card);
+  });
+}
+
+async function joinStream(user) {
+  if (!user.is_live) return;
+
+  try {
+    player.style.display = "block";
+    statusOverlay.textContent = "Joining Stream...";
+
+    const token = user.videosdk_viewer_token;
+    const roomId = user.videosdk_room_id;
+    if (!token || !roomId) return;
+
+    await VideoSDK.config(token);
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: roomId,
+      name: "Viewer",
+      participantId: viewerId,
+      micEnabled: false,
+      webcamEnabled: false,
+    });
+
+    meeting.join();
+
+    meeting.on("meeting-joined", () => {
+      statusOverlay.textContent = "Optimizing for Full HD...";
+      // Force request highest quality initially
+      meeting.setDesiredVideoQuality("high");
+    });
+
+    // DYNAMIC QUALITY MONITOR (Viewer Side)
+    meeting.on("network-quality-changed", (event) => {
+      if (event.participantId === viewerId) {
+        const quality = event.downloadQuality; // 0 to 5 scale
+        
+        if (quality < 3) {
+          statusOverlay.textContent = "⚠️ Weak Signal - Downscaling";
+          meeting.setDesiredVideoQuality("medium");
+          qualitySelect.value = "medium";
+        } else if (quality >= 4) {
+          statusOverlay.textContent = "📡 Strong Signal - Full HD";
+          meeting.setDesiredVideoQuality("high");
+          qualitySelect.value = "high";
+        }
+      }
+    });
+
+    // Handle existing host streams
+    meeting.on("stream-enabled", (stream) => {
+      if (stream.kind === "video") attachStream(stream.track);
+    });
+
+    // Catch host if they join after you
+    meeting.on("participant-joined", (participant) => {
+      participant.on("stream-enabled", (stream) => {
+        if (stream.kind === "video") attachStream(stream.track);
+      });
+    });
+
+    meeting.on("meeting-left", () => {
+      resetPlayer();
+    });
+
+  } catch (err) {
+    console.error(err);
+    statusOverlay.textContent = "❌ Connection Error";
+  }
+}
+
+function attachStream(track) {
+  const mediaStream = new MediaStream();
+  mediaStream.addTrack(track);
+  video.srcObject = mediaStream;
+  video.play().catch(e => console.warn("Autoplay blocked or failed:", e));
+  statusOverlay.textContent = "🔴 LIVE";
+}
+
+qualitySelect.onchange = () => {
+  if (!meeting) return;
+  // Manual override: high, medium, or low
+  meeting.setDesiredVideoQuality(qualitySelect.value);
+  statusOverlay.textContent = `Quality: ${qualitySelect.options[qualitySelect.selectedIndex].text}`;
+};
+
+function resetPlayer() {
+  if (meeting) { meeting.leave(); meeting = null; }
+  video.srcObject = null;
+  player.style.display = "none";
+  statusOverlay.textContent = "Ready";
+}
+
+closeBtn.onclick = resetPlayer;
+
+setInterval(loadUsers, 10000);
+loadUsers();
+</script>
+
+</body>
+</html>
