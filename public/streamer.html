@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live</title>
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; text-align: center; }
+  video { width: 100%; height: 55vh; background: black; margin-bottom: 10px; }
+  button {
+    padding: 12px; width: 90%; margin: 10px;
+    border: none; border-radius: 8px; font-weight: bold;
+  }
+  #start { background: green; color: white; }
+  #stop { background: red; color: white; }
+  #switch { background: purple; color: white; }
+  #status { padding: 10px; background: white; }
+</style>
+</head>
+<body>
+
+<h2>🎥 Go Live</h2>
+<video id="video" autoplay muted playsinline></video>
+<div id="status">Ready...</div>
+
+<button id="start">Start Stream</button>
+<button id="stop" disabled>Stop Stream</button>
+<button id="switch">Switch Stream</button>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+
+<script>
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const switchBtn = document.getElementById("switch");
+
+let meeting = null;
+let customTrack = null;
+
+// Attach video
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(stream.track);
+      video.srcObject = mediaStream;
+      video.play().catch(console.error);
+      status.textContent = "🔴 LIVE";
+    }
+  });
+}
+
+// START STREAM
+startBtn.onclick = async () => {
+  try {
+    status.textContent = "Creating room...";
+
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST"
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error("Room failed");
+
+    await VideoSDK.config(data.hostToken);
+
+    customTrack = await VideoSDK.createCameraVideoTrack({
+      optimizationMode: "motion"
+    });
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: data.roomId,
+      name: "Host",
+      micEnabled: true,
+      webcamEnabled: false
+    });
+
+    meeting.join();
+
+    meeting.on("meeting-joined", async () => {
+      await meeting.enableWebcam(customTrack);
+
+      // show local preview instantly
+      const stream = new MediaStream();
+      stream.addTrack(customTrack.track);
+      video.srcObject = stream;
+
+      attachVideo(meeting.localParticipant);
+
+      status.textContent = "🔴 LIVE";
+      stopBtn.disabled = false;
+    });
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Failed to start";
+  }
+};
+
+// STOP STREAM
+stopBtn.onclick = async () => {
+  if (meeting) {
+    await meeting.disableWebcam().catch(() => {});
+    meeting.leave();
+    meeting = null;
+  }
+
+  if (customTrack) {
+    customTrack.stop();
+    customTrack = null;
+  }
+
+  video.srcObject = null;
+  status.textContent = "Stopped";
+  stopBtn.disabled = true;
+};
+
+// 🔁 SWITCH STREAM (VIEWER MODE)
+const switchStream = async (newRoomId, newToken) => {
+  try {
+    status.textContent = "Switching stream...";
+
+    if (meeting) {
+      await meeting.disableWebcam().catch(() => {});
+      meeting.leave();
+    }
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: newRoomId,
+      name: "Viewer",
+      micEnabled: false,
+      webcamEnabled: false,
+      token: newToken
+    });
+
+    meeting.join();
+
+    meeting.on("meeting-joined", () => {
+      status.textContent = "🔴 LIVE (Switched)";
+    });
+
+    meeting.on("participant-joined", (participant) => {
+      attachVideo(participant);
+    });
+
+  } catch (err) {
+    console.error("Switch error:", err);
+    status.textContent = "❌ Failed to switch";
+  }
+};
+
+// BUTTON TO TEST SWITCH
+switchBtn.onclick = async () => {
+  try {
+    status.textContent = "Getting new stream...";
+
+    const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+      method: "POST"
+    });
+
+    const data = await res.json();
+
+    if (!data.success) throw new Error("New room failed");
+
+    await switchStream(data.roomId, data.viewerToken);
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Switch failed";
+  }
+};
+</script>
+
+</body>
+</html>
