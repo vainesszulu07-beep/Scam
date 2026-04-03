@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live - High Quality</title>
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; text-align: center; }
+  video { width: 100%; height: 55vh; background: black; object-fit: contain; }
+  button {
+    padding: 12px; width: 90%; margin: 10px;
+    border: none; border-radius: 8px; font-weight: bold; cursor: pointer;
+  }
+  #start { background: #28a745; color: white; }
+  #stop { background: #dc3545; color: white; }
+  #switch { background: #007bff; color: white; display: none; }
+  #start:disabled, #stop:disabled { background: #ccc; cursor: not-allowed; }
+  #status { padding: 10px; background: white; font-weight: bold; color: #333; }
+</style>
+</head>
+<body>
+
+<h2>🎥 HD Live Stream</h2>
+<video id="video" autoplay muted playsinline></video>
+<div id="status">Loading VideoSDK...</div>
+
+<button id="start" disabled>Start Stream</button>
+<button id="switch">🔄 Switch Camera</button>
+<button id="stop" disabled>Stop Stream</button>
+
+<!-- Recommended CDN for v0.7.0 -->
+<script src="https://cdn.jsdelivr.net/npm/@videosdk.live/js-sdk@0.7.0/videosdk.min.js"></script>
+
+<script type="module">
+import { createClient } from "https://jsdelivr.net";
+
+const supabase = createClient(
+  "https://supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const video = document.getElementById("video");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const switchBtn = document.getElementById("switch");
+
+let meeting = null;
+let currentUserId = null;
+let videoTrack = null;
+let audioTrack = null;
+
+// 1. ENSURE SDK IS LOADED BEFORE INITIALIZING
+function checkSDK() {
+  if (window.VideoSDK) {
+    status.textContent = "Ready to Stream";
+    startBtn.disabled = false;
+    initializeApp();
+  } else {
+    setTimeout(checkSDK, 100); // Check every 100ms
+  }
+}
+
+function initializeApp() {
+  startBtn.onclick = async () => {
+    try {
+      startBtn.disabled = true;
+      status.textContent = "Authorizing...";
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Login required");
+      currentUserId = session.user.id;
+
+      const res = await fetch("https://onrender.com", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: currentUserId })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error("Failed to create room");
+
+      // ACCESS SDK VIA GLOBAL WINDOW
+      window.VideoSDK.config(data.hostToken);
+      status.textContent = "Requesting Camera HD...";
+
+      videoTrack = await window.VideoSDK.createCameraVideoTrack({
+        optimizationMode: "motion",
+        encoderConfig: "h1080p_w1920p",
+        facingMode: "user",
+        multiStream: true
+      });
+
+      audioTrack = await window.VideoSDK.createMicrophoneAudioTrack({
+        encoderConfig: "speech_standard",
+        noiseConfig: { noiseSuppression: true, echoCancellation: true, autoGainControl: true }
+      });
+
+      meeting = window.VideoSDK.initMeeting({
+        meetingId: data.roomId,
+        name: "Host",
+        participantId: currentUserId,
+        micEnabled: true,
+        webcamEnabled: true,
+        customCameraVideoTrack: videoTrack,
+        customMicrophoneAudioTrack: audioTrack,
+        quality: "high"
+      });
+
+      meeting.join();
+
+      meeting.on("meeting-joined", async () => {
+        status.textContent = "Finalizing Stream...";
+        stopBtn.disabled = false;
+        switchBtn.style.display = "inline-block";
+
+        if (meeting.localParticipant) {
+          attachVideo(meeting.localParticipant);
+          meeting.localParticipant.setQuality("high");
+          await meeting.enableWebcam(videoTrack);
+          await meeting.enableMic(audioTrack);
+        }
+
+        await supabase.from("profile").update({
+          is_live: true,
+          videosdk_room_id: data.roomId,
+          videosdk_host_token: data.hostToken,
+          videosdk_viewer_token: data.viewerToken
+        }).eq("id", currentUserId);
+      });
+    } catch (err) {
+      status.textContent = "❌ " + err.message;
+      startBtn.disabled = false;
+    }
+  };
+
+  switchBtn.onclick = async () => {
+    if (!meeting) return;
+    const webcams = await meeting.getWebcams();
+    const currentCamId = meeting.selectedWebcamId;
+    const nextCam = webcams.find(cam => cam.deviceId !== currentCamId);
+    if (nextCam) {
+      await meeting.changeWebcam(nextCam.deviceId);
+      status.textContent = "🔴 Camera Switched";
+    }
+  };
+
+  stopBtn.onclick = async () => {
+    await supabase.from("profile").update({ is_live: false }).eq("id", currentUserId);
+    if (meeting) meeting.leave();
+    video.srcObject = null;
+    status.textContent = "🛑 Ended";
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    switchBtn.style.display = "none";
+  };
+}
+
+function attachVideo(participant) {
+  participant.on("stream-enabled", (stream) => {
+    if (stream.kind === "video") {
+      const mediaStream = new MediaStream();
+      mediaStream.addTrack(stream.track);
+      video.srcObject = mediaStream;
+      video.play();
+      status.textContent = "🔴 LIVE (HD Mode)";
+    }
+  });
+}
+
+// Start the check
+checkSDK();
+
+</script>
+</body>
+</html>
