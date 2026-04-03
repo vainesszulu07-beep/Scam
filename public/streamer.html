@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoSDK Fix</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        #status { padding: 20px; border-radius: 8px; display: inline-block; font-weight: bold; }
+        .loading { background: #fff3cd; color: #856404; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+    <div id="status" class="loading">⏳ Loading from jsDelivr Mirror...</div>
+
+    <!-- Official Mirror Link -->
+    <script src="https://cdn.jsdelivr.net/npm/@videosdk.live/js-sdk@0.7.0/videosdk.min.js"></script>
+
+    <script>
+        window.onload = function() {
+            const statusEl = document.getElementById('status');
+            if (window.VideoSDK) {
+                statusEl.textContent = "✅ SDK v0.7.0 loaded successfully via jsDelivr!";
+                statusEl.className = "success";
+            } else {
+                statusEl.textContent = "❌ SDK still missing. Check browser console.";
+                statusEl.className = "error";
+            }
+        };
+    </script>
+</body>
+</html>
