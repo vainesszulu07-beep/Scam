@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live - HD Stream</title>
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; text-align: center; }
+  #video-container { position: relative; width: 100%; height: 55vh; background: black; }
+  video { width: 100%; height: 100%; object-fit: contain; }
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; max-width: 400px; margin: auto; }
+  button { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+  #start { background: green; color: white; grid-column: span 2; }
+  #switch { background: blue; color: white; }
+  #stop { background: red; color: white; grid-column: span 2; }
+</style>
+</head>
+<body>
+
+<h2>🎥 Host Controls</h2>
+
+<div id="video-container">
+  <video id="video" autoplay muted playsinline></video>
+</div>
+
+<div class="controls">
+  <button id="start">Start Stream</button>
+  <button id="switch">Switch Camera</button>
+  <button id="stop">Stop Stream</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@videosdk.live/js-sdk@0.7.0/videosdk.min.js"></script>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// --- Supabase Setup ---
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+// --- UI Elements ---
+const video = document.getElementById("video");
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const switchBtn = document.getElementById("switch");
+
+// --- State ---
+let meeting = null;
+let currentUserId = null;
+let videoTrack = null;
+let audioTrack = null;
+let currentCameraId = null;
+
+// --- Recording State ---
+let mediaRecorder = null;
+let recordedChunks = [];
+let segmentNumber = 1;
+const sessionId = crypto.randomUUID();
+
+// --- Helper: Attach Video Track to <video> ---
+function attachVideo(track) {
+  let stream;
+  if (track instanceof MediaStream) {
+    stream = track;
+  } else if (track.getVideoTracks) {
+    stream = new MediaStream([track.getVideoTracks()[0]]);
+  } else {
+    console.error("Unknown video track", track);
+    return;
+  }
+  video.srcObject = stream;
+  video.play().catch(err => console.warn("Autoplay blocked", err));
+  return stream;
+}
+
+// --- Start Recording ---
+function startRecording(stream) {
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = e => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
+  mediaRecorder.start(2000); // send data every 2 sec
+}
+
+// --- Stop & Upload Recording ---
+async function stopAndUploadRecording(cameraId) {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+  
+  return new Promise(resolve => {
+    mediaRecorder.onstop = async () => {
+      if (recordedChunks.length > 0) {
+        const blob = new Blob(recordedChunks, { type: "video/webm" });
+        recordedChunks = [];
+
+        try {
+          const { signature, timestamp, apiKey, cloudName } =
+            await fetch("/api/video.js").then(r => r.json());
+
+          const formData = new FormData();
+          formData.append("file", blob);
+          formData.append("api_key", apiKey);
+          formData.append("timestamp", timestamp);
+          formData.append("signature", signature);
+
+          const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
+            method: "POST",
+            body: formData
+          });
+
+          const videoData = await res.json();
+
+          await supabase.from("video_segments").insert([{
+            session_id: sessionId,
+            segment_number: segmentNumber++,
+            camera_id: cameraId,
+            user_id: currentUserId,
+            video_url: videoData.secure_url,
+            public_id: videoData.public_id
+          }]);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      resolve();
+    };
+    mediaRecorder.stop();
+  });
+}
+
+// --- Start Stream ---
+startBtn.onclick = async () => {
+  startBtn.disabled = true;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  currentUserId = session.user.id;
+
+  const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ userId: currentUserId })
+  });
+  const data = await res.json();
+  window.VideoSDK.config(data.hostToken);
+
+  videoTrack = await window.VideoSDK.createCameraVideoTrack({ encoderConfig: "h720p_w1280p" });
+  const settings = videoTrack.getVideoTracks()[0].getSettings();
+  currentCameraId = settings.deviceId;
+
+  audioTrack = await window.VideoSDK.createMicrophoneAudioTrack();
+
+  meeting = window.VideoSDK.initMeeting({
+    meetingId: data.roomId,
+    name: "Host",
+    participantId: currentUserId,
+    micEnabled: true,
+    webcamEnabled: true,
+    customCameraVideoTrack: videoTrack,
+    customMicrophoneAudioTrack: audioTrack
+  });
+
+  await meeting.join();
+
+  meeting.on("meeting-joined", () => {
+    const stream = attachVideo(videoTrack);
+    startRecording(stream);
+  });
+};
+
+// --- Switch Camera ---
+switchBtn.onclick = async () => {
+  const cams = await window.VideoSDK.getCameras();
+  const newId = cams.find(cam => cam.deviceId !== currentCameraId)?.deviceId || currentCameraId;
+
+  await stopAndUploadRecording(currentCameraId);
+
+  const newStream = await window.VideoSDK.createCameraVideoTrack({ cameraId: newId });
+  await meeting.changeWebcam(newStream);
+  attachVideo(newStream);
+  startRecording(newStream);
+
+  currentCameraId = newId;
+};
+
+// --- Stop Stream ---
+stopBtn.onclick = async () => {
+  await stopAndUploadRecording(currentCameraId);
+
+  if (meeting) meeting.leave();
+  if (videoTrack) videoTrack.getTracks().forEach(t => t.stop());
+  if (audioTrack) audioTrack.getTracks().forEach(t => t.stop());
+
+  video.srcObject = null;
+  startBtn.disabled = false;
+};
+</script>
+</body>
+  </html>
