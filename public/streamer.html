@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Live - HD + Recording</title>
+<style>
+body { margin:0; font-family: Arial,sans-serif; background:#f4f4f4; text-align:center; }
+#video-container { position:relative; width:100%; height:55vh; background:black; }
+video { width:100%; height:100%; object-fit:contain; transition: transform 0.3s ease; }
+#brb-overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:#333; display:none; color:white; flex-direction:column; justify-content:center; align-items:center; }
+.controls { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px; max-width:600px; margin:auto; }
+button { padding:12px; width:100%; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px; }
+#start { background:#28a745; color:white; grid-column:span 2; }
+#stop { background:#dc3545; color:white; grid-column:span 2; }
+#switch { background:#007bff; color:white; }
+#status { padding:20px; border-radius:8px; display:inline-block; font-weight:bold; margin-top:10px; }
+.loading { background:#fff3cd; color:#856404; }
+.success { background:#d4edda; color:#155724; }
+#camListOverlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center; }
+#camListContent { background:white; width:80%; max-width:400px; padding:20px; border-radius:12px; }
+.cam-item { padding:15px; margin:5px 0; background:#eee; border-radius:5px; cursor:pointer; font-weight:bold; text-align:left; }
+#uploadProgressOverlay {
+  display:none;
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  font-size: 20px;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+</style>
+</head>
+<body>
+<h2>🎥 Host Controls</h2>
+
+<div id="video-container">
+  <video id="video" autoplay muted playsinline></video>
+  <div id="brb-overlay">
+    <h1>☕ BRB</h1>
+    <p>Stream Paused</p>
+  </div>
+</div>
+
+<br>
+<div id="status" class="loading">⏳ Loading SDK...</div>
+<br>
+
+<div class="controls">
+  <button id="start">🚀 Start Stream</button>
+  <button id="mute" style="display:none;">🎤 Mute Mic</button>
+  <button id="brb" style="display:none;">👁️ Go BRB</button>
+  <button id="switch" style="display:none;">🔄 Flip Cam</button>
+  <button id="stop" disabled>🛑 End Stream</button>
+</div>
+
+<div id="camListOverlay">
+  <div id="camListContent">
+    <h3>Select Camera</h3>
+    <div id="camItemsContainer"></div>
+    <button onclick="document.getElementById('camListOverlay').style.display='none'" style="background:#666;color:white;width:100%;margin:10px 0 0 0;">Cancel</button>
+  </div>
+</div>
+
+<div id="uploadProgressOverlay">
+  Uploading: <span id="progressPercent">0%</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@videosdk.live/js-sdk@0.7.0/videosdk.min.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+// --- STATE ---
+let meeting = null;
+let currentUserId = null;
+let videoTrack = null;
+let audioTrack = null;
+let currentCameraId = null;
+let isMicMuted = false;
+let isVideoHidden = false;
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let segmentNumber = 1;
+const sessionId = crypto.randomUUID();
+const activeUploads = [];
+
+const videoEl = document.getElementById("video");
+const uploadProgressOverlay = document.getElementById("uploadProgressOverlay");
+const progressPercent = document.getElementById("progressPercent");
+
+// --- RECORDING & UPLOAD ---
+function startRecording(stream) {
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(stream, {
+    mimeType: "video/webm;codecs=vp8,opus",
+    videoBitsPerSecond: 2000000,
+    audioBitsPerSecond: 128000
+  });
+
+  mediaRecorder.ondataavailable = e => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
+
+  mediaRecorder.start(2000);
+}
+
+async function stopAndUpload() {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+
+  return new Promise(resolve => {
+    mediaRecorder.onstop = async () => {
+      if (recordedChunks.length > 0) {
+        const blob = new Blob(recordedChunks, { type: "video/webm" });
+        recordedChunks = [];
+
+        try {
+          uploadProgressOverlay.style.display = "flex";
+          progressPercent.textContent = "0%";
+
+          const { signature, timestamp, apiKey, cloudName } =
+            await fetch("/api/video.js").then(r => r.json());
+
+          const formData = new FormData();
+          formData.append("file", blob, `HD-rec-${segmentNumber}.webm`);
+          formData.append("api_key", apiKey);
+          formData.append("timestamp", timestamp);
+          formData.append("signature", signature);
+          formData.append("folder", "videos");
+
+          const uploadPromise = new Promise((res, rej) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+
+            xhr.upload.onprogress = e => {
+              if (e.lengthComputable) {
+                progressPercent.textContent = Math.round((e.loaded / e.total) * 100) + "%";
+              }
+            };
+
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                res(JSON.parse(xhr.responseText));
+              } else {
+                rej(new Error("Upload failed"));
+              }
+            };
+
+            xhr.onerror = () => rej(new Error("Upload error"));
+            xhr.send(formData);
+          });
+
+          const trackedUpload = (async () => {
+            const videoData = await uploadPromise;
+
+            // --- UPDATED: Upsert with nullable fields ---
+            const { error } = await supabase.from("video_segments").upsert([{
+              session_id: sessionId,
+              segment_number: segmentNumber++,
+              camera_id: currentCameraId || null,
+              user_id: currentUserId || null,
+              video_url: videoData?.secure_url || null,
+              public_id: videoData?.public_id || null
+            }], { onConflict: ['session_id','segment_number'] });
+
+            if (error) throw error;
+          })();
+
+          activeUploads.push(trackedUpload);
+          await trackedUpload;
+        } catch (err) {
+          console.error("Upload failed", err);
+        } finally {
+          uploadProgressOverlay.style.display = "none";
+          resolve();
+        }
+      } else {
+        resolve();
+      }
+    };
+
+    mediaRecorder.requestData();
+    mediaRecorder.stop();
+  });
+}
+
+// --- CAMERA SWITCH (UNCHANGED LOGIC) ---
+async function switchCamera(deviceId) {
+  if (isVideoHidden) return;
+
+  try {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      await stopAndUpload();
+    }
+
+    if (videoTrack) {
+      videoTrack.getTracks().forEach(t => t.stop());
+    }
+
+    const newTrack = await window.VideoSDK.createCameraVideoTrack({
+      cameraId: deviceId,
+      optimizationMode: "motion",
+      encoderConfig: "h1080p_w1920p",
+      multiStream: true
+    });
+
+    await meeting.changeWebcam(newTrack);
+    videoTrack = newTrack;
+
+    const combined = new MediaStream([
+      videoTrack.getVideoTracks()[0],
+      audioTrack.getAudioTracks()[0]
+    ]);
+
+    videoEl.srcObject = combined;
+    videoEl.play();
+    startRecording(combined);
+  } catch (err) {
+    console.error("Switch Failed", err);
+  }
+}
+
+// --- START STREAM (UNCHANGED LOGIC) ---
+async function startStream(userId) {
+  currentUserId = userId;
+
+  const res = await fetch("https://scamming-lg3v.onrender.com/api/create-room", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId })
+  });
+
+  const data = await res.json();
+  await window.VideoSDK.config(data.hostToken);
+
+  videoTrack = await window.VideoSDK.createCameraVideoTrack({
+    optimizationMode: "motion",
+    encoderConfig: "h1080p_w1920p",
+    facingMode: "user",
+    multiStream: true
+  });
+
+  currentCameraId = videoTrack.getVideoTracks()[0].getSettings().deviceId;
+
+  audioTrack = await window.VideoSDK.createMicrophoneAudioTrack({
+    encoderConfig: "high_quality",
+    noiseConfig: {
+      noiseSuppression: true,
+      echoCancellation: true,
+      autoGainControl: true
+    }
+  });
+
+  meeting = window.VideoSDK.initMeeting({
+    meetingId: data.roomId,
+    name: "Host",
+    participantId: userId,
+    micEnabled: true,
+    webcamEnabled: true,
+    customCameraVideoTrack: videoTrack,
+    customMicrophoneAudioTrack: audioTrack
+  });
+
+  await meeting.join();
+
+  const combined = new MediaStream([
+    videoTrack.getVideoTracks()[0],
+    audioTrack.getAudioTracks()[0]
+  ]);
+
+  videoEl.srcObject = combined;
+  videoEl.play();
+  startRecording(combined);
+
+  const { error } = await supabase.from("profile").update({
+    is_live: true,
+    stream_started_at: new Date().toISOString(),
+    videosdk_room_id: data.roomId,
+    stream_camera_on: true,
+    stream_mic_on: true
+  }).eq("id", currentUserId);
+
+  if (error) {
+    console.error("Profile update failed", error);
+  }
+}
+
+// --- STOP STREAM ---
+async function stopStream() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    await stopAndUpload();
+  }
+
+  if (meeting) meeting.leave();
+  if (videoTrack) videoTrack.getTracks().forEach(t => t.stop());
+  if (audioTrack) audioTrack.getTracks().forEach(t => t.stop());
+
+  await Promise.all(activeUploads);
+
+  if (currentUserId) {
+    const { error } = await supabase.from("profile").update({
+      is_live: false,
+      stream_ended_at: new Date().toISOString(),
+      videosdk_room_id: null,
+      stream_camera_on: false,
+      stream_mic_on: false
+    }).eq("id", currentUserId);
+
+    if (error) {
+      console.error("Profile cleanup failed", error);
+    }
+  }
+
+  try {
+    const mergeRes = await fetch("/api/video_merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, user_id: currentUserId })
+    });
+
+    const mergeData = await mergeRes.json();
+    alert(mergeData.merged_url ? "✅ Merged video uploaded successfully!" : "❌ Merge failed");
+  } catch (err) {
+    console.error(err);
+    alert("❌ Merge failed due to network error");
+  }
+}
+
+// --- UI HANDLERS ---
+const startBtn = document.getElementById("start");
+const stopBtn = document.getElementById("stop");
+const switchBtn = document.getElementById("switch");
+const muteBtn = document.getElementById("mute");
+const brbBtn = document.getElementById("brb");
+const brbOverlay = document.getElementById("brb-overlay");
+const camListOverlay = document.getElementById("camListOverlay");
+const camItemsContainer = document.getElementById("camItemsContainer");
+const statusEl = document.getElementById("status");
+
+window.onload = () => {
+  statusEl.textContent = "✅ SDK Ready";
+  statusEl.className = "success";
+};
+
+startBtn.onclick = async () => {
+  startBtn.disabled = true;
+  try {
+    await startStream("demo-user");
+    stopBtn.disabled = false;
+    switchBtn.style.display = "inline-block";
+    muteBtn.style.display = "inline-block";
+    brbBtn.style.display = "inline-block";
+  } catch (err) {
+    console.error(err);
+    startBtn.disabled = false;
+  }
+};
+
+stopBtn.onclick = async () => {
+  await stopStream();
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  switchBtn.style.display = "none";
+  muteBtn.style.display = "none";
+  brbBtn.style.display = "none";
+  brbOverlay.style.display = "none";
+};
+
+switchBtn.onclick = async () => {
+  const cameras = await window.VideoSDK.getCameras();
+  camItemsContainer.innerHTML = "";
+  cameras.forEach(cam => {
+    const btn = document.createElement("div");
+    btn.className = "cam-item";
+    btn.textContent = cam.label || `Camera ${cam.deviceId.substring(0,5)}`;
+    btn.onclick = () => {
+      switchCamera(cam.deviceId);
+      camListOverlay.style.display = "none";
+    };
+    camItemsContainer.appendChild(btn);
+  });
+  camListOverlay.style.display = "flex";
+};
+
+brbBtn.onclick = () => {
+  isVideoHidden = !isVideoHidden;
+  brbOverlay.style.display = isVideoHidden ? "flex" : "none";
+};
+
+muteBtn.onclick = async () => {
+  if (!meeting) return;
+  if (isMicMuted) {
+    await meeting.unmuteMic();
+  } else {
+    await meeting.muteMic();
+  }
+  isMicMuted = !isMicMuted;
+  muteBtn.textContent = isMicMuted ? "🔇 Unmute" : "🎤 Mute Mic";
+};
+</script>
+</body>
+  </html>
