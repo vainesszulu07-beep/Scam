@@ -62,7 +62,44 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const supabase = createClient(          
   "https://eimecuiixwgmpfpedxpr.supabase.co",          
   "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"          
-);          
+);
+
+  // --- SAVE STREAM ---
+async function saveStreamToDB(userId, data) {
+  const { error } = await supabase
+    .from("profile")
+    .update({
+      is_live: true,
+      stream_started_at: new Date().toISOString(),
+      videosdk_room_id: data.roomId,
+      videosdk_host_token: data.hostToken,
+      videosdk_viewer_token: data.viewerToken,
+      stream_camera_on: true,
+      stream_mic_on: true
+    })
+    .eq("id", userId);
+
+  if (error) throw error;
+}
+
+// --- CLEAR STREAM ---
+async function clearStreamFromDB(userId) {
+  const { error } = await supabase
+    .from("profile")
+    .update({
+      is_live: false,
+      stream_ended_at: new Date().toISOString(),
+      videosdk_room_id: null,
+      videosdk_host_token: null,
+      videosdk_viewer_token: null,
+      stream_camera_on: false,
+      stream_mic_on: false
+    })
+    .eq("id", userId);
+
+  if (error) throw error;
+  }
+  
           
 // --- STATE ---          
 let meeting = null;          
@@ -278,7 +315,9 @@ async function startStream(userId) {
     customMicrophoneAudioTrack: audioTrack          
   });          
           
-  await meeting.join();          
+  await meeting.join();
+
+  await saveStreamToDB(userId, data);
           
   const combined = new MediaStream([          
     videoTrack.getVideoTracks()[0],          
@@ -289,15 +328,7 @@ async function startStream(userId) {
   videoEl.play();          
   startRecording(combined);          
           
-  const { error } = await supabase.from("profile").update({          
-    is_live: true,          
-    stream_started_at: new Date().toISOString(),          
-    videosdk_room_id: data.roomId,          
-    stream_camera_on: true,          
-    stream_mic_on: true          
-  }).eq("id", currentUserId);          
           
-  if (error) console.error("Profile update failed", error);          
 }          
           
 // --- STOP STREAM ---          
@@ -311,18 +342,10 @@ async function stopStream() {
   if (audioTrack) audioTrack.getTracks().forEach(t => t.stop());          
           
   await Promise.all(activeUploads);          
-  activeUploads.length = 0;          
-          
-  if (currentUserId) {          
-    const { error } = await supabase.from("profile").update({          
-      is_live: false,          
-      stream_ended_at: new Date().toISOString(),          
-      videosdk_room_id: null,          
-      stream_camera_on: false,          
-      stream_mic_on: false          
-    }).eq("id", currentUserId);          
-          
-    if (error) console.error("Profile cleanup failed", error);          
+  activeUploads.length = 0;
+  
+  await clearStreamFromDB(currentUserId);       
+        
   }          
           
   try {          
