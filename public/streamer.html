@@ -217,7 +217,8 @@ async function switchCamera(deviceId) {
       cameraId: deviceId,        
       optimizationMode: "motion",        
       encoderConfig: "h1080p_w1920p",        
-      multiStream: true        
+      multiStream: true,
+      maxLayer: 2
     });        
         
     await meeting.changeWebcam(newTrack);        
