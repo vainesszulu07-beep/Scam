@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Recording</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: white;
+    text-align: center;
+  }
+
+  h2 {
+    margin-top: 20px;
+  }
+
+  #container {
+    max-width: 700px;
+    margin: auto;
+    padding: 20px;
+  }
+
+  video {
+    width: 100%;
+    border-radius: 12px;
+    background: black;
+    margin-top: 20px;
+  }
+
+  #status {
+    margin-top: 20px;
+    color: #ccc;
+  }
+</style>
+</head>
+<body>
+
+<div id="container">
+  <h2>🎥 Your Last Recording</h2>
+
+  <div id="status">Checking session...</div>
+
+  <video id="videoPlayer" controls style="display:none;"></video>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const statusEl = document.getElementById("status");
+const video = document.getElementById("videoPlayer");
+
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    statusEl.textContent = "❌ Not logged in";
+    return null;
+  }
+
+  return session.user.id;
+}
+
+async function loadVideo() {
+  const userId = await getUser();
+  if (!userId) return;
+
+  statusEl.textContent = "Loading recording...";
+
+  const { data, error } = await supabase
+    .from("profile")
+    .select("url")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    statusEl.textContent = "❌ Error loading video";
+    console.error(error);
+    return;
+  }
+
+  if (data && data.url) {
+    video.src = data.url;
+    video.style.display = "block";
+    statusEl.textContent = "✅ Ready to play";
+  } else {
+    statusEl.textContent = "No recording found yet";
+  }
+}
+
+loadVideo();
+</script>
+
+</body>
+</html>
