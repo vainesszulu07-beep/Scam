@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Streams</title>
+
+<style>
+  body { margin: 0; font-family: Arial; background: #f4f4f4; }
+  h2 { text-align: center; padding: 10px; }
+
+  #users { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
+  .card { background: white; border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; }
+  .card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+  .live { color: green; font-weight: bold; }
+  .offline { color: gray; }
+
+  #player { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; display: none; z-index: 100; }
+  #video { width: 100%; height: 100%; object-fit: contain; background: black; }
+
+  #viewer-brb {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(20, 20, 20, 0.95); color: white;
+    display: none;
+    flex-direction: column; justify-content: center; align-items: center;
+    z-index: 102;
+    text-align: center;
+  }
+  #viewer-brb h1 { font-size: 50px; margin: 0 0 20px 0; }
+
+  #close {
+    position: absolute; top: 20px; right: 20px; padding: 10px 20px;
+    background: red; color: white; border: none; border-radius: 5px;
+    cursor: pointer; z-index: 103; font-weight: bold;
+  }
+
+  #quality {
+    position: absolute; bottom: 20px; right: 20px; padding: 10px;
+    background: rgba(255,255,255,0.9); border-radius: 5px; border: none;
+    font-weight: bold; z-index: 103;
+  }
+</style>
+</head>
+<body>
+
+<h2>📡 Live Users</h2>
+<div id="users"></div>
+
+<div id="player">
+  <button id="close">Close</button>
+
+  <video id="video" autoplay playsinline muted></video>
+
+  <div id="viewer-brb">
+    <h1>☕</h1>
+    <h2>Host is away</h2>
+  </div>
+
+  <select id="quality">
+    <option value="low" selected>180p (Low)</option>
+    <option value="med">360p (Med)</option>
+    <option value="high">720p/1080p (HD)</option>
+  </select>
+</div>
+
+<script src="https://sdk.videosdk.live/js-sdk/0.6.0/videosdk.js"></script>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersDiv = document.getElementById("users");
+const video = document.getElementById("video");
+const player = document.getElementById("player");
+const brbScreen = document.getElementById("viewer-brb");
+const closeBtn = document.getElementById("close");
+const qualitySelect = document.getElementById("quality");
+
+let viewerId = "e0330e1d-4766-4bea-bed1-4c166a9104fa";
+
+let meeting = null;
+let hostParticipant = null;
+let activeVideoStreamId = null;
+
+function safeStreamTrack(stream) {
+  return stream?.track || stream?.mediaStreamTrack || null;
+}
+
+function getStreamId(stream) {
+  return stream?.id || stream?.streamId || safeStreamTrack(stream)?.id || null;
+}
+
+async function loadUsers() {
+  const { data, error } = await supabase.from("profile").select("*");
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  usersDiv.innerHTML = "";
+  data.forEach(user => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const isLive = !!user.is_live;
+
+    card.innerHTML = `
+      <img src="${user.avatar_url || 'https://via.placeholder.com/80'}" alt="">
+      <h4>${user.full_name || "No Name"}</h4>
+      <p class="${isLive ? 'live' : 'offline'}">${isLive ? '🟢 LIVE' : '⚫ OFFLINE'}</p>
+    `;
+
+    if (isLive) {
+      card.onclick = () => joinStream(user);
+    }
+
+    usersDiv.appendChild(card);
+  });
+}
+
+function cleanupRemoteMedia() {
+  document.querySelectorAll(".remote-audio").forEach(el => el.remove());
+  video.srcObject = null;
+  activeVideoStreamId = null;
+}
+
+function handleStream(stream) {
+  if (!stream) return;
+
+  const track = safeStreamTrack(stream);
+  if (!track) return;
+
+  const streamId = getStreamId(stream);
+
+  if (stream.kind === "video") {
+    brbScreen.style.display = "none";
+
+    if (streamId && activeVideoStreamId === streamId) return;
+    activeVideoStreamId = streamId;
+
+    const mediaStream = new MediaStream([track]);
+    video.srcObject = mediaStream;
+    video.play().catch(() => {});
+  } else if (stream.kind === "audio") {
+    const audioId = `audio-${streamId || track.id}`;
+    if (document.getElementById(audioId)) return;
+
+    const audioEl = document.createElement("audio");
+    audioEl.id = audioId;
+    audioEl.className = "remote-audio";
+    audioEl.autoplay = true;
+    audioEl.playsInline = true;
+
+    const mediaStream = new MediaStream([track]);
+    audioEl.srcObject = mediaStream;
+
+    document.body.appendChild(audioEl);
+    audioEl.play().catch(() => {});
+  }
+}
+
+function setupParticipant(participant) {
+  if (!participant) return;
+
+  try {
+    if (typeof participant.setQuality === "function") {
+      participant.setQuality(qualitySelect.value);
+    }
+  } catch (err) {
+    console.warn("setQuality failed:", err);
+  }
+
+  if (typeof participant.on === "function") {
+    participant.on("stream-enabled", (stream) => {
+      if (stream?.kind === "video" && typeof participant.setQuality === "function") {
+        participant.setQuality(qualitySelect.value);
+      }
+      handleStream(stream);
+    });
+
+    participant.on("stream-disabled", (stream) => {
+      if (stream?.kind === "video") {
+        brbScreen.style.display = "flex";
+        video.srcObject = null;
+        activeVideoStreamId = null;
+      }
+    });
+  }
+
+  if (participant.streams && typeof participant.streams.forEach === "function") {
+    participant.streams.forEach((stream) => {
+      handleStream(stream);
+    });
+  }
+}
+
+async function joinStream(user) {
+  if (!user?.is_live) return;
+
+  try {
+    cleanupRemoteMedia();
+    player.style.display = "block";
+    brbScreen.style.display = "none";
+
+    await VideoSDK.config(user.videosdk_viewer_token);
+
+    meeting = VideoSDK.initMeeting({
+      meetingId: user.videosdk_room_id,
+      name: "Viewer",
+      participantId: viewerId,
+      micEnabled: false,
+      webcamEnabled: false,
+      multiStream: true,
+      mode: "VIEWER"
+    });
+
+    meeting.on("participant-joined", (participant) => {
+      hostParticipant = participant;
+      setupParticipant(participant);
+    });
+
+    meeting.on("participant-left", (participant) => {
+      if (participant && participant.id === activeVideoStreamId) {
+        brbScreen.style.display = "flex";
+        video.srcObject = null;
+        activeVideoStreamId = null;
+      }
+    });
+
+    await meeting.join();
+
+    if (meeting.participants && typeof meeting.participants.forEach === "function") {
+      meeting.participants.forEach((participant) => {
+        hostParticipant = participant;
+        setupParticipant(participant);
+      });
+    }
+  } catch (err) {
+    console.error("Join Error:", err);
+    player.style.display = "none";
+  }
+}
+
+qualitySelect.onchange = () => {
+  if (hostParticipant && typeof hostParticipant.setQuality === "function") {
+    hostParticipant.setQuality(qualitySelect.value);
+  }
+};
+
+document.body.addEventListener("click", () => {
+  if (video.srcObject) video.play().catch(() => {});
+  document.querySelectorAll(".remote-audio").forEach(a => a.play().catch(() => {}));
+});
+
+closeBtn.onclick = () => {
+  if (meeting) {
+    meeting.leave();
+    meeting = null;
+  }
+  hostParticipant = null;
+  cleanupRemoteMedia();
+  document.querySelectorAll(".remote-audio").forEach(el => el.remove());
+  brbScreen.style.display = "none";
+  player.style.display = "none";
+};
+
+setInterval(loadUsers, 10000);
+loadUsers();
+</script>
+</body>
+      </html>
