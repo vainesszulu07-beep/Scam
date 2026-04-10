@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
     const { error } = await supabase
       .from('profile')
-      .update({ media_url: fileUrl })
+      .update({ url: fileUrl })
       .eq('videosdk_room_id', meetingId);
 
     if (error) {
