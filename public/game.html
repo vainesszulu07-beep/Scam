@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Game Matchmaker</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+  }
+
+  .wrap {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  h2 {
+    margin: 10px 0 20px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  }
+
+  button {
+    padding: 12px;
+    width: 100%;
+    margin: 10px 0;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 15px;
+  }
+
+  #create { background: green; color: white; }
+  #join { background: blue; color: white; }
+
+  #status {
+    margin-top: 18px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 10px;
+    font-weight: bold;
+    white-space: pre-line;
+    text-align: left;
+    min-height: 64px;
+    border: 1px solid #e7e7e7;
+  }
+
+  .hint {
+    margin-top: 12px;
+    color: #666;
+    font-size: 14px;
+  }
+</style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h2>🎮 Tic Tac Toe Matchmaker</h2>
+
+    <div class="card">
+      <button id="create">Create Game</button>
+      <button id="join">Quick Match</button>
+
+      <div id="status">Waiting...</div>
+      <div class="hint">Create a game to get an idle room, or tap Quick Match to find one.</div>
+    </div>
+  </div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const statusEl = document.getElementById("status");
+
+let userId = null;
+let currentGame = null;
+let channel = null;
+
+// ---------------- USER ----------------
+async function getUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    statusEl.innerText = "❌ Not logged in";
+    throw new Error("No session");
+  }
+  userId = session.user.id;
+  return userId;
+}
+
+// ---------------- CHECK EXISTING GAME ----------------
+async function getExistingGame(userId) {
+  const { data } = await supabase
+    .from("games")
+    .select("*")
+    .or(`player_x.eq.${userId},player_o.eq.${userId}`)
+    .in("status", ["idle", "waiting", "playing"])
+    .limit(1)
+    .maybeSingle();
+
+  return data;
+}
+
+// ---------------- REALTIME ----------------
+function subscribeToGame(gameId) {
+  if (channel) supabase.removeChannel(channel);
+
+  channel = supabase
+    .channel("game-room")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "games",
+        filter: `id=eq.${gameId}`
+      },
+      (payload) => {
+        const game = payload.new;
+
+        console.log("LIVE UPDATE:", game);
+
+        if (game.status === "idle") {
+          statusEl.innerText = `🟡 Game Ready\nClick JOIN to play\nGame: ${game.id}`;
+        }
+
+        if (game.status === "waiting") {
+          statusEl.innerText = `⏳ Waiting for opponent...\nGame: ${game.id}`;
+        }
+
+        if (game.status === "playing") {
+          statusEl.innerText =
+            `🎮 GAME STARTED!\nX: ${game.player_x}\nO: ${game.player_o}`;
+        }
+
+        if (game.status === "finished") {
+          statusEl.innerText =
+            `🏁 GAME OVER\nWinner: ${game.winner}`;
+        }
+      }
+    )
+    .subscribe();
+}
+
+// ---------------- CREATE GAME ----------------
+document.getElementById("create").onclick = async () => {
+  try {
+    await getUser();
+
+    const existing = await getExistingGame(userId);
+
+    // ✅ If already has a game → reuse it
+    if (existing) {
+      currentGame = existing;
+
+      statusEl.innerText =
+        "♻️ Using existing game\nID: " + existing.id;
+
+      subscribeToGame(existing.id);
+      return;
+    }
+
+    // ❌ If no game → create new (idle)
+    const { data, error } = await supabase
+      .from("games")
+      .insert({
+        player_x: userId,
+        status: "idle"
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    currentGame = data;
+
+    statusEl.innerText =
+      "🎮 Game Created (IDLE)\nClick JOIN to start\nID: " + data.id;
+
+    subscribeToGame(data.id);
+
+  } catch (err) {
+    console.error(err);
+    statusEl.innerText = "❌ Error creating game";
+  }
+};
+
+// ---------------- JOIN / PLAY ----------------
+document.getElementById("join").onclick = async () => {
+  try {
+    await getUser();
+
+    // 🔍 Check if user already has game
+    let game = await getExistingGame(userId);
+
+    // ---------------- IF USER HAS GAME ----------------
+    if (game) {
+
+      // If already playing
+      if (game.status === "playing") {
+        statusEl.innerText = "🎮 Already in a game!";
+        subscribeToGame(game.id);
+        return;
+      }
+
+      // If idle → move to waiting
+      if (game.status === "idle") {
+        await supabase
+          .from("games")
+          .update({ status: "waiting" })
+          .eq("id", game.id);
+
+        statusEl.innerText = "⏳ Now waiting for opponent...";
+        subscribeToGame(game.id);
+        return;
+      }
+
+      // If waiting → just stay
+      if (game.status === "waiting") {
+        statusEl.innerText = "⏳ Still waiting...";
+        subscribeToGame(game.id);
+        return;
+      }
+    }
+
+    // ---------------- FIND MATCH ----------------
+    statusEl.innerText = "🔍 Searching game...";
+
+    const { data: waitingGame } = await supabase
+      .from("games")
+      .select("*")
+      .eq("status", "waiting")
+      .is("player_o", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (waitingGame) {
+      const { error } = await supabase
+        .from("games")
+        .update({
+          player_o: userId,
+          status: "playing"
+        })
+        .eq("id", waitingGame.id)
+        .is("player_o", null);
+
+      if (error) throw error;
+
+      statusEl.innerText = "🎮 Joined Game: " + waitingGame.id;
+      subscribeToGame(waitingGame.id);
+      return;
+    }
+
+    // ---------------- CREATE NEW WAITING GAME ----------------
+    const { data, error } = await supabase
+      .from("games")
+      .insert({
+        player_x: userId,
+        status: "waiting"
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    statusEl.innerText =
+      "⏳ Waiting for opponent...\nID: " + data.id;
+
+    subscribeToGame(data.id);
+
+  } catch (err) {
+    console.error(err);
+    statusEl.innerText = "❌ Matchmaking error";
+  }
+};
+</script>
+</body>
+  </html>
