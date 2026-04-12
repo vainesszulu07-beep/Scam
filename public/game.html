@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Game Lobby</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    h2, h3 {
+      margin: 8px 0 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    #playMyGame { background: green; color: white; }
+    #refresh { background: #6c757d; color: white; }
+    #exitGame { background: #dc3545; color: white; display: none; }
+
+    #status {
+      margin-top: 10px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #e7e7e7;
+      white-space: pre-line;
+      min-height: 60px;
+      text-align: left;
+    }
+
+    #myGameBox {
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+    }
+
+    #gamesList {
+      display: grid;
+      gap: 10px;
+    }
+
+    .game-item {
+      background: #fff;
+      border: 1px solid #e7e7e7;
+      border-radius: 12px;
+      padding: 14px;
+      text-align: left;
+    }
+
+    .game-item strong {
+      display: block;
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+
+    .join-btn {
+      background: #0d6efd;
+      color: white;
+      margin: 0;
+    }
+
+    .join-btn:disabled {
+      background: #9ec1ff;
+      cursor: not-allowed;
+    }
+
+    .muted {
+      color: #777;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>🎮 Game Lobby</h2>
+
+    <div class="card">
+      <button id="playMyGame">Play My Game</button>
+      <button id="exitGame">Exit Game</button>
+      <button id="refresh">Refresh Waiting Games</button>
+
+      <div id="status">Loading...</div>
+
+      <div id="myGameBox">
+        <strong>My Game</strong>
+        <div id="myGameText" class="muted">Checking your game...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Waiting Games</h3>
+      <div id="gamesList"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const statusEl = document.getElementById("status");
+    const gamesListEl = document.getElementById("gamesList");
+    const myGameTextEl = document.getElementById("myGameText");
+    const playMyGameBtn = document.getElementById("playMyGame");
+    const refreshBtn = document.getElementById("refresh");
+    const exitGameBtn = document.getElementById("exitGame");
+
+    let userId = null;
+    let myGame = null;
+    let channel = null;
+
+    async function getUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.user) {
+        statusEl.innerText = "❌ Not logged in";
+        throw new Error("No session");
+      }
+      userId = session.user.id;
+      return userId;
+    }
+
+    async function getOrCreateGame() {
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .or(`player_x.eq.${userId},player_o.eq.${userId}`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (data) return data;
+
+      const { data: created, error: createError } = await supabase
+        .from("games")
+        .insert({
+          player_x: userId,
+          status: "idle"
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      return created;
+    }
+
+    async function cleanOldGames() {
+      await supabase
+        .from("games")
+        .update({
+          status: "idle"
+        })
+        .eq("player_x", userId)
+        .in("status", ["waiting", "playing"]);
+
+      await supabase
+        .from("games")
+        .update({
+          player_o: null,
+          status: "waiting"
+        })
+        .eq("player_o", userId)
+        .eq("status", "playing");
+    }
+
+    async function ensureMyGameExists(userId) {
+      const existing = await findMyGame(userId);
+      if (existing) return existing;
+
+      const { data, error } = await supabase
+        .from("games")
+        .insert({
+          player_x: userId,
+          status: "idle"
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    }
+
+    async function findMyGame(userId) {
+      const { data: playingGame, error: playingError } = await supabase
+        .from("games")
+        .select("*")
+        .or(`player_x.eq.${userId},player_o.eq.${userId}`)
+        .eq("status", "playing")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (playingError) throw playingError;
+      if (playingGame) return playingGame;
+
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .or(`player_x.eq.${userId},player_o.eq.${userId}`)
+        .in("status", ["idle", "waiting"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data || null;
+    }
+
+    async function setOldPlayerXGameIdle(userId, keepGameId = null) {
+      const { data: oldGames, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("player_x", userId)
+        .in("status", ["waiting", "playing"])
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (!oldGames || oldGames.length === 0) return;
+
+      for (const game of oldGames) {
+        if (keepGameId && game.id === keepGameId) continue;
+
+        await supabase
+          .from("games")
+          .update({
+            status: "idle",
+            player_o: null
+          })
+          .eq("id", game.id);
+      }
+    }
+
+    function updateExitButtonVisibility(game) {
+      const shouldShow =
+        !!game &&
+        game.status === "playing" &&
+        (game.player_x === userId || game.player_o === userId);
+
+      exitGameBtn.style.display = shouldShow ? "block" : "none";
+    }
+
+    function updateMyGameUI(game) {
+      if (!game) {
+        myGameTextEl.textContent = "No game found.";
+        playMyGameBtn.disabled = true;
+        updateExitButtonVisibility(null);
+        return;
+      }
+
+      if (game.status === "idle") {
+        myGameTextEl.textContent = `ID: ${game.id}\nStatus: idle\nTap “Play My Game” to make it waiting.`;
+        playMyGameBtn.disabled = false;
+      } else if (game.status === "waiting") {
+        myGameTextEl.textContent = `ID: ${game.id}\nStatus: waiting\nWaiting for an opponent.`;
+        playMyGameBtn.disabled = true;
+      } else if (game.status === "playing") {
+        myGameTextEl.textContent = `ID: ${game.id}\nStatus: playing\nX: ${game.player_x}\nO: ${game.player_o}`;
+        playMyGameBtn.disabled = true;
+      } else {
+        myGameTextEl.textContent = `ID: ${game.id}\nStatus: ${game.status}`;
+        playMyGameBtn.disabled = true;
+      }
+
+      updateExitButtonVisibility(game);
+    }
+
+    async function loadWaitingGames() {
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("status", "waiting")
+        .is("player_o", null)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        gamesListEl.innerHTML = `<div class="muted">Could not load games.</div>`;
+        return;
+      }
+
+      const available = (data || []).filter(game => game.player_x !== userId);
+
+      gamesListEl.innerHTML = "";
+
+      if (available.length === 0) {
+        gamesListEl.innerHTML = `<div class="muted">No waiting games right now.</div>`;
+        return;
+      }
+
+      available.forEach(game => {
+        const item = document.createElement("div");
+        item.className = "game-item";
+
+        item.innerHTML = `
+          <strong>Game ID</strong>
+          <div class="small">${game.id}</div>
+          <div class="small">Host: ${game.player_x}</div>
+          <div class="small">Status: ${game.status}</div>
+        `;
+
+        const btn = document.createElement("button");
+        btn.className = "join-btn";
+        btn.textContent = "Join This Game";
+        btn.onclick = () => joinWaitingGame(game.id, game.player_x);
+
+        item.appendChild(btn);
+        gamesListEl.appendChild(item);
+      });
+    }
+
+    async function joinWaitingGame(gameId, hostId) {
+      try {
+        await getUser();
+
+        if (hostId === userId) {
+          statusEl.innerText = "⚠️ You cannot join your own game.";
+          return;
+        }
+
+        await cleanOldGames();
+
+        if (myGame && myGame.status === "playing") {
+          statusEl.innerText = `⚠️ You are already in a playing game.\nID: ${myGame.id}`;
+          return;
+        }
+
+        if (myGame && myGame.status === "waiting" && myGame.player_x !== userId) {
+          statusEl.innerText = `⚠️ You already have a waiting game.\nID: ${myGame.id}`;
+          return;
+        }
+
+        await setOldPlayerXGameIdle(userId, gameId);
+
+        const { error } = await supabase
+          .from("games")
+          .update({
+            player_o: userId,
+            status: "playing"
+          })
+          .eq("id", gameId)
+          .is("player_o", null)
+          .eq("status", "waiting");
+
+        if (error) throw error;
+
+        const { data: joinedGame, error: joinedError } = await supabase
+          .from("games")
+          .select("*")
+          .eq("id", gameId)
+          .single();
+
+        if (joinedError) throw joinedError;
+
+        myGame = joinedGame;
+        updateMyGameUI(myGame);
+
+        statusEl.innerText = `🎮 Joined game\nID: ${gameId}`;
+        await loadWaitingGames();
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "❌ Could not join that game";
+      }
+    }
+
+    playMyGameBtn.onclick = async () => {
+      try {
+        await getUser();
+
+        if (!myGame) {
+          myGame = await ensureMyGameExists(userId);
+        }
+
+        if (myGame.status === "idle") {
+          const { data, error } = await supabase
+            .from("games")
+            .update({ status: "waiting" })
+            .eq("id", myGame.id)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          myGame = data;
+          statusEl.innerText = `⏳ Your game is now waiting\nID: ${myGame.id}`;
+          updateMyGameUI(myGame);
+          await loadWaitingGames();
+        } else if (myGame.status === "waiting") {
+          statusEl.innerText = `⏳ Your game is already waiting\nID: ${myGame.id}`;
+        } else if (myGame.status === "playing") {
+          statusEl.innerText = `🎮 Your game is already playing\nID: ${myGame.id}`;
+        } else {
+          statusEl.innerText = `ℹ️ Game status: ${myGame.status}`;
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "❌ Could not update your game";
+      }
+    };
+
+    exitGameBtn.onclick = async () => {
+      try {
+        await getUser();
+
+        if (!myGame || myGame.status !== "playing") {
+          exitGameBtn.style.display = "none";
+          return;
+        }
+
+        const isHost = myGame.player_x === userId;
+
+        const { data, error } = await supabase
+          .from("games")
+          .update({
+            player_o: null,
+            status: isHost ? "idle" : "waiting"
+          })
+          .eq("id", myGame.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        myGame = data;
+        updateMyGameUI(myGame);
+
+        if (isHost) {
+          statusEl.innerText = `🚪 Game exited and reset to idle\nID: ${myGame.id}`;
+        } else {
+          statusEl.innerText = `🚪 You left the game\nID: ${myGame.id}`;
+        }
+
+        await loadWaitingGames();
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "❌ Could not exit game";
+      }
+    };
+
+    refreshBtn.onclick = async () => {
+      try {
+        await getUser();
+        await loadWaitingGames();
+        statusEl.innerText = "✅ Waiting games refreshed";
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    async function subscribeToGames() {
+      if (channel) {
+        await supabase.removeChannel(channel);
+      }
+
+      channel = supabase
+        .channel("game-lobby")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "games"
+          },
+          async (payload) => {
+            const newRow = payload.new;
+
+            if (myGame && newRow && newRow.id === myGame.id) {
+              myGame = newRow;
+              updateMyGameUI(myGame);
+
+              if (newRow.status === "waiting") {
+                statusEl.innerText = `⏳ Your game is waiting\nID: ${newRow.id}`;
+              } else if (newRow.status === "playing") {
+                statusEl.innerText = `🎮 Game started!\nX: ${newRow.player_x}\nO: ${newRow.player_o}`;
+              } else if (newRow.status === "idle") {
+                statusEl.innerText = `🟡 Your game is idle\nID: ${newRow.id}`;
+              }
+            }
+
+            await loadWaitingGames();
+          }
+        )
+        .subscribe();
+    }
+
+    async function initLobby() {
+      try {
+        await getUser();
+
+        myGame = await getOrCreateGame();
+
+        await cleanOldGames();
+
+        if (myGame.player_x === userId && myGame.status === "idle") {
+          const { data, error } = await supabase
+            .from("games")
+            .update({ status: "waiting" })
+            .eq("id", myGame.id)
+            .select()
+            .single();
+
+          if (error) throw error;
+          myGame = data;
+        }
+
+        updateMyGameUI(myGame);
+
+        statusEl.innerText =
+          myGame.status === "idle"
+            ? `🟡 Your game is ready\nID: ${myGame.id}`
+            : myGame.status === "waiting"
+              ? `⏳ Your game is waiting\nID: ${myGame.id}`
+              : `🎮 Your game is playing\nID: ${myGame.id}`;
+
+        await loadWaitingGames();
+        await subscribeToGames();
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "❌ Failed to load lobby";
+      }
+    }
+
+    initLobby();
+  </script>
+</body>
+</html
