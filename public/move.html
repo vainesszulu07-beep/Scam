@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement & Tilt Detector</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; padding-top: 50px; }
+        .box { background: #2a2a2a; margin: 20px auto; padding: 20px; width: 80%; border-radius: 15px; }
+        #status { font-size: 1.8rem; font-weight: bold; color: #00ffcc; margin: 10px 0; }
+        #movement { font-size: 1.2rem; color: #ffcc00; margin-bottom: 15px; }
+        button { background: #007bff; color: white; border: none; padding: 20px 40px; border-radius: 50px; font-size: 1.2rem; cursor: pointer; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>Movement Detector</h1>
+    
+    <div class="box">
+        <button id="askButton">Enable Movement Sensors</button>
+        
+        <div id="ui" class="hidden">
+            <div id="movement">Stationary</div>
+            <div id="status">Portrait - Level</div>
+        </div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('askButton');
+        const ui = document.getElementById('ui');
+        const moveDiv = document.getElementById('movement');
+        const statusDiv = document.getElementById('status');
+        
+        btn.addEventListener('click', async () => {
+            // Requesting Motion Permission (Acceleration) AND Orientation (Tilt)
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                const motionRes = await DeviceMotionEvent.requestPermission();
+                const orientRes = await DeviceOrientationEvent.requestPermission();
+                if (motionRes === 'granted' && orientRes === 'granted') {
+                    startTracking();
+                }
+            } else {
+                startTracking();
+            }
+        });
+
+        function startTracking() {
+            btn.classList.add('hidden');
+            ui.classList.remove('hidden');
+
+            // 1. DETECT PHYSICAL MOVEMENT (Acceleration)
+            window.addEventListener('devicemotion', (event) => {
+                const acc = event.acceleration;
+                const totalMove = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
+                
+                if (totalMove > 5) {
+                    moveDiv.innerText = "MOVING / SHAKING!";
+                    moveDiv.style.color = "#ff4444";
+                } else {
+                    moveDiv.innerText = "Stationary";
+                    moveDiv.style.color = "#ffcc00";
+                }
+            });
+
+            // 2. DETECT TILT (Orientation)
+            window.addEventListener('deviceorientation', (event) => {
+                const b = event.beta;
+                const g = event.gamma;
+
+                let mode = (Math.abs(g) > 45) ? "Landscape" : "Portrait";
+                let tilt = "";
+
+                if (g < -25) tilt = "Tilted Left";
+                else if (g > 25) tilt = "Tilted Right";
+                else if (b > 105) tilt = "Tilted Up";
+                else if (b < 75 && b > 10) tilt = "Tilted Down";
+                else tilt = "Level";
+
+                statusDiv.innerHTML = `${mode} - ${tilt}`;
+            });
+        }
+    </script>
+</body>
+</html>
