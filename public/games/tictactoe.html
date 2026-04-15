@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Neon Tic Tac Toe</title>
+  <style>
+    :root {
+      --bg: #050816;
+      --card: rgba(10, 14, 28, 0.88);
+      --card2: rgba(14, 20, 42, 0.9);
+      --text: #f8fbff;
+      --muted: #9aa4c1;
+      --line: rgba(255,255,255,0.08);
+      --accent: #7c3aed;
+      --accent2: #22d3ee;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --shadow: 0 0 20px rgba(124, 58, 237, 0.22), 0 0 40px rgba(34, 211, 238, 0.12);
+      --board-shadow: 0 0 0 1px rgba(124,58,237,.25), 0 20px 60px rgba(0,0,0,.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(124,58,237,.22), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(34,211,238,.18), transparent 28%),
+        linear-gradient(180deg, #04050d 0%, #070b18 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 680px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar {
+      padding: 18px 18px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0.4px;
+    }
+
+    .brand span {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .status-pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .status-pill.live {
+      background: rgba(34,197,94,.14);
+      color: #a7f3d0;
+      border-color: rgba(34,197,94,.25);
+    }
+
+    .status-pill.waiting {
+      background: rgba(245,158,11,.14);
+      color: #fde68a;
+      border-color: rgba(245,158,11,.25);
+    }
+
+    .status-pill.finished {
+      background: rgba(239,68,68,.14);
+      color: #fecaca;
+      border-color: rgba(239,68,68,.25);
+    }
+
+    .content {
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .info-card {
+      background: var(--card2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      min-height: 82px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .info-value {
+      font-size: 16px;
+      font-weight: 800;
+      word-break: break-word;
+    }
+
+    .board-shell {
+      position: relative;
+      background: rgba(5, 10, 24, 0.9);
+      border: 1px solid rgba(124,58,237,.24);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: var(--board-shadow);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      aspect-ratio: 1 / 1;
+    }
+
+    .cell {
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      background:
+        linear-gradient(180deg, rgba(124,58,237,.16), rgba(34,211,238,.06)),
+        rgba(255,255,255,.04);
+      box-shadow:
+        inset 0 0 20px rgba(124,58,237,.08),
+        0 0 0 1px rgba(255,255,255,.03);
+      color: var(--text);
+      font-size: clamp(42px, 7vw, 72px);
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
+      user-select: none;
+      min-height: 90px;
+    }
+
+    .cell:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow:
+        inset 0 0 24px rgba(34,211,238,.12),
+        0 0 0 1px rgba(34,211,238,.2),
+        0 0 22px rgba(124,58,237,.15);
+    }
+
+    .cell.filled {
+      cursor: not-allowed;
+    }
+
+    .cell.x {
+      color: #7dd3fc;
+      text-shadow: 0 0 12px rgba(125,211,252,.9);
+    }
+
+    .cell.o {
+      color: #fda4af;
+      text-shadow: 0 0 12px rgba(253,164,175,.9);
+    }
+
+    .cell.winner {
+      background:
+        linear-gradient(180deg, rgba(34,197,94,.2), rgba(34,211,238,.1)),
+        rgba(255,255,255,.05);
+      box-shadow:
+        0 0 0 1px rgba(34,197,94,.35),
+        0 0 30px rgba(34,197,94,.18);
+    }
+
+    .footer {
+      display: grid;
+      gap: 12px;
+    }
+
+    .status-box {
+      background: var(--card2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      min-height: 70px;
+      white-space: pre-line;
+      color: var(--text);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+      transition: transform .14s ease, opacity .14s ease;
+    }
+
+    .btn:active {
+      transform: scale(.98);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+    }
+
+    .btn-main {
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+    }
+
+    .btn-ghost {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.1);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 640px) {
+      .topbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .content {
+        padding: 14px;
+      }
+
+      .board {
+        gap: 10px;
+      }
+
+      .cell {
+        min-height: 78px;
+        border-radius: 16px;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Neon Tic Tac Toe</h1>
+        <span>Live board synced with Supabase</span>
+      </div>
+      <div id="status" class="status-pill">Loading...</div>
+    </div>
+
+    <div class="content">
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-label">You</div>
+          <div class="info-value" id="meInfo">—</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Game</div>
+          <div class="info-value" id="gameInfo">—</div>
+        </div>
+        <div class="info-card">
+          <div class="info-label">Winner</div>
+          <div class="info-value" id="winnerInfo">—</div>
+        </div>
+      </div>
+
+      <div class="board-shell">
+        <div id="board" class="board">
+          <div class="cell" id="cell0"></div>
+          <div class="cell" id="cell1"></div>
+          <div class="cell" id="cell2"></div>
+          <div class="cell" id="cell3"></div>
+          <div class="cell" id="cell4"></div>
+          <div class="cell" id="cell5"></div>
+          <div class="cell" id="cell6"></div>
+          <div class="cell" id="cell7"></div>
+          <div class="cell" id="cell8"></div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="status-box" id="statusBox">Waiting for game...</div>
+
+        <div class="actions">
+          <button id="exitBtn" class="btn btn-danger">Exit Game</button>
+          <button id="refreshBtn" class="btn btn-main">Refresh Board</button>
+          <button id="clearUiBtn" class="btn btn-ghost">Clear Highlight</button>
+        </div>
+
+        <div class="hint">
+          X belongs to <strong>player_x</strong>. O belongs to <strong>player_o</strong>.
+          The board saves every move to the database, detects the winner from the letter on the board, and stops the game when a line is complete.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    let userId = null;
+    let currentGame = null;
+    let gameOver = false;
+    let realtimeChannel = null;
+
+    const WINNING_LINES = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6]
+    ];
+
+    const statusEl = document.getElementById("status");
+    const statusBox = document.getElementById("statusBox");
+    const meInfo = document.getElementById("meInfo");
+    const gameInfo = document.getElementById("gameInfo");
+    const winnerInfo = document.getElementById("winnerInfo");
+    const boardEl = document.getElementById("board");
+    const exitBtn = document.getElementById("exitBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const clearUiBtn = document.getElementById("clearUiBtn");
+
+    async function getUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not logged in");
+      userId = session.user.id;
+      return userId;
+    }
+
+    function createEmptyBoard() {
+      return ["", "", "", "", "", "", "", "", ""];
+    }
+
+    function getMySymbol() {
+      if (!currentGame || !userId) return null;
+      if (currentGame.player_x === userId) return "X";
+      if (currentGame.player_o === userId) return "O";
+      return null;
+    }
+
+    function getUserFromSymbol(symbol) {
+      if (!currentGame) return null;
+      if (symbol === "X") return currentGame.player_x;
+      if (symbol === "O") return currentGame.player_o;
+      return null;
+    }
+
+    function getWinnerSymbol(board) {
+      for (const [a, b, c] of WINNING_LINES) {
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          return board[a];
+        }
+      }
+      return null;
+    }
+
+    function isBoardFull(board) {
+      return board.every(cell => cell !== "");
+    }
+
+    function setStatus(text, mode = "") {
+      statusEl.textContent = text;
+      statusEl.className = "status-pill" + (mode ? ` ${mode}` : "");
+      statusBox.textContent = text;
+    }
+
+    function setWinnerText(text) {
+      winnerInfo.textContent = text || "—";
+    }
+
+    function updateTopInfo() {
+      meInfo.textContent = userId || "—";
+
+      if (!currentGame) {
+        gameInfo.textContent = "—";
+        return;
+      }
+
+      const role = currentGame.player_x === userId ? "X" : currentGame.player_o === userId ? "O" : "Viewer";
+      gameInfo.textContent = `${currentGame.id} (${role})`;
+    }
+
+    function clearWinnerHighlight() {
+      for (let i = 0; i < 9; i++) {
+        const cell = document.getElementById("cell" + i);
+        if (!cell) continue;
+        cell.classList.remove("winner");
+      }
+    }
+
+    function highlightWinnerLine(board, symbol) {
+      clearWinnerHighlight();
+      for (const [a, b, c] of WINNING_LINES) {
+        if (board[a] === symbol && board[b] === symbol && board[c] === symbol) {
+          [a, b, c].forEach(index => {
+            const cell = document.getElementById("cell" + index);
+            if (cell) cell.classList.add("winner");
+          });
+          break;
+        }
+      }
+    }
+
+    function renderBoard(board) {
+      for (let i = 0; i < 9; i++) {
+        const el = document.getElementById("cell" + i);
+        if (!el) continue;
+
+        const value = board[i] || "";
+        el.textContent = value;
+        el.className = "cell";
+
+        if (value === "X") el.classList.add("x", "filled");
+        if (value === "O") el.classList.add("o", "filled");
+        if (!value) el.classList.remove("filled");
+      }
+
+      const winnerSymbol = currentGame?.winner || getWinnerSymbol(board);
+      if (winnerSymbol) highlightWinnerLine(board, winnerSymbol);
+    }
+
+    function syncGameMeta(game) {
+      if (!game) return;
+
+      if (game.winner_user) {
+        setWinnerText(game.winner_user);
+      } else if (game.winner) {
+        setWinnerText(`${game.winner} / ${getUserFromSymbol(game.winner) || "—"}`);
+      } else {
+        setWinnerText("—");
+      }
+
+      if (game.status === "finished") {
+        setStatus("Game finished", "finished");
+      } else if (game.status === "playing") {
+        setStatus("Live game", "live");
+      } else if (game.status === "waiting") {
+        setStatus("Waiting for opponent", "waiting");
+      } else {
+        setStatus("Idle", "");
+      }
+
+      updateTopInfo();
+    }
+
+    async function loadPlayingGame() {
+      try {
+        await getUser();
+
+        const { data, error } = await supabase
+          .from("games")
+          .select("*")
+          .or(`player_x.eq.${userId},player_o.eq.${userId}`)
+          .eq("status", "playing")
+          .limit(1)
+          .single();
+
+        if (error || !data) {
+          currentGame = null;
+          setStatus("No active game", "");
+          gameInfo.textContent = "—";
+          winnerInfo.textContent = "—";
+          renderBoard(createEmptyBoard());
+          return;
+        }
+
+        currentGame = data;
+
+        if (!Array.isArray(currentGame.board_state) || currentGame.board_state.length !== 9) {
+          const { data: updated, error: updateError } = await supabase
+            .from("games")
+            .update({ board_state: createEmptyBoard() })
+            .eq("id", currentGame.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error(updateError);
+            return;
+          }
+
+          currentGame = updated;
+        }
+
+        const board = currentGame.board_state || createEmptyBoard();
+        renderBoard(board);
+        syncGameMeta(currentGame);
+
+        const winnerSymbol = currentGame.winner || getWinnerSymbol(board);
+        if (winnerSymbol) {
+          gameOver = true;
+          const winnerUser = getUserFromSymbol(winnerSymbol);
+          setWinnerText(winnerUser || winnerSymbol);
+          setStatus(`🏆 Winner: ${winnerSymbol} (${winnerUser || "unknown"})`, "finished");
+        } else {
+          gameOver = currentGame.status === "finished";
+        }
+
+        subscribeToGame(currentGame.id);
+
+      } catch (err) {
+        console.error(err);
+        setStatus("Failed to load game", "");
+      }
+    }
+
+    async function saveBoard(board, winnerSymbol = null) {
+      if (!currentGame) return;
+
+      const updatePayload = {
+        board_state: board
+      };
+
+      if (winnerSymbol) {
+        updatePayload.winner = winnerSymbol;
+        updatePayload.winner_user = getUserFromSymbol(winnerSymbol);
+        updatePayload.status = "finished";
+      }
+
+      const { data, error } = await supabase
+        .from("games")
+        .update(updatePayload)
+        .eq("id", currentGame.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      currentGame = data;
+      return data;
+    }
+
+    async function makeMove(index) {
+      if (!currentGame || gameOver) return;
+
+      const mySymbol = getMySymbol();
+      if (!mySymbol) return;
+
+      const board = Array.isArray(currentGame.board_state) ? [...currentGame.board_state] : createEmptyBoard();
+      board[index] = mySymbol;
+
+      const winnerSymbol = getWinnerSymbol(board);
+      const isDraw = !winnerSymbol && isBoardFull(board);
+
+      try {
+        const updatePayload = {
+          board_state: board
+        };
+
+        if (winnerSymbol) {
+          updatePayload.winner = winnerSymbol;
+          updatePayload.winner_user = getUserFromSymbol(winnerSymbol);
+          updatePayload.status = "finished";
+        } else if (isDraw) {
+          updatePayload.status = "finished";
+        }
+
+        const { data, error } = await supabase
+          .from("games")
+          .update(updatePayload)
+          .eq("id", currentGame.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error(error);
+          return;
+        }
+
+        currentGame = data;
+        renderBoard(currentGame.board_state || board);
+        syncGameMeta(currentGame);
+
+        if (winnerSymbol) {
+          gameOver = true;
+          const winnerUser = getUserFromSymbol(winnerSymbol);
+          setWinnerText(winnerUser || winnerSymbol);
+          setStatus(`🏆 Winner: ${winnerSymbol} (${winnerUser || "unknown"})`, "finished");
+          highlightWinnerLine(currentGame.board_state, winnerSymbol);
+          return;
+        }
+
+        if (isDraw) {
+          gameOver = true;
+          setWinnerText("Draw");
+          setStatus("Draw", "finished");
+        }
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function exitGame() {
+      if (!currentGame) return;
+
+      try {
+        const isHost = currentGame.player_x === userId;
+        const isJoiner = currentGame.player_o === userId;
+
+        let updatePayload = {};
+
+        if (isHost) {
+          updatePayload = {
+            status: "idle",
+            player_o: null,
+            board_state: null,
+            winner: null,
+            winner_user: null,
+            turn: null
+          };
+        } else if (isJoiner) {
+          updatePayload = {
+            status: "waiting",
+            player_o: null
+          };
+        } else {
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("games")
+          .update(updatePayload)
+          .eq("id", currentGame.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error("Exit failed:", error);
+          return;
+        }
+
+        currentGame = data;
+        gameOver = false;
+
+        if (isHost) {
+          setStatus("Host left. Game is now idle.", "");
+        } else {
+          setStatus("Joiner left. Game is now waiting.", "waiting");
+        }
+
+        setWinnerText("—");
+        renderBoard(currentGame.board_state || createEmptyBoard());
+        syncGameMeta(currentGame);
+        clearWinnerHighlight();
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function setupBoardClicks() {
+      for (let i = 0; i < 9; i++) {
+        const cell = document.getElementById("cell" + i);
+        if (cell) {
+          cell.onclick = () => makeMove(i);
+        }
+      }
+    }
+
+    function subscribeToGame(gameId) {
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+      }
+
+      realtimeChannel = supabase
+        .channel(`tic-tac-toe-${gameId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "games",
+            filter: `id=eq.${gameId}`
+          },
+          async (payload) => {
+            const updated = payload.new;
+
+            currentGame = updated;
+            const board = updated.board_state || createEmptyBoard();
+            renderBoard(board);
+            syncGameMeta(updated);
+
+            const winnerSymbol = updated.winner || getWinnerSymbol(board);
+            if (winnerSymbol) {
+              gameOver = true;
+              const winnerUser = getUserFromSymbol(winnerSymbol);
+              setWinnerText(winnerUser || winnerSymbol);
+              setStatus(`🏆 Winner: ${winnerSymbol} (${winnerUser || "unknown"})`, "finished");
+              highlightWinnerLine(board, winnerSymbol);
+            } else if (updated.status !== "finished") {
+              gameOver = false;
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    refreshBtn.onclick = loadPlayingGame;
+    exitBtn.onclick = exitGame;
+    clearUiBtn.onclick = () => {
+      clearWinnerHighlight();
+      setWinnerText("—");
+      syncGameMeta(currentGame);
+    };
+
+    boardEl.addEventListener("click", (e) => {
+      const cell = e.target.closest(".cell");
+      if (!cell) return;
+      const index = Number(cell.id.replace("cell", ""));
+      makeMove(index);
+    });
+
+    async function init() {
+      await loadPlayingGame();
+      setupBoardClicks();
+    }
+
+    init();
+  </script>
+</body>
+  </html>
