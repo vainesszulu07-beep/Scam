@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Game Logic</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      color: #111827;
+    }
+
+    .card {
+      max-width: 720px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.08);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+    }
+
+    #status {
+      white-space: pre-wrap;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px;
+      min-height: 90px;
+      overflow-wrap: anywhere;
+    }
+
+    .hint {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Create Game Logic</h2>
+    <div id="status">Loading...</div>
+    <div class="hint">
+      This page only creates or loads the user’s game row, then sets it to idle if needed.
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const statusEl = document.getElementById("status");
+
+    let userId = null;
+    let myGame = null;
+
+    function showStatus(text) {
+      statusEl.innerText = text;
+    }
+
+    function showRawError(context, err) {
+      const raw = err && typeof err === "object"
+        ? JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
+        : String(err);
+
+      console.error(context, err);
+      showStatus(`${context}\n\n${err?.message || String(err)}\n\nRAW ERROR:\n${raw}`);
+    }
+
+    async function getUser() {
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) throw error;
+      if (!session?.user) throw new Error("Not logged in");
+
+      userId = session.user.id;
+      return userId;
+    }
+
+    async function createGameIfNeeded() {
+      if (!userId) throw new Error("User not loaded");
+
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .or(`player_x.eq.${userId},player_o.eq.${userId}`)
+        .in("status", ["idle", "waiting", "playing"])
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (data && data[0]) {
+        myGame = data[0];
+        return myGame;
+      }
+
+      const { data: created, error: createError } = await supabase
+        .from("games")
+        .insert({
+          player_x: userId,
+          status: "idle",
+          game_type_id: null,
+          turn: null,
+          board_state: null
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      myGame = created;
+      return created;
+    }
+
+    async function ensureIdleIfNeeded() {
+      if (!myGame) return;
+
+      if (myGame.status !== "idle") {
+        const { data, error } = await supabase
+          .from("games")
+          .update({ status: "idle" })
+          .eq("id", myGame.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        myGame = data;
+      }
+    }
+
+    async function init() {
+      try {
+        showStatus("Checking login...");
+        await getUser();
+
+        showStatus("Creating or loading game...");
+        await createGameIfNeeded();
+
+        await ensureIdleIfNeeded();
+
+        showStatus(
+          `✅ Game ready\n\nUser ID: ${userId}\nGame ID: ${myGame.id}\nStatus: ${myGame.status}`
+        );
+      } catch (err) {
+        showRawError("Create game failed", err);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
