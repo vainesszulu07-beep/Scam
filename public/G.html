@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game Types Test</title>
+</head>
+<body>
+  <h2>Game Types</h2>
+  <div id="output">Loading...</div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const output = document.getElementById("output");
+
+    async function loadGameTypes() {
+      const { data, error } = await supabase
+        .from("game_types")
+        .select("*");
+
+      if (error) {
+        console.error(error);
+        output.innerHTML = "❌ Error: " + error.message;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        output.innerHTML = "No game types found.";
+        return;
+      }
+
+      output.innerHTML = data.map(g => `
+        <div style="padding:10px;border:1px solid #ccc;margin:5px;">
+          <b>${g.name}</b><br>
+          ID: ${g.id}<br>
+          Board: ${g.board_type}
+        </div>
+      `).join("");
+    }
+
+    loadGameTypes();
+  </script>
+</body>
+</html>
