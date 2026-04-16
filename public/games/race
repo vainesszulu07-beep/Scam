@@ -5,18 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">  
     <title>Molnia: Aero Sim</title>  
 
-    <!-- 
-        CSS REMOVED:
-        The original CSS handled:
-        - Full screen layout and game container sizing
-        - Landscape/portrait orientation handling
-        - HUD styling (status text, sub text)
-        - Touch control buttons (left/right circles)
-        - Visual effects like impact flash
-        - Fonts, colors, glow effects, and UI positioning
-
-        The rest of the simulation (Three.js, physics, controls) is unchanged.
-    -->
+    
 </head>  
 <body>  
   
