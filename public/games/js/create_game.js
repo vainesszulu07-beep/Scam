@@ -167,7 +167,7 @@ export async function createGameIfNeeded() {
       player_x: state.userId,
       status: "idle",
       game_type_id: null,
-      turn: null,
+      turn: "X",
       board_state: null
     })
     .select()
