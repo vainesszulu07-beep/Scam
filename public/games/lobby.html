@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Game Lobby</title>
+  <style>
+    :root{
+      --bg:#f4f4f4;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+      --primary:#0d6efd;
+      --success:#16a34a;
+      --danger:#dc3545;
+      --shadow:0 10px 30px rgba(0,0,0,.08);
+      --sheet-shadow:0 -18px 50px rgba(0,0,0,.22);
+      --radius:18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      margin: 0;
+      padding: 18px;
+      text-align: center;
+      color: var(--text);
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h2, h3 { margin: 8px 0 16px; }
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    #gameTypesList {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .type-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      text-align: left;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .type-card:active { transform: scale(.98); }
+    .type-card:hover { box-shadow: 0 14px 35px rgba(0,0,0,.12); }
+    .type-image {
+      width: 100%;
+      aspect-ratio: 1.15 / 1;
+      object-fit: cover;
+      background: #e5e7eb;
+      display: block;
+    }
+    .type-body { padding: 12px; }
+    .type-name {
+      font-size: 16px;
+      font-weight: 800;
+      margin: 0 0 6px;
+    }
+    .type-meta {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+    }
+    #status {
+      margin-top: 10px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      white-space: pre-line;
+      min-height: 56px;
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+    .pill {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #4338ca;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+    .sheet-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.38);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .22s ease;
+      z-index: 999;
+    }
+    .sheet-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: min(88vh, 860px);
+      background: #fff;
+      border-radius: 24px 24px 0 0;
+      box-shadow: var(--sheet-shadow);
+      transform: translateY(100%);
+      transition: transform .32s ease;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .sheet-overlay.open .sheet { transform: translateY(0); }
+    .sheet-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+      position: relative;
+    }
+    .sheet-thumb {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      object-fit: cover;
+      background: #eef2f7;
+      flex: 0 0 auto;
+    }
+    .sheet-title {
+      flex: 1;
+      text-align: left;
+      min-width: 0;
+    }
+    .sheet-title h3 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+    .sheet-title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .sheet-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 12px;
+      background: #f3f4f6;
+      font-size: 18px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .sheet-inner {
+      width: 200%;
+      height: 100%;
+      display: flex;
+      transition: transform .35s ease;
+    }
+    .sheet-inner.code-mode {
+      transform: translateX(-50%);
+    }
+    .sheet-view {
+      width: 50%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 14px;
+      text-align: left;
+      background: #fff;
+    }
+    .panel {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .row-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 15px;
+      margin: 8px 0;
+    }
+    #sheetPlayBtn {
+      background: var(--success);
+      color: #fff;
+    }
+    #sheetExitBtn {
+      background: var(--danger);
+      color: #fff;
+      display: none;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin: 4px 0 10px;
+    }
+    .game-item {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.04);
+    }
+    .game-item strong {
+      display: block;
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+    .join-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .code-card {
+      background: #0f172a;
+      color: #fff;
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 18px 30px rgba(15,23,42,.18);
+      margin-top: 12px;
+    }
+    .code-card h4 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+    .code-card p {
+      margin: 0 0 14px;
+      color: rgba(255,255,255,.76);
+      font-size: 14px;
+    }
+    .code-input {
+      width: 100%;
+      border: none;
+      outline: none;
+      border-radius: 14px;
+      padding: 14px 14px;
+      font-size: 16px;
+      margin-bottom: 12px;
+      background: #fff;
+      color: #111827;
+    }
+    .code-submit {
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 14px;
+      background: #22c55e;
+      color: #fff;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .code-hint {
+      margin-top: 10px;
+      font-size: 13px;
+      color: rgba(255,255,255,.76);
+      min-height: 18px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .selected-info {
+      margin-top: 10px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 12px;
+    }
+    .selected-info .line {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .selected-info .big {
+      font-size: 16px;
+      font-weight: 800;
+      margin: 4px 0 6px;
+    }
+    .players-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .player-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      object-fit: cover;
+      background: #e5e7eb;
+      flex: 0 0 auto;
+    }
+    .player-main {
+      flex: 1;
+      min-width: 0;
+    }
+    .player-main .name {
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .player-main .sub {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .empty-state {
+      padding: 16px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed #d1d5db;
+      border-radius: 16px;
+      background: #fafafa;
+    }
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      #gameTypesList { grid-template-columns: 1fr; }
+      .sheet { height: 90vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>🎮 Game Lobby</h2>
+    <div class="card">
+      <div id="status">Loading...</div>
+    </div>
+
+    <div class="card">
+      <h3>Available Game Types</h3>
+      <div id="gameTypesList"></div>
+    </div>
+  </div>
+
+  <div id="sheetOverlay" class="sheet-overlay" aria-hidden="true">
+    <div class="sheet">
+      <div class="sheet-top">
+        <button id="sheetCloseBtn" class="icon-btn" aria-label="Close sheet">✕</button>
+        <img id="sheetThumb" class="sheet-thumb" alt="">
+        <div class="sheet-title">
+          <h3 id="sheetName">Game</h3>
+          <p id="sheetMeta">Board type</p>
+        </div>
+        <div class="sheet-actions">
+          <button id="sheetModeBtn" class="icon-btn" aria-label="Switch view">🔑</button>
+        </div>
+      </div>
+
+      <div id="sheetInner" class="sheet-inner">
+        <section class="sheet-view">
+          <div class="panel">
+            <button id="sheetPlayBtn" class="row-btn">Play This Game</button>
+            <button id="sheetExitBtn" class="row-btn">Exit Game</button>
+          </div>
+
+          <div class="selected-info" id="selectedInfo">
+            <div class="line">Selected game</div>
+            <div class="big" id="selectedInfoTitle">—</div>
+            <div class="line" id="selectedInfoMeta">Tap a game type to start.</div>
+          </div>
+
+          <div class="section-title" style="margin-top:14px;">Waiting sessions for this type</div>
+          <div id="waitingSessions" class="players-list"></div>
+        </section>
+
+        <section class="sheet-view">
+          <div class="code-card">
+            <h4>Join by game code</h4>
+            <p>Enter the code from a waiting game of this same type.</p>
+            <input id="gameCodeInput" class="code-input" type="text" placeholder="Enter game code" />
+            <button id="joinByCodeBtn" class="code-submit">Join Game</button>
+            <div id="joinCodeStatus" class="code-hint"></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      initApp,
+      playCurrentType,
+      exitCurrentGame,
+      joinByCode,
+      closeSheet,
+      toggleSheetMode,
+      els
+    } from "./js/create_game.js";
+
+    import {
+      loadGameTypes,
+      subscribeToGameTypes,
+      openGameTypeSheet
+    } from "./js/list_games.js";
+
+    els.sheetCloseBtn.onclick = closeSheet;
+    els.sheetModeBtn.onclick = toggleSheetMode;
+    els.sheetPlayBtn.onclick = playCurrentType;
+    els.sheetExitBtn.onclick = exitCurrentGame;
+    els.joinByCodeBtn.onclick = joinByCode;
+
+    els.gameCodeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") joinByCode();
+    });
+
+    initApp({
+      loadGameTypes,
+      subscribeToGameTypes,
+      openGameTypeSheet
+    });
+  </script>
+</body>
+</html>
