@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Neon Tic Tac Toe</title>
+  <style>
+    :root {
+      --bg: #050816;
+      --card: rgba(10, 14, 28, 0.88);
+      --card2: rgba(14, 20, 42, 0.9);
+      --text: #f8fbff;
+      --muted: #9aa4c1;
+      --line: rgba(255,255,255,0.08);
+      --accent: #7c3aed;
+      --accent2: #22d3ee;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --shadow: 0 0 20px rgba(124, 58, 237, 0.22), 0 0 40px rgba(34, 211, 238, 0.12);
+      --board-shadow: 0 0 0 1px rgba(124,58,237,.25), 0 20px 60px rgba(0,0,0,.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(124,58,237,.22), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(34,211,238,.18), transparent 28%),
+        linear-gradient(180deg, #04050d 0%, #070b18 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 760px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(14px);
+      position: relative;
+    }
+
+    .topbar {
+      padding: 14px 14px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+    }
+
+    .exit-btn {
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 12px;
+      background: rgba(239,68,68,.92);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+
+    .status-pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      min-width: 120px;
+      white-space: pre-line;
+    }
+
+    .status-pill.live {
+      background: rgba(34,197,94,.14);
+      color: #a7f3d0;
+      border-color: rgba(34,197,94,.25);
+    }
+
+    .status-pill.waiting {
+      background: rgba(245,158,11,.14);
+      color: #fde68a;
+      border-color: rgba(245,158,11,.25);
+    }
+
+    .status-pill.finished {
+      background: rgba(239,68,68,.14);
+      color: #fecaca;
+      border-color: rgba(239,68,68,.25);
+    }
+
+    .content {
+      padding: 16px;
+    }
+
+    .board-shell {
+      background: rgba(5, 10, 24, 0.9);
+      border: 1px solid rgba(124,58,237,.24);
+      border-radius: 24px;
+      padding: 14px;
+      box-shadow: var(--board-shadow);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      aspect-ratio: 1 / 1;
+    }
+
+    .cell {
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      background:
+        linear-gradient(180deg, rgba(124,58,237,.16), rgba(34,211,238,.06)),
+        rgba(255,255,255,.04);
+      box-shadow:
+        inset 0 0 20px rgba(124,58,237,.08),
+        0 0 0 1px rgba(255,255,255,.03);
+      color: var(--text);
+      font-size: clamp(42px, 7vw, 72px);
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
+      user-select: none;
+      min-height: 90px;
+    }
+
+    .cell:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow:
+        inset 0 0 24px rgba(34,211,238,.12),
+        0 0 0 1px rgba(34,211,238,.2),
+        0 0 22px rgba(124,58,237,.15);
+    }
+
+    .cell.filled {
+      cursor: not-allowed;
+    }
+
+    .cell.x {
+      color: #7dd3fc;
+      text-shadow: 0 0 12px rgba(125,211,252,.9);
+    }
+
+    .cell.o {
+      color: #fda4af;
+      text-shadow: 0 0 12px rgba(253,164,175,.9);
+    }
+
+    .cell.winner {
+      background:
+        linear-gradient(180deg, rgba(34,197,94,.2), rgba(34,211,238,.1)),
+        rgba(255,255,255,.05);
+      box-shadow:
+        0 0 0 1px rgba(34,197,94,.35),
+        0 0 30px rgba(34,197,94,.18);
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+
+      .content { padding: 12px; }
+
+      .board { gap: 10px; }
+
+      .cell {
+        min-height: 78px;
+        border-radius: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <button id="exitBtn" class="exit-btn" aria-label="Exit game">⟲</button>
+      <div id="status" class="status-pill">Loading...</div>
+    </div>
+
+    <div class="content">
+      <div class="board-shell">
+        <div id="board" class="board">
+          <div class="cell" id="cell0"></div>
+          <div class="cell" id="cell1"></div>
+          <div class="cell" id="cell2"></div>
+          <div class="cell" id="cell3"></div>
+          <div class="cell" id="cell4"></div>
+          <div class="cell" id="cell5"></div>
+          <div class="cell" id="cell6"></div>
+          <div class="cell" id="cell7"></div>
+          <div class="cell" id="cell8"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const els = {
+      statusEl: document.getElementById("status"),
+      boardEl: document.getElementById("board"),
+      exitBtn: document.getElementById("exitBtn")
+    };
+
+    const WINNING_LINES = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6]
+    ];
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlGameId = urlParams.get("gameId");
+
+    const state = {
+      userId: null,
+      currentGame: null,
+      boardTemplate: ["", "", "", "", "", "", "", "", ""],
+      realtimeChannel: null,
+      cleanupTimer: null,
+      cleanupDoneForGameId: null
+    };
+
+    function createEmptyBoard() {
+      return ["", "", "", "", "", "", "", "", ""];
+    }
+
+    function isBoardArray(value) {
+      return Array.isArray(value) && value.length === 9;
+    }
+
+    function normalizeRow(data) {
+      if (!data) return null;
+      if (Array.isArray(data)) return data[0] || null;
+      return data;
+    }
+
+    async function rpcSingle(name, args = {}) {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw error;
+      return normalizeRow(data);
+    }
+
+    async function rpcRows(name, args = {}) {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw error;
+      return Array.isArray(data) ? data : data ? [data] : [];
+    }
+
+    function setStatus(text, mode = "") {
+      els.statusEl.textContent = text;
+      els.statusEl.className = "status-pill" + (mode ? ` ${mode}` : "");
+    }
+
+    function showRawError(context, err) {
+      const raw =
+        err && typeof err === "object"
+          ? JSON.stringify(err, Object.getOwnPropertyNames(err), 2)
+          : String(err);
+
+      const message = err?.message ? err.message : String(err);
+      setStatus(`${context}\n${message}\n\nRAW ERROR:\n${raw}`, "finished");
+      console.error(context, err);
+    }
+
+    async function getUser() {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session || !session.user) throw new Error("Not logged in");
+      state.userId = session.user.id;
+      return state.userId;
+    }
+
+    function clearWinnerHighlight() {
+      for (let i = 0; i < 9; i++) {
+        const cell = document.getElementById(`cell${i}`);
+        if (cell) cell.classList.remove("winner");
+      }
+    }
+
+    function highlightWinnerLine(board, symbol) {
+      clearWinnerHighlight();
+
+      for (const [a, b, c] of WINNING_LINES) {
+        if (board[a] === symbol && board[b] === symbol && board[c] === symbol) {
+          [a, b, c].forEach((index) => {
+            const cell = document.getElementById(`cell${index}`);
+            if (cell) cell.classList.add("winner");
+          });
+          break;
+        }
+      }
+    }
+
+    function renderBoard(board) {
+      const safeBoard = isBoardArray(board) ? board : createEmptyBoard();
+
+      for (let i = 0; i < 9; i++) {
+        const el = document.getElementById(`cell${i}`);
+        if (!el) continue;
+
+        const value = safeBoard[i] || "";
+        el.textContent = value;
+        el.className = "cell";
+
+        if (value === "X") el.classList.add("x", "filled");
+        if (value === "O") el.classList.add("o", "filled");
+      }
+
+      if (state.currentGame?.winner) {
+        highlightWinnerLine(safeBoard, state.currentGame.winner);
+      } else {
+        clearWinnerHighlight();
+      }
+    }
+
+    function syncMeta(game) {
+      if (!game) {
+        setStatus("No active game", "");
+        return;
+      }
+
+      if (game.status === "playing") {
+        setStatus(game.turn ? `Live game · Turn: ${game.turn}` : "Live game", "live");
+      } else if (game.status === "waiting") {
+        setStatus("Waiting for opponent", "waiting");
+      } else if (game.status === "finished") {
+        setStatus(game.winner ? `Game finished · Winner: ${game.winner}` : "Game finished", "finished");
+      } else {
+        setStatus("Idle", "");
+      }
+    }
+
+    async function loadBoardInfo(gameId) {
+      const rows = await rpcRows("get_game_board_info", { p_game_id: gameId });
+      const info = rows[0] || null;
+
+      if (info && isBoardArray(info.board_template)) {
+        state.boardTemplate = info.board_template;
+      } else {
+        state.boardTemplate = createEmptyBoard();
+      }
+
+      return info;
+    }
+
+    async function syncCurrentGame(game) {
+      state.currentGame = game || null;
+
+      if (game?.game_type_id) {
+        await loadBoardInfo(game.id).catch(() => {});
+      } else {
+        state.boardTemplate = createEmptyBoard();
+      }
+
+      renderBoard(game?.board_state || state.boardTemplate);
+      syncMeta(game);
+    }
+
+    function subscribeToGame(gameId) {
+      if (state.realtimeChannel) {
+        supabase.removeChannel(state.realtimeChannel);
+        state.realtimeChannel = null;
+      }
+
+      if (!gameId) return;
+
+      state.realtimeChannel = supabase
+        .channel(`tic-tac-toe-${gameId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "games",
+            filter: `id=eq.${gameId}`
+          },
+          async (payload) => {
+            const updated = payload.new;
+            if (!updated) return;
+
+            await syncCurrentGame(updated);
+
+            if (updated.status === "finished") {
+              scheduleFinishedCleanup();
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    async function loadGame() {
+      try {
+        await getUser();
+
+        let game = null;
+
+        if (urlGameId) {
+          const { data, error } = await supabase
+            .from("games")
+            .select("*")
+            .eq("id", urlGameId)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (data && (data.player_x === state.userId || data.player_o === state.userId)) {
+            game = data;
+          }
+        }
+
+        if (!game) {
+          game = await rpcSingle("get_active_playing_game");
+        }
+
+        if (!game) {
+          state.currentGame = null;
+          state.boardTemplate = createEmptyBoard();
+          renderBoard(state.boardTemplate);
+          syncMeta(null);
+          return;
+        }
+
+        await syncCurrentGame(game);
+        subscribeToGame(game.id);
+      } catch (err) {
+        showRawError("Failed to load game", err);
+      }
+    }
+
+    async function makeMove(index) {
+      if (!state.currentGame || state.currentGame.status !== "playing") return;
+
+      try {
+        const updated = await rpcSingle("make_move", {
+          p_game_id: state.currentGame.id,
+          p_cell_index: index
+        });
+
+        await syncCurrentGame(updated);
+
+        if (updated.status === "finished") {
+          scheduleFinishedCleanup();
+        }
+      } catch (err) {
+        showRawError("Could not make move", err);
+      }
+    }
+
+    async function leaveGame() {
+      if (!state.currentGame) return;
+
+      try {
+        const updated = await rpcSingle("leave_game", {
+          p_game_id: state.currentGame.id
+        });
+
+        state.cleanupDoneForGameId = updated?.id || null;
+        await syncCurrentGame(updated);
+
+        if (updated?.status === "idle" || updated?.status === "waiting") {
+          window.location.href = "/lobby.html";
+        }
+      } catch (err) {
+        showRawError("Could not exit game", err);
+      }
+    }
+
+    function scheduleFinishedCleanup() {
+      if (!state.currentGame || state.cleanupDoneForGameId === state.currentGame.id) return;
+
+      if (state.cleanupTimer) clearTimeout(state.cleanupTimer);
+
+      const gameId = state.currentGame.id;
+      state.cleanupTimer = setTimeout(async () => {
+        try {
+          if (state.cleanupDoneForGameId === gameId) return;
+          state.cleanupDoneForGameId = gameId;
+
+          const reset = await rpcSingle("leave_game", { p_game_id: gameId });
+          await syncCurrentGame(reset);
+          window.location.href = "/lobby.html";
+        } catch (err) {
+          showRawError("Could not auto-reset finished game", err);
+        }
+      }, 1200);
+    }
+
+    els.exitBtn.onclick = leaveGame;
+
+    els.boardEl.addEventListener("click", (e) => {
+      const cell = e.target.closest(".cell");
+      if (!cell) return;
+      const index = Number(cell.id.replace("cell", ""));
+      makeMove(index);
+    });
+
+    async function init() {
+      await loadGame();
+      if (state.currentGame?.status === "finished") {
+        scheduleFinishedCleanup();
+      }
+    }
+
+    init();
+  </script>
+</body>
+  </html>
