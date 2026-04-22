@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register | Chat-Bet Arena</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --border: #e0e0e0;
+      --accent: #000000;
+      --muted: #666666;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      padding: 40px;
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .description {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--muted);
+      margin-bottom: 30px;
+      text-align: justify;
+    }
+
+    .input-group {
+      text-align: left;
+      margin-bottom: 15px;
+    }
+
+    label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 0; 
+      box-sizing: border-box;
+      font-size: 14px;
+      outline: none;
+    }
+
+    input:focus { border-color: var(--accent); }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+
+    .btn-black {
+      background: var(--accent);
+      color: white;
+      border: none;
+    }
+
+    .btn-black:hover { opacity: 0.8; }
+
+    .btn-white {
+      background: white;
+      color: black;
+      border: 1px solid black;
+    }
+
+    .btn-white:hover { background: #f5f5f5; }
+
+    .divider {
+      margin: 20px 0;
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+    }
+
+    .divider::before, .divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+      margin: 0 10px;
+    }
+
+    #message {
+      margin-top: 20px;
+      font-size: 12px;
+      min-height: 18px;
+    }
+
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+    }
+
+    .footer a {
+      color: black;
+      text-decoration: none;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Chat-Bet</h1>
+  <p class="description">
+    <strong>Create your credentials.</strong> Join a network of high-tier professionals utilizing their expertise for maximum gain. By registering, you gain access to the bidding floor where skills are tested and champions take all.
+  </p>
+
+  <div class="input-group">
+    <label>Email Address</label>
+    <input type="email" id="email" placeholder="email@example.com">
+  </div>
+
+  <div class="input-group">
+    <label>Choose Password</label>
+    <input type="password" id="password" placeholder="Minimum 6 characters">
+  </div>
+
+  <button class="btn btn-black" id="signupBtn">Create Account</button>
+  
+  <div class="divider">SOCIAL REGISTRATION</div>
+
+  <button class="btn btn-white" id="googleBtn">Sign Up with Google</button>
+
+  <div id="message"></div>
+
+  <div class="footer">
+    Already a member? <a href="login.html">Login</a>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+  const supabase = createClient(
+    "https://eimecuiixwgmpfpedxpr.supabase.co",
+    "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+  );
+
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+  const signupBtn = document.getElementById("signupBtn");
+  const googleBtn = document.getElementById("googleBtn");
+  const message = document.getElementById("message");
+
+  const setStatus = (txt, color = "black") => {
+    message.innerText = txt;
+    message.style.color = color;
+  };
+
+  // Logic to initialize the user's profile and redirect
+  async function initializeProfile(user) {
+    if (!user) return;
+    setStatus("Finalizing registration...", "black");
+
+    try {
+      // Check if profile already exists (for Google users returning)
+      const { data: profile } = await supabase
+        .from("profile")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile) {
+        // Create the initial profile row
+        const { error: insertError } = await supabase
+          .from("profile")
+          .insert({
+            id: user.id,
+            contact: user.email,
+            full_name: user.user_metadata.full_name || ""
+          });
+
+        if (insertError) console.warn("Profile creation error:", insertError.message);
+      }
+
+      // Always send new signups to manage.html to fill in their details
+      window.location.href = "manage.html";
+      
+    } catch (err) {
+      console.error(err);
+      window.location.href = "manage.html";
+    }
+  }
+
+  // Catch the session if they just came back from Google
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      initializeProfile(session.user);
+    }
+  });
+
+  // Manual Email Sign Up
+  signupBtn.addEventListener("click", async () => {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!email || !password) {
+      setStatus("Please fill in all fields.", "red");
+      return;
+    }
+
+    setStatus("Creating account...");
+    const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password 
+    });
+
+    if (error) {
+      setStatus(error.message, "red");
+    } else {
+      if (data.session) {
+        // Logged in immediately
+        initializeProfile(data.user);
+      } else {
+        // Confirmation email is likely enabled in Supabase settings
+        setStatus("Registration successful. Please check your email for a confirmation link.", "black");
+      }
+    }
+  });
+
+  // Google OAuth
+  googleBtn.addEventListener("click", async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { 
+        redirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (error) setStatus(error.message, "red");
+  });
+
+</script>
+</body>
+</html>
