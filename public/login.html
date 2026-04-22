@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Chat-Bet</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary-black: #000000;
+      --secondary-black: #1a1a1a;
+      --pure-white: #ffffff;
+      --off-white: #f9f9f9;
+      --border-gray: #e5e5e5;
+      --text-muted: #666666;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--off-white);
+      color: var(--primary-black);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .login-container {
+      background: var(--pure-white);
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 440px;
+      border: 1px solid var(--border-gray);
+      border-radius: 4px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      text-align: center;
+    }
+
+    .brand-header h1 {
+      font-weight: 700;
+      font-size: 28px;
+      letter-spacing: -0.5px;
+      margin: 0 0 12px 0;
+      text-transform: uppercase;
+    }
+
+    .brand-description {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      text-align: left;
+    }
+
+    .input-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-gray);
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-top: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary-black);
+      color: var(--pure-white);
+      border: none;
+    }
+
+    .btn-primary:hover { background: #333; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--primary-black);
+      border: 1px solid var(--primary-black);
+    }
+
+    .divider {
+      margin: 24px 0;
+      display: flex;
+      align-items: center;
+      color: var(--border-gray);
+    }
+
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid var(--border-gray); }
+    .divider span { padding: 0 10px; font-size: 11px; color: var(--text-muted); }
+
+    .message { margin-top: 16px; font-size: 13px; min-height: 20px; }
+    .footer-link { margin-top: 24px; display: block; color: var(--text-muted); text-decoration: none; font-size: 13px; }
+  </style>
+</head>
+
+<body>
+<div class="login-container">
+  <div class="brand-header">
+    <h1>Chat-Bet</h1>
+    <p class="brand-description">
+      <strong>Welcome to the Arena.</strong> Chat-Bet is a premier skill-based marketplace where experts monetize their talent. Engage in high-stakes bidding: users present challenges, professionals compete with their skills, and the victor claims the entire pool. 
+    </p>
+  </div>
+
+  <div class="input-group">
+    <label>Email Address</label>
+    <input type="email" id="email" placeholder="email@example.com" />
+  </div>
+
+  <div class="input-group">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="••••••••" />
+  </div>
+
+  <button id="loginBtn" class="btn btn-primary">Sign In</button>
+  
+  <div class="divider"><span>SECURE AUTHENTICATION</span></div>
+  
+  <button id="googleBtn" class="btn btn-outline">Continue with Google</button>
+
+  <div class="message" id="message"></div>
+  
+  <a href="signup.html" class="footer-link">New to the platform? <strong>Register here</strong></a>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// Initialize Supabase
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const loginBtn = document.getElementById("loginBtn");
+const googleBtn = document.getElementById("googleBtn");
+const message = document.getElementById("message");
+
+// ==========================================
+// 1. THE CORE FIX: Listen for Auth Changes
+// ==========================================
+// This automatically catches the "access_token" from the URL after Google Login
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_IN' && session) {
+    console.log("User signed in successfully:", session.user.email);
+    await handleProfileRouting(session.user);
+  }
+});
+
+async function handleProfileRouting(user) {
+  setStatus("Verifying profile...", "black");
+  
+  const { data: profile, error } = await supabase
+    .from("profile")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  // If no profile exists OR required fields are missing, go to manage.html
+  const requiredFields = ["full_name", "bio", "contact", "avatar_url"];
+  const isMissingInfo = !profile || requiredFields.some(f => !profile[f]);
+
+  if (isMissingInfo) {
+    window.location.href = "manage.html";
+  } else {
+    // Everything is complete -> Go to Lobby
+    window.location.href = "lobby.html";
+  }
+}
+
+// ==========================================
+// 2. Manual Email/Password Login
+// ==========================================
+loginBtn.addEventListener("click", async () => {
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+
+  if (!email || !password) {
+    setStatus("Required fields missing.", "red");
+    return;
+  }
+
+  setStatus("Processing...", "black");
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    setStatus(error.message, "red");
+  } 
+  // onAuthStateChange will handle the redirect if successful
+});
+
+// ==========================================
+// 3. Google Login logic
+// ==========================================
+googleBtn.addEventListener("click", async () => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { 
+      // Ensure this matches your Supabase redirect allow-list
+      redirectTo: window.location.origin + "/index.html" 
+    }
+  });
+
+  if (error) setStatus(error.message, "red");
+});
+
+function setStatus(text, color) {
+  message.style.color = color;
+  message.textContent = text;
+}
+</script>
+</body>
+</html>
