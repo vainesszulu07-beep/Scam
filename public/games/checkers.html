@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Elite Checkers Landscape</title>
+  <style>
+    :root {
+      --bg: #0a0c14;
+      --wood-dark: #2d1a12;
+      --wood-light: #6b4433;
+      --board-border: #1a0f0a;
+      --accent: #f59e0b;
+      --text: #ffffff;
+      --panel-bg: rgba(15, 20, 35, 0.9);
+      --glass: rgba(255, 255, 255, 0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Landscape Enforcement */
+    @media (orientation: portrait) {
+      .landscape-prompt { display: flex !important; }
+      .app-container { display: none; }
+    }
+
+    .landscape-prompt {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .landscape-prompt svg { width: 80px; fill: var(--accent); margin-bottom: 20px; animation: rotate 2s infinite; }
+    @keyframes rotate { 0% { transform: rotate(0deg); } 50% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
+
+    /* Main Layout */
+    .app-container {
+      display: grid;
+      grid-template-columns: 120px 1fr 120px;
+      width: 100vw;
+      height: 100vh;
+      gap: 10px;
+      padding: 15px;
+      background: radial-gradient(circle at center, #1a1e30 0%, #0a0c14 100%);
+    }
+
+    /* Side Panels */
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      background: var(--panel-bg);
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    /* Elements */
+    .exit-btn {
+      width: 50px;
+      height: 50px;
+      border: none;
+      border-radius: 15px;
+      background: #ef4444;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #991b1b;
+      transition: all 0.1s;
+    }
+    .exit-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #991b1b; }
+
+    .timer-box {
+      background: #000;
+      padding: 10px;
+      border-radius: 12px;
+      border: 2px solid var(--accent);
+      width: 90%;
+      text-align: center;
+    }
+    .timer-box span {
+      display: block;
+      font-size: 10px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .timer-val { font-family: monospace; font-size: 18px; font-weight: bold; color: #fff; }
+    .timer-val.danger { color: #ff4444; text-shadow: 0 0 10px #ff4444; }
+
+    .status-area {
+      grid-column: 2;
+      text-align: center;
+      padding: 5px;
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    /* The Board Area */
+    .board-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .wooden-frame {
+      --frame-size: 20px;
+      background: #1a0f0a;
+      padding: var(--frame-size);
+      border-radius: 8px;
+      box-shadow: 
+        0 20px 50px rgba(0,0,0,0.8),
+        inset 0 0 40px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      width: 85vh; /* Larger board fitting height */
+      height: 85vh;
+      border: 4px solid #000;
+    }
+
+    /* Square Textures */
+    .cell {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .cell.light {
+      background: #d2b48c; /* Light Oak */
+      background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), linear-gradient(to bottom right, #e6ccb2, #b08968);
+    }
+
+    .cell.dark {
+      background: #3e2723; /* Dark Walnut */
+      background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), linear-gradient(to bottom right, #3e2723, #1b100e);
+      cursor: pointer;
+    }
+
+    .cell.selected {
+      box-shadow: inset 0 0 0 4px #22d3ee;
+      z-index: 2;
+    }
+
+    .cell.valid-target::after {
+      content: '';
+      width: 25%;
+      height: 25%;
+      background: rgba(34, 211, 238, 0.5);
+      border-radius: 50%;
+    }
+
+    /* Pieces */
+    .piece {
+      width: 80%;
+      height: 80%;
+      border-radius: 50%;
+      position: relative;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 5;
+    }
+
+    .piece.black {
+      background: radial-gradient(circle at 35% 35%, #444, #111 70%);
+      box-shadow: 0 6px 0 #000, 0 8px 15px rgba(0,0,0,0.5);
+    }
+
+    .piece.white {
+      background: radial-gradient(circle at 35% 35%, #fff, #bbb 70%);
+      box-shadow: 0 6px 0 #888, 0 8px 15px rgba(0,0,0,0.3);
+    }
+
+    .piece.king::before {
+      content: '★';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: rgba(255, 215, 0, 0.8);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Winner Popup */
+    .winner-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .winner-overlay.open { display: flex; }
+    .winner-card {
+      background: #1a1e30;
+      padding: 30px;
+      border-radius: 30px;
+      border: 2px solid var(--accent);
+      text-align: center;
+      width: 400px;
+    }
+    .winner-avatar { width: 80px; height: 80px; border-radius: 50%; margin-bottom: 15px; border: 3px solid var(--accent); }
+
+    @media (max-height: 500px) {
+      .board { width: 75vh; height: 75vh; }
+      .app-container { grid-template-columns: 80px 1fr 80px; }
+      .side-panel { padding: 5px 0; }
+      .exit-btn { width: 40px; height: 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="landscape-prompt">
+    <svg viewBox="0 0 24 24"><path d="M23.25 12.75v-1.5c0-1.242-1.008-2.25-2.25-2.25h-15c-1.242 0-2.25 1.008-2.25 2.25v1.5c0 1.242 1.008 2.25 2.25 2.25h15c1.242 0 2.25-1.008 2.25-2.25zm-1.5 0c0 .414-.336.75-.75.75h-15c-.414 0-.75-.336-.75-.75v-1.5c0-.414.336-.75.75-.75h15c.414 0 .75.336.75.75v1.5zM7.5 12c0 .414-.336.75-.75.75s-.75-.336-.75-.75.336-.75.75-.75.75.336.75.75z"/></svg>
+    <h2>Please rotate your device</h2>
+    <p>Landscape mode is required for the best experience.</p>
+  </div>
+
+  <div class="app-container">
+    <div class="side-panel">
+      <button id="exitBtn" class="exit-btn">✕</button>
+      <div style="font-size: 10px; color: #555;">v1.2.0</div>
+    </div>
+
+    <div class="board-container">
+      <div class="wooden-frame">
+        <div id="status" class="status-area">SYNCING...</div>
+        <div id="board" class="board"></div>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="timer-box">
+        <span>Time Left</span>
+        <div id="timer" class="timer-val">00:00</div>
+      </div>
+      <div id="legend-pices" style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="piece black" style="width: 30px; height: 30px; box-shadow: none; margin: 0 auto;"></div>
+        <div class="piece white" style="width: 30px; height: 30px; box-shadow: none; margin: 0 auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="winner-overlay" id="winnerOverlay">
+    <div class="winner-card">
+      <img id="winnerAvatar" class="winner-avatar" src="" alt="Winner">
+      <h2 id="winnerTitle" style="color:var(--accent); margin-bottom:10px;">Winner!</h2>
+      <p id="winnerSub" style="font-size:14px; margin-bottom:20px; color:#aaa;"></p>
+      <div id="winnerBadge" style="font-weight:bold; color:#22c55e; margin-bottom:20px;"></div>
+      <button onclick="location.reload()" style="background:var(--accent); border:none; padding:12px 25px; border-radius:10px; cursor:pointer; font-weight:bold;">Return to Lobby</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const INITIAL_CHECKERS_BOARD = [
+      null, "b", null, "b", null, "b", null, "b",
+      "b", null, "b", null, "b", null, "b", null,
+      null, "b", null, "b", null, "b", null, "b",
+      null, null, null, null, null, null, null, null,
+      null, null, null, null, null, null, null, null,
+      "w", null, "w", null, "w", null, "w", null,
+      null, "w", null, "w", null, "w", null, "w",
+      "w", null, "w", null, "w", null, "w", null
+    ];
+
+    const els = {
+      statusEl: document.getElementById("status"),
+      timerEl: document.getElementById("timer"),
+      boardEl: document.getElementById("board"),
+      exitBtn: document.getElementById("exitBtn"),
+      winnerOverlay: document.getElementById("winnerOverlay"),
+      winnerAvatar: document.getElementById("winnerAvatar"),
+      winnerTitle: document.getElementById("winnerTitle"),
+      winnerSub: document.getElementById("winnerSub"),
+      winnerBadge: document.getElementById("winnerBadge")
+    };
+
+    const state = {
+      userId: null,
+      currentGame: null,
+      boardTemplate: INITIAL_CHECKERS_BOARD.slice(),
+      selectedIndex: null,
+      legalTargets: new Set(),
+      timerInterval: null
+    };
+
+    // --- HELPER FUNCTIONS ---
+    function normalizeBoard(board) {
+      if (!Array.isArray(board)) return board;
+      return board.map(v => (v === "" ? null : v));
+    }
+
+    async function rpcSingle(name, args = {}) {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    }
+
+    async function getUser() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not logged in");
+      state.userId = session.user.id;
+      return state.userId;
+    }
+
+    function parsePiece(piece) {
+      const raw = String(piece || "").trim().toLowerCase();
+      if (raw === "b") return { side: "black", king: false };
+      if (raw === "bk") return { side: "black", king: true };
+      if (raw === "w") return { side: "white", king: false };
+      if (raw === "wk") return { side: "white", king: true };
+      return null;
+    }
+
+    // --- CORE LOGIC (UNCHANGED) ---
+    function getLegalTargetsFromSelected(board, selectedIndex) {
+      const targets = new Set();
+      const piece = String(board?.[selectedIndex] || "").trim().toLowerCase();
+      if (!piece) return targets;
+
+      const row = Math.floor(selectedIndex / 8);
+      const col = selectedIndex % 8;
+      const isBlack = piece.startsWith("b");
+      const isWhite = piece.startsWith("w");
+      const isKing = piece.endsWith("k");
+
+      const directions = [];
+      if (isBlack || isKing) directions.push([1, -1], [1, 1]);
+      if (isWhite || isKing) directions.push([-1, -1], [-1, 1]);
+
+      const enemyPieces = isBlack ? ["w", "wk"] : ["b", "bk"];
+
+      for (const [dr, dc] of directions) {
+        const r1 = row + dr, c1 = col + dc;
+        if (r1 >= 0 && r1 < 8 && c1 >= 0 && c1 < 8) {
+          const idx1 = r1 * 8 + c1;
+          const sq1 = String(board?.[idx1] || "").trim().toLowerCase();
+          if (!sq1) {
+            targets.add(idx1);
+          } else if (enemyPieces.includes(sq1)) {
+            const r2 = row + dr * 2, c2 = col + dc * 2;
+            if (r2 >= 0 && r2 < 8 && c2 >= 0 && c2 < 8) {
+              const idx2 = r2 * 8 + c2;
+              const sq2 = String(board?.[idx2] || "").trim().toLowerCase();
+              if (!sq2) targets.add(idx2);
+            }
+          }
+        }
+      }
+      return targets;
+    }
+
+    // --- UI RENDERING ---
+    function createBoard() {
+      els.boardEl.innerHTML = "";
+      for (let i = 0; i < 64; i++) {
+        const row = Math.floor(i / 8), col = i % 8;
+        const cell = document.createElement("div");
+        cell.className = `cell ${(row + col) % 2 === 1 ? "dark" : "light"}`;
+        cell.onclick = () => handleCellClick(i);
+        cell.id = `c${i}`;
+        els.boardEl.appendChild(cell);
+      }
+    }
+
+    function renderBoard(board) {
+      const safeBoard = Array.isArray(board) ? normalizeBoard(board) : state.boardTemplate;
+      for (let i = 0; i < 64; i++) {
+        const el = document.getElementById(`c${i}`);
+        el.innerHTML = "";
+        el.className = el.className.replace(/selected|valid-target/g, "").trim();
+
+        if (state.selectedIndex === i) el.classList.add("selected");
+        if (state.legalTargets.has(i)) el.classList.add("valid-target");
+
+        const pieceData = parsePiece(safeBoard[i]);
+        if (pieceData) {
+          const p = document.createElement("div");
+          p.className = `piece ${pieceData.side}${pieceData.king ? " king" : ""}`;
+          el.appendChild(p);
+        }
+      }
+    }
+
+    async function syncCurrentGame(game) {
+      state.currentGame = game || null;
+      if (game?.status === "playing" && state.selectedIndex !== null) {
+        state.legalTargets = getLegalTargetsFromSelected(game.board_state, state.selectedIndex);
+      } else {
+        state.legalTargets = new Set();
+      }
+      renderBoard(game?.board_state);
+      els.statusEl.textContent = game ? `TURN: ${game.turn}` : "IDLE";
+      startTimer(game);
+      if (game?.status === "finished") showWinner(game);
+    }
+
+    function startTimer(game) {
+      clearInterval(state.timerInterval);
+      if (!game || game.status !== "playing") return;
+      const endTime = new Date(game.last_move_at).getTime() + 30 * 60 * 1000;
+      state.timerInterval = setInterval(() => {
+        const rem = endTime - Date.now();
+        if (rem <= 0) {
+          els.timerEl.textContent = "00:00";
+          clearInterval(state.timerInterval);
+          return;
+        }
+        const m = Math.floor(rem/60000), s = Math.floor((rem%60000)/1000);
+        els.timerEl.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+        els.timerEl.classList.toggle("danger", rem < 60000);
+      }, 1000);
+    }
+
+    async function showWinner(game) {
+      if (game.winner_user) {
+        const { data: p } = await supabase.from("profile").select("*").eq("id", game.winner_user).single();
+        els.winnerAvatar.src = p?.avatar_url || "https://via.placeholder.com/100";
+        els.winnerTitle.textContent = p?.full_name || "Winner!";
+        els.winnerBadge.textContent = `WON ${game.winnings || 0} COINS`;
+      } else {
+        els.winnerTitle.textContent = "DRAW";
+      }
+      els.winnerOverlay.classList.add("open");
+    }
+
+    async function handleCellClick(i) {
+      if (!state.currentGame || state.currentGame.status !== "playing") return;
+      const board = state.currentGame.board_state;
+      const piece = parsePiece(board[i]);
+      const turn = state.currentGame.turn;
+
+      const isMyPiece = piece && (
+        (turn === "B" && piece.side === "black") || 
+        (turn === "W" && piece.side === "white")
+      );
+
+      if (state.selectedIndex === null) {
+        if (isMyPiece) {
+          state.selectedIndex = i;
+          state.legalTargets = getLegalTargetsFromSelected(board, i);
+          renderBoard(board);
+        }
+      } else {
+        if (state.legalTargets.has(i)) {
+          const updated = await rpcSingle("make_move", {
+            p_game_id: state.currentGame.id,
+            p_cell_index: i,
+            p_from_index: state.selectedIndex
+          });
+          state.selectedIndex = null;
+          await syncCurrentGame(updated);
+        } else {
+          state.selectedIndex = isMyPiece ? i : null;
+          state.legalTargets = isMyPiece ? getLegalTargetsFromSelected(board, i) : new Set();
+          renderBoard(board);
+        }
+      }
+    }
+
+    // --- INIT ---
+    async function init() {
+      createBoard();
+      await getUser();
+      const game = await rpcSingle("get_active_playing_game");
+      await syncCurrentGame(game);
+      
+      if (game) {
+        supabase.channel(`game-${game.id}`)
+          .on("postgres_changes", { event: "*", schema: "public", table: "games", filter: `id=eq.${game.id}` }, 
+          p => syncCurrentGame(p.new)).subscribe();
+      }
+    }
+
+    els.exitBtn.onclick = async () => {
+      if (state.currentGame) await rpcSingle("leave_game", { p_game_id: state.currentGame.id });
+      window.location.href = "/lobby.html";
+    };
+
+    init();
+  </script>
+</body>
+</html>
