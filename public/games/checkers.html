@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <title>Elite Checkers Mobile</title>
+  <style>
+    :root {
+      --bg: #0a0c14;
+      --wood-dark: #2d1a12;
+      --wood-light: #6b4433;
+      --accent: #f59e0b;
+      --panel-bg: rgba(15, 20, 35, 0.95);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+
+    body {
+      background: var(--bg);
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Main Layout - Optimized for Mobile Landscape */
+    .app-container {
+      display: grid;
+      grid-template-columns: 80px 1fr 80px; 
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at center, #1a1e30 0%, #0a0c14 100%);
+    }
+
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 5px;
+      background: var(--panel-bg);
+      border-right: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+
+    .side-panel:last-child { border-right: none; border-left: 1px solid rgba(255,255,255,0.1); }
+
+    .exit-btn {
+      width: 45px;
+      height: 45px;
+      border: none;
+      border-radius: 12px;
+      background: #ef4444;
+      color: white;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #991b1b;
+    }
+
+    .timer-box {
+      background: #000;
+      padding: 6px;
+      border-radius: 10px;
+      border: 1.5px solid var(--accent);
+      width: 70px;
+      text-align: center;
+    }
+    .timer-box span { display: block; font-size: 8px; color: var(--accent); text-transform: uppercase; }
+    .timer-val { font-family: monospace; font-size: 14px; font-weight: bold; color: #fff; }
+    .timer-val.danger { color: #ff4444; animation: blink 1s infinite; }
+    @keyframes blink { 50% { opacity: 0.5; } }
+
+    .status-area {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      z-index: 5;
+      background: rgba(0,0,0,0.4);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* The Board */
+    .board-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .wooden-frame {
+      background: #1a0f0a;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      width: min(85vh, 65vw); 
+      height: min(85vh, 65vw);
+      border: 3px solid #000;
+    }
+
+    .cell {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cell.light {
+      background: #d2b48c;
+      background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), linear-gradient(to bottom right, #e6ccb2, #b08968);
+    }
+
+    .cell.dark {
+      background: #3e2723;
+      background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png'), linear-gradient(to bottom right, #3e2723, #1b100e);
+    }
+
+    .cell.selected { box-shadow: inset 0 0 0 3px #22d3ee; z-index: 2; }
+    .cell.valid-target::after {
+      content: '';
+      width: 30%;
+      height: 30%;
+      background: rgba(34, 211, 238, 0.6);
+      border-radius: 50%;
+    }
+
+    /* Pieces */
+    .piece {
+      width: 85%;
+      height: 85%;
+      border-radius: 50%;
+      position: relative;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .piece.black {
+      background: radial-gradient(circle at 35% 35%, #444, #000 75%);
+      box-shadow: 0 4px 0 #000, 0 6px 10px rgba(0,0,0,0.8);
+      border: 1px solid #333;
+    }
+
+    .piece.white {
+      background: radial-gradient(circle at 35% 35%, #fff, #ccc 75%);
+      box-shadow: 0 4px 0 #999, 0 6px 10px rgba(0,0,0,0.4);
+      border: 1px solid #eee;
+    }
+
+    .piece.king::before {
+      content: '★';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #f59e0b;
+      text-shadow: 0 1px 2px #000;
+    }
+
+    .winner-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .winner-overlay.open { display: flex; }
+    .winner-card {
+      background: #1a1e30;
+      padding: 20px;
+      border-radius: 20px;
+      border: 2px solid var(--accent);
+      text-align: center;
+      width: 280px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <div class="side-panel">
+      <button id="exitBtn" class="exit-btn">✕</button>
+      <div style="font-size: 9px; color: #444;">v1.2.2</div>
+    </div>
+
+    <div class="board-container">
+      <div id="status" class="status-area">SYNCING...</div>
+      <div class="wooden-frame">
+        <div id="board" class="board"></div>
+      </div>
+    </div>
+
+    <div class="side-panel">
+      <div class="timer-box">
+        <span>Time</span>
+        <div id="timer" class="timer-val">30:00</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="piece black" style="width: 25px; height: 25px; box-shadow: none;"></div>
+        <div class="piece white" style="width: 25px; height: 25px; box-shadow: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="winner-overlay" id="winnerOverlay">
+    <div class="winner-card">
+      <h2 id="winnerTitle" style="color:var(--accent); margin-bottom:5px;">Winner!</h2>
+      <div id="winnerBadge" style="font-weight:bold; color:#22c55e; margin-bottom:15px;"></div>
+      <button onclick="location.reload()" style="background:var(--accent); border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">Menu</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    // Standard 8x8 Checkers Initial Board State strictly formatted for 1D array mapping
+    const INITIAL_CHECKERS_BOARD = [
+      null, "b", null, "b", null, "b", null, "b",
+      "b", null, "b", null, "b", null, "b", null,
+      null, "b", null, "b", null, "b", null, "b",
+      null, null, null, null, null, null, null, null,
+      null, null, null, null, null, null, null, null,
+      "w", null, "w", null, "w", null, "w", null,
+      null, "w", null, "w", null, "w", null, "w",
+      "w", null, "w", null, "w", null, "w", null
+    ];
+
+    const els = {
+      statusEl: document.getElementById("status"),
+      timerEl: document.getElementById("timer"),
+      boardEl: document.getElementById("board"),
+      exitBtn: document.getElementById("exitBtn"),
+      winnerOverlay: document.getElementById("winnerOverlay"),
+      winnerTitle: document.getElementById("winnerTitle"),
+      winnerBadge: document.getElementById("winnerBadge")
+    };
+
+    const state = {
+      userId: null,
+      currentGame: null,
+      boardTemplate: [...INITIAL_CHECKERS_BOARD],
+      selectedIndex: null,
+      legalTargets: new Set(),
+      timerInterval: null
+    };
+
+    // --- LOGIC ---
+    function normalizeBoard(board) {
+      if (!Array.isArray(board) || board.length !== 64) return state.boardTemplate;
+      return board.map(v => (v === "" ? null : v));
+    }
+
+    async function rpcSingle(name, args = {}) {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw error;
+      return Array.isArray(data) ? data[0] : data;
+    }
+
+    function parsePiece(piece) {
+      const raw = String(piece || "").trim().toLowerCase();
+      if (raw === "b") return { side: "black", king: false };
+      if (raw === "bk") return { side: "black", king: true };
+      if (raw === "w") return { side: "white", king: false };
+      if (raw === "wk") return { side: "white", king: true };
+      return null;
+    }
+
+    // Pure function: Calculates targets based strictly on the provided board array
+    function getLegalTargetsFromSelected(board, selectedIndex) {
+      const targets = new Set();
+      const piece = String(board?.[selectedIndex] || "").trim().toLowerCase();
+      if (!piece) return targets;
+
+      const row = Math.floor(selectedIndex / 8);
+      const col = selectedIndex % 8;
+      
+      const isBlack = piece.startsWith("b");
+      const isWhite = piece.startsWith("w");
+      const isKing = piece.endsWith("k");
+      
+      const directions = [];
+      // Black moves down the board (increasing row), White moves up (decreasing row)
+      if (isBlack || isKing) directions.push([1, -1], [1, 1]);
+      if (isWhite || isKing) directions.push([-1, -1], [-1, 1]);
+
+      const enemyPieces = isBlack ? ["w", "wk"] : ["b", "bk"];
+
+      for (const [dr, dc] of directions) {
+        // Normal Move (1 step)
+        const r1 = row + dr;
+        const c1 = col + dc;
+        
+        if (r1 >= 0 && r1 < 8 && c1 >= 0 && c1 < 8) {
+          const idx1 = r1 * 8 + c1;
+          const sq1 = String(board?.[idx1] || "").trim().toLowerCase();
+          
+          if (!sq1) {
+            targets.add(idx1);
+          } else if (enemyPieces.includes(sq1)) {
+            // Jump Move (2 steps over enemy)
+            const r2 = row + (dr * 2);
+            const c2 = col + (dc * 2);
+            
+            if (r2 >= 0 && r2 < 8 && c2 >= 0 && c2 < 8) {
+              const idx2 = r2 * 8 + c2;
+              const sq2 = String(board?.[idx2] || "").trim().toLowerCase();
+              if (!sq2) targets.add(idx2);
+            }
+          }
+        }
+      }
+      return targets;
+    }
+
+    function createBoard() {
+      els.boardEl.innerHTML = "";
+      for (let i = 0; i < 64; i++) {
+        const row = Math.floor(i / 8);
+        const col = i % 8;
+        const cell = document.createElement("div");
+        // Checkers uses alternating grid colors 
+        cell.className = `cell ${(row + col) % 2 === 1 ? "dark" : "light"}`;
+        cell.onclick = () => handleCellClick(i);
+        cell.id = `c${i}`;
+        els.boardEl.appendChild(cell);
+      }
+    }
+
+    function renderBoard(board) {
+      const safeBoard = normalizeBoard(board);
+      for (let i = 0; i < 64; i++) {
+        const el = document.getElementById(`c${i}`);
+        el.innerHTML = "";
+        el.className = el.className.replace(/selected|valid-target/g, "").trim();
+        
+        if (state.selectedIndex === i) el.classList.add("selected");
+        if (state.legalTargets.has(i)) el.classList.add("valid-target");
+
+        const pieceData = parsePiece(safeBoard[i]);
+        if (pieceData) {
+          const p = document.createElement("div");
+          p.className = `piece ${pieceData.side}${pieceData.king ? " king" : ""}`;
+          el.appendChild(p);
+        }
+      }
+    }
+
+    async function syncCurrentGame(game) {
+      state.currentGame = game || null;
+      
+      if (game?.status === "playing" && state.selectedIndex !== null) {
+        state.legalTargets = getLegalTargetsFromSelected(game.board_state, state.selectedIndex);
+      } else {
+        state.selectedIndex = null;
+        state.legalTargets = new Set();
+      }
+      
+      renderBoard(game ? game.board_state : state.boardTemplate);
+      
+      els.statusEl.textContent = game ? `TURN: ${game.turn === 'B' ? 'BLACK' : 'WHITE'}` : "WAITING...";
+      startTimer(game);
+      
+      if (game?.status === "finished") showWinner(game);
+    }
+
+    function startTimer(game) {
+      clearInterval(state.timerInterval);
+      if (!game || game.status !== "playing") return;
+
+      const lastMove = new Date(game.last_move_at).getTime();
+      const endTime = lastMove + (30 * 60 * 1000);
+
+      state.timerInterval = setInterval(() => {
+        const now = Date.now();
+        const rem = endTime - now;
+        
+        if (rem <= 0) {
+          els.timerEl.textContent = "00:00";
+          clearInterval(state.timerInterval);
+          return;
+        }
+
+        const m = Math.floor(rem / 60000);
+        const s = Math.floor((rem % 60000) / 1000);
+        const displayM = Math.min(m, 30);
+        
+        els.timerEl.textContent = `${displayM}:${s.toString().padStart(2, '0')}`;
+        els.timerEl.classList.toggle("danger", rem < 60000);
+      }, 1000);
+    }
+
+    async function showWinner(game) {
+      els.winnerTitle.textContent = game.winner ? `${game.winner === 'B' ? 'BLACK' : 'WHITE'} WINS!` : "DRAW!";
+      els.winnerBadge.textContent = game.winnings ? `+${game.winnings} COINS` : "";
+      els.winnerOverlay.classList.add("open");
+    }
+
+    async function handleCellClick(i) {
+      if (!state.currentGame || state.currentGame.status !== "playing") return;
+      
+      const board = state.currentGame.board_state;
+      const piece = parsePiece(board[i]);
+      const turn = state.currentGame.turn;
+
+      // Determine if the current user is assigned 'B' or 'W'
+      const myRole = (state.userId === state.currentGame.player_b) ? 'B' : 
+                     (state.userId === state.currentGame.player_w) ? 'W' : null;
+
+      // Only allow interaction if it is actually the user's turn
+      if (turn !== myRole) return;
+
+      const isMyPiece = piece && (
+        (turn === "B" && piece.side === "black") || 
+        (turn === "W" && piece.side === "white")
+      );
+
+      if (state.selectedIndex === null) {
+        if (isMyPiece) {
+          state.selectedIndex = i;
+          state.legalTargets = getLegalTargetsFromSelected(board, i);
+          renderBoard(board);
+        }
+      } else {
+        if (state.legalTargets.has(i)) {
+          // Temporarily store selection to prevent UI flashes during RPC call
+          const fromIdx = state.selectedIndex;
+          state.selectedIndex = null; 
+          
+          try {
+            const updated = await rpcSingle("make_move", {
+              p_game_id: state.currentGame.id,
+              p_cell_index: i,
+              p_from_index: fromIdx
+            });
+            await syncCurrentGame(updated);
+          } catch (e) {
+            console.error("Move rejected by server", e);
+            state.selectedIndex = null;
+            await syncCurrentGame(state.currentGame); // Resync to clean state
+          }
+        } else {
+          // Re-select if clicking another friendly piece, otherwise deselect
+          state.selectedIndex = isMyPiece ? i : null;
+          state.legalTargets = isMyPiece ? getLegalTargetsFromSelected(board, i) : new Set();
+          renderBoard(board);
+        }
+      }
+    }
+
+    async function init() {
+      createBoard();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = "/login.html"; // Redirect if no session
+        return;
+      }
+      
+      state.userId = session.user.id;
+      const game = await rpcSingle("get_active_playing_game");
+      await syncCurrentGame(game);
+      
+      if (game) {
+        supabase.channel(`game-${game.id}`)
+          .on("postgres_changes", { event: "*", schema: "public", table: "games", filter: `id=eq.${game.id}` }, 
+          p => syncCurrentGame(p.new)).subscribe();
+      }
+    }
+
+    els.exitBtn.onclick = async () => {
+      if (state.currentGame) await rpcSingle("leave_game", { p_game_id: state.currentGame.id });
+      window.location.href = "/lobby.html";
+    };
+
+    init();
+  </script>
+</body>
+</html>
