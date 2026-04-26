@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Game Lobby</title>
+  <style>
+    :root{
+      --bg:#f4f4f4;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+      --primary:#0d6efd;
+      --success:#16a34a;
+      --danger:#dc3545;
+      --shadow:0 10px 30px rgba(0,0,0,.08);
+      --sheet-shadow:0 -18px 50px rgba(0,0,0,.22);
+      --radius:18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 18px;
+    }
+
+    .wrap{
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width:0;
+    }
+
+    .brand h1{
+      margin:0;
+      font-size:24px;
+    }
+
+    .brand span{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.4;
+    }
+
+    .icon-btn{
+      width:44px;
+      height:44px;
+      border:none;
+      border-radius:14px;
+      background:#fff;
+      box-shadow: var(--shadow);
+      cursor:pointer;
+      display:grid;
+      place-items:center;
+      font-size:18px;
+    }
+
+    .status{
+      background: var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px 16px;
+      box-shadow: var(--shadow);
+      margin-bottom:14px;
+      white-space: pre-line;
+    }
+
+    .card{
+      background: var(--card);
+      border-radius:18px;
+      padding:16px;
+      box-shadow: var(--shadow);
+      margin-bottom:14px;
+      border:1px solid var(--line);
+    }
+
+    .card h3{
+      margin:0 0 12px;
+      font-size:16px;
+    }
+
+    .selected-box{
+      display:grid;
+      gap:8px;
+    }
+
+    .selected-title{
+      font-size:16px;
+      font-weight:800;
+    }
+
+    .selected-meta{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .balance-pill{
+      display:inline-block;
+      margin-top:4px;
+      padding:5px 10px;
+      border-radius:999px;
+      background:#ecfdf5;
+      color:#166534;
+      font-size:12px;
+      font-weight:700;
+      width: fit-content;
+    }
+
+    .pending-banner{
+      display:none;
+      margin-top:10px;
+      border:1px solid #fde68a;
+      background:#fffbeb;
+      color:#92400e;
+      border-radius:16px;
+      padding:14px;
+      gap:10px;
+    }
+
+    .pending-banner.open{
+      display:grid;
+    }
+
+    .pending-game-name{
+      font-size:14px;
+      font-weight:800;
+      color:#78350f;
+    }
+
+    .pending-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+
+    .players-list{
+      display:grid;
+      gap:10px;
+    }
+
+    .player-card{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:12px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#fff;
+      box-shadow: 0 6px 16px rgba(0,0,0,.05);
+    }
+
+    .avatar{
+      width:44px;
+      height:44px;
+      border-radius:999px;
+      object-fit:cover;
+      background:#e5e7eb;
+      flex:0 0 auto;
+    }
+
+    .player-main{
+      flex:1;
+      min-width:0;
+    }
+
+    .player-main .name{
+      font-weight:800;
+      font-size:14px;
+      margin-bottom:2px;
+      line-height:1.2;
+    }
+
+    .player-main .sub{
+      font-size:12px;
+      color:var(--muted);
+      word-break: break-word;
+      line-height:1.35;
+    }
+
+    .bid-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      margin-top:6px;
+      padding:4px 9px;
+      border-radius:999px;
+      background:#eff6ff;
+      color:#1d4ed8;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    .join-btn{
+      padding:9px 12px;
+      border:none;
+      border-radius:12px;
+      background: var(--primary);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+      white-space: nowrap;
+      font-size:13px;
+    }
+
+    .refund-btn{
+      padding:9px 12px;
+      border:none;
+      border-radius:12px;
+      background: var(--danger);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+      white-space: nowrap;
+      font-size:13px;
+    }
+
+    .continue-btn{
+      padding:9px 12px;
+      border:none;
+      border-radius:12px;
+      background: var(--success);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+      white-space: nowrap;
+      font-size:13px;
+    }
+
+    .empty-state{
+      padding:16px;
+      text-align:center;
+      color:var(--muted);
+      border:1px dashed #d1d5db;
+      border-radius:16px;
+      background:#fafafa;
+    }
+
+    .code-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    .code-input{
+      flex:1;
+      min-width: 180px;
+      padding:12px 14px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      outline:none;
+      background:#fff;
+    }
+
+    .code-submit{
+      padding:12px 14px;
+      border:none;
+      border-radius:12px;
+      background:#111827;
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .drawer-overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.35);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease;
+      z-index:50;
+    }
+
+    .drawer-overlay.open{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .drawer{
+      position:fixed;
+      top:0;
+      left:0;
+      height:100vh;
+      width:min(420px, 92vw);
+      background:#fff;
+      border-right:1px solid var(--line);
+      box-shadow: 20px 0 50px rgba(0,0,0,.22);
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      z-index:60;
+      display:flex;
+      flex-direction:column;
+    }
+
+    .drawer-overlay.open .drawer{
+      transform: translateX(0);
+    }
+
+    .drawer-head{
+      padding:16px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .drawer-head h3{
+      margin:0;
+      font-size:18px;
+    }
+
+    .drawer-close{
+      width:42px;
+      height:42px;
+      border-radius:12px;
+      border:none;
+      background:#f3f4f6;
+      color:#111827;
+      cursor:pointer;
+      font-size:18px;
+    }
+
+    .drawer-body{
+      padding:16px;
+      overflow:auto;
+      display:grid;
+      gap:14px;
+    }
+
+    .drawer-section{
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      background:#fafafa;
+    }
+
+    .drawer-section h4{
+      margin:0 0 10px;
+      font-size:15px;
+    }
+
+    .bid-overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.42);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease;
+      z-index:80;
+      display:grid;
+      place-items:center;
+      padding:16px;
+    }
+
+    .bid-overlay.open{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .bid-sheet{
+      width:min(520px, 100%);
+      background:#fff;
+      border-radius:22px;
+      box-shadow: var(--sheet-shadow);
+      border:1px solid var(--line);
+      overflow:hidden;
+    }
+
+    .bid-head{
+      padding:16px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .bid-head h3{
+      margin:0;
+      font-size:18px;
+    }
+
+    .bid-close{
+      width:40px;
+      height:40px;
+      border:none;
+      border-radius:12px;
+      background:#f3f4f6;
+      cursor:pointer;
+      font-size:18px;
+    }
+
+    .bid-body{
+      padding:16px;
+      display:grid;
+      gap:14px;
+    }
+
+    .bid-preview{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+      background:#fafafa;
+      display:grid;
+      gap:8px;
+    }
+
+    .bid-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .bid-value{
+      font-size:28px;
+      font-weight:900;
+      color:#111827;
+    }
+
+    .slider-wrap{
+      display:grid;
+      gap:8px;
+    }
+
+    .slider{
+      width:100%;
+    }
+
+    /* New Time Options Styles */
+    .time-options {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .time-btn {
+      flex: 1;
+      padding: 10px 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+
+    .time-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .bid-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      border:none;
+      border-radius:12px;
+      padding:12px 14px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .btn-main{
+      background: var(--primary);
+      color:#fff;
+    }
+
+    .btn-ghost{
+      background:#f3f4f6;
+      color:#111827;
+    }
+
+    .waiting-note{
+      font-size:13px;
+      color:var(--muted);
+      margin-top:8px;
+    }
+
+    .game-types-locked{
+      opacity:0.95;
+    }
+
+    .game-types-locked .empty-state{
+      margin-top:0;
+    }
+
+    .type-card{
+      border:1px solid var(--line);
+      border-radius:18px;
+      overflow:hidden;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.06);
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .type-card:hover{
+      box-shadow: 0 12px 28px rgba(0,0,0,.10);
+    }
+
+    .type-card:active{
+      transform: scale(.985);
+    }
+
+    .type-image-wrap{
+      width:100%;
+      aspect-ratio: 16 / 9;
+      background:#f3f4f6;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      padding:10px;
+    }
+
+    .type-image{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      display:block;
+    }
+
+    .type-body{
+      padding:12px;
+    }
+
+    .type-name{
+      font-size:16px;
+      font-weight:800;
+      margin:0 0 6px;
+    }
+
+    .type-meta{
+      font-size:13px;
+      color:var(--muted);
+      margin:0;
+      line-height:1.4;
+    }
+
+    .pill{
+      display:inline-block;
+      margin-top:8px;
+      padding:5px 10px;
+      border-radius:999px;
+      background:#eef2ff;
+      color:#4338ca;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    @media (max-width: 640px){
+      body{ padding:12px; }
+
+      .topbar{
+        flex-direction:column;
+        align-items:stretch;
+      }
+
+      .code-row{
+        flex-direction:column;
+      }
+
+      .code-input, .code-submit, .join-btn, .refund-btn, .continue-btn, .icon-btn{
+        width:100%;
+      }
+
+      .bid-actions{
+        flex-direction:column;
+      }
+
+      .btn{
+        width:100%;
+      }
+
+      .pending-actions{
+        flex-direction:column;
+      }
+
+      .player-card{
+        padding:9px;
+        gap:9px;
+      }
+
+      .avatar{
+        width:38px;
+        height:38px;
+      }
+
+      .player-main .name{
+        font-size:13px;
+      }
+
+      .player-main .sub{
+        font-size:12px;
+      }
+
+      .type-body{
+        padding:11px;
+      }
+
+      .type-name{
+        font-size:15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="drawer-overlay" id="drawerOverlay" aria-hidden="true">
+    <aside class="drawer" aria-label="Game types panel">
+      <div class="drawer-head">
+        <h3>Available games</h3>
+        <button id="drawerCloseBtn" class="drawer-close" aria-label="Close panel">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="drawer-section">
+          <h4>Game types</h4>
+          <div id="gameTypesList"></div>
+        </div>
+
+        <div class="drawer-section">
+          <h4>Selected game</h4>
+          <div class="selected-box">
+            <div class="selected-title" id="selectedTypeName">No game selected</div>
+            <div class="selected-meta" id="selectedTypeMeta">Tap a game type below.</div>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <h4>Waiting users</h4>
+          <div id="waitingSessions" class="players-list"></div>
+        </div>
+
+        <div class="drawer-section">
+          <h4>Join by code</h4>
+          <div class="code-row">
+            <input id="gameCodeInput" class="code-input" type="text" placeholder="Enter game code" />
+            <button id="joinByCodeBtn" class="code-submit" type="button">Join</button>
+          </div>
+          <div id="joinCodeStatus" class="small"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="bid-overlay" id="bidOverlay" aria-hidden="true">
+    <div class="bid-sheet" role="dialog" aria-modal="true" aria-labelledby="bidTitle">
+      <div class="bid-head">
+        <h3 id="bidTitle">Choose your bid</h3>
+        <button id="bidCloseBtn" class="bid-close" aria-label="Close bid panel">✕</button>
+      </div>
+
+      <div class="bid-body">
+        <div class="bid-preview">
+          <div class="bid-row">
+            <span>Game type</span>
+            <strong id="bidGameName">—</strong>
+          </div>
+          <div class="bid-row">
+            <span>Your balance</span>
+            <strong id="bidBalance">0</strong>
+          </div>
+          <div class="bid-value" id="bidValue">0</div>
+          <div class="slider-wrap">
+            <input id="bidSlider" class="slider" type="range" min="1" max="1" step="1" value="1">
+            <div class="small" id="bidHint">Pick how much to deduct from your balance.</div>
+          </div>
+          
+          <div class="bid-row" style="margin-top:10px;">
+            <span>Time limit (minutes)</span>
+          </div>
+          <div class="time-options" id="timeOptions">
+            <button class="time-btn active" type="button" data-time="5">5</button>
+            <button class="time-btn" type="button" data-time="10">10</button>
+            <button class="time-btn" type="button" data-time="30">30</button>
+            <button class="time-btn" type="button" data-time="50">50</button>
+          </div>
+
+        </div>
+
+        <div class="bid-actions">
+          <button id="bidCancelBtn" class="btn btn-ghost" type="button">Cancel</button>
+          <button id="bidConfirmBtn" class="btn btn-main" type="button">Create Waiting Game</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Game Lobby</h1>
+        <span>Select a game type, choose a bid, then join a waiting session of the same type.</span>
+      </div>
+      <button id="panelBtn" class="icon-btn" aria-label="Open game panel">☰</button>
+    </div>
+
+    <div id="status" class="status">Loading...</div>
+
+    <div class="card">
+      <h3>Selected game type</h3>
+      <div class="selected-box">
+        <div class="selected-title" id="mainSelectedTitle">No game selected</div>
+        <div class="selected-meta" id="mainSelectedMeta">Open the panel and choose a game type.</div>
+        <div class="balance-pill" id="balancePill">Balance: 0</div>
+
+        <div class="pending-banner" id="pendingBanner">
+          <div class="pending-game-name" id="pendingGameTypeName">Waiting bid</div>
+          <div id="pendingText">—</div>
+          <div class="pending-actions">
+            <button id="pendingContinueBtn" class="continue-btn" type="button">Continue waiting</button>
+            <button id="pendingRefundBtn" class="refund-btn" type="button">Refund bid</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const PLACEHOLDER_IMAGE = "https://via.placeholder.com/600x400?text=Game";
+
+    const els = {
+      panelBtn: document.getElementById("panelBtn"),
+      drawerOverlay: document.getElementById("drawerOverlay"),
+      drawerCloseBtn: document.getElementById("drawerCloseBtn"),
+      statusEl: document.getElementById("status"),
+      gameTypesListEl: document.getElementById("gameTypesList"),
+      waitingSessionsEl: document.getElementById("waitingSessions"),
+      selectedTypeName: document.getElementById("selectedTypeName"),
+      selectedTypeMeta: document.getElementById("selectedTypeMeta"),
+      mainSelectedTitle: document.getElementById("mainSelectedTitle"),
+      mainSelectedMeta: document.getElementById("mainSelectedMeta"),
+      gameCodeInput: document.getElementById("gameCodeInput"),
+      joinByCodeBtn: document.getElementById("joinByCodeBtn"),
+      joinCodeStatus: document.getElementById("joinCodeStatus"),
+      bidOverlay: document.getElementById("bidOverlay"),
+      bidCloseBtn: document.getElementById("bidCloseBtn"),
+      bidCancelBtn: document.getElementById("bidCancelBtn"),
+      bidConfirmBtn: document.getElementById("bidConfirmBtn"),
+      bidGameName: document.getElementById("bidGameName"),
+      bidBalance: document.getElementById("bidBalance"),
+      bidValue: document.getElementById("bidValue"),
+      bidSlider: document.getElementById("bidSlider"),
+      bidHint: document.getElementById("bidHint"),
+      balancePill: document.getElementById("balancePill"),
+      pendingBanner: document.getElementById("pendingBanner"),
+      pendingText: document.getElementById("pendingText"),
+      pendingContinueBtn: document.getElementById("pendingContinueBtn"),
+      pendingRefundBtn: document.getElementById("pendingRefundBtn"),
+      pendingGameTypeName: document.getElementById("pendingGameTypeName"),
+      timeBtns: document.querySelectorAll(".time-btn") // NEW: Grab time buttons
+    };
+
+    const state = {
+      userId: null,
+      profile: null,
+      pendingGame: null,
+      selectedGameType: null,
+      currentGame: null,
+      gameTypes: [],
+      drawerOpen: false,
+      inGame: false,
+      gameTypesChannel: null,
+      gamesChannel: null,
+      bidDraftGameType: null,
+      bidDraftTimeLimit: 5, // NEW: Default to 5 mins
+      profileCache: {}
+    };
+
+    function setStatus(text) {
+      els.statusEl.textContent = text;
+    }
+
+    function showRawError(context, err) {
+      const message = err?.message ? err.message : String(err);
+      setStatus(`${context}\n${message}`);
+      console.error(context, err);
+    }
+
+    function normalizeRow(data) {
+      if (!data) return null;
+      if (Array.isArray(data)) return data[0] || null;
+      return data;
+    }
+
+    async function rpcSingle(name, args = {}) {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw error;
+      return normalizeRow(data);
+    }
+
+    async function rpcRows(name, args = {}) {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw error;
+      return Array.isArray(data) ? data : data ? [data] : [];
+    }
+
+    async function getUser() {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session || !session.user) throw new Error("Not logged in");
+      state.userId = session.user.id;
+      return state.userId;
+    }
+
+    async function loadProfile() {
+      const { data, error } = await supabase
+        .from("profile")
+        .select("id, full_name, avatar_url, money")
+        .eq("id", state.userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      state.profile = data || { money: 0 };
+      state.profileCache[state.userId] = state.profile;
+      els.balancePill.textContent = `Balance: ${Number(state.profile.money || 0)}`;
+      return state.profile;
+    }
+
+    async function fetchProfilesByIds(ids) {
+      const uniqueIds = [...new Set(ids.filter(Boolean))];
+      const missing = uniqueIds.filter((id) => !state.profileCache[id]);
+      if (!missing.length) return;
+
+      const { data, error } = await supabase
+        .from("profile")
+        .select("id, full_name, avatar_url, money")
+        .in("id", missing);
+
+      if (error) throw error;
+
+      for (const row of data || []) {
+        state.profileCache[row.id] = row;
+      }
+    }
+
+    function getProfileForId(id) {
+      return state.profileCache[id] || null;
+    }
+
+    function setDrawer(open) {
+      state.drawerOpen = open;
+      els.drawerOverlay.classList.toggle("open", open);
+      els.drawerOverlay.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+
+    function setBidOverlay(open) {
+      els.bidOverlay.classList.toggle("open", open);
+      els.bidOverlay.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+
+    function updateSelectedPanels() {
+      const game = state.selectedGameType;
+      if (!game) {
+        els.selectedTypeName.textContent = "No game selected";
+        els.selectedTypeMeta.textContent = "Tap a game type below.";
+        els.mainSelectedTitle.textContent = "No game selected";
+        els.mainSelectedMeta.textContent = "Open the panel and choose a game type.";
+        return;
+      }
+
+      const meta = `Game type: ${game.name || "Unknown"} · ID: ${game.id || "—"} · Board: ${game.board_type || "unknown"} · File: ${game.file_type || "unknown"}`;
+      els.selectedTypeName.textContent = game.name || "Selected game";
+      els.selectedTypeMeta.textContent = meta;
+      els.mainSelectedTitle.textContent = game.name || "Selected game";
+      els.mainSelectedMeta.textContent = meta;
+    }
+
+    function hidePendingBanner() {
+      state.pendingGame = null;
+      els.pendingBanner.classList.remove("open");
+      els.pendingText.textContent = "—";
+      els.pendingGameTypeName.textContent = "Waiting bid";
+      els.pendingContinueBtn.style.display = "none";
+      els.pendingRefundBtn.style.display = "none";
+    }
+
+    function renderPendingBanner(game) {
+      const bid = Number(game?.bid_amount || 0);
+      if (!game || bid < 1 || state.inGame) {
+        hidePendingBanner();
+        return;
+      }
+
+      const gameType = state.gameTypes.find((g) => g.id === game.game_type_id);
+      const gameTypeName = gameType?.name || "Waiting game";
+      const gameTypeId = gameType?.id || game.game_type_id || "—";
+
+      els.pendingGameTypeName.textContent = gameTypeName;
+      els.pendingText.textContent = `Game type ID: ${gameTypeId} · Your bid: ${bid}`;
+      els.pendingBanner.classList.add("open");
+      els.pendingContinueBtn.style.display = "inline-block";
+      els.pendingRefundBtn.style.display = "inline-block";
+      els.pendingRefundBtn.textContent = `Refund ${gameTypeName}`;
+    }
+
+    async function loadGameTypes() {
+      state.gameTypes = await rpcRows("list_game_types");
+      renderGameTypes();
+    }
+
+    function renderGameTypes() {
+      els.gameTypesListEl.innerHTML = "";
+
+      if (state.pendingGame && Number(state.pendingGame.bid_amount || 0) > 0) {
+        els.gameTypesListEl.innerHTML = `
+          <div class="empty-state game-types-locked">
+            You already have a waiting bid. Refund it to choose another game type.
+          </div>
+        `;
+        return;
+      }
+
+      if (!state.gameTypes.length) {
+        els.gameTypesListEl.innerHTML = `<div class="empty-state">No game types yet.</div>`;
+        return;
+      }
+
+      state.gameTypes.forEach((gameType) => {
+        const card = document.createElement("div");
+        card.className = "type-card";
+        card.innerHTML = `
+          <div class="type-image-wrap">
+            <img class="type-image" src="${gameType.image_url || PLACEHOLDER_IMAGE}" alt="${gameType.name || "Game"}">
+          </div>
+          <div class="type-body">
+            <div class="type-name">${gameType.name || "Unnamed Game"}</div>
+            <p class="type-meta">Game type ID: ${gameType.id || "—"}</p>
+            <p class="type-meta">Board type: ${gameType.board_type || "unknown"}</p>
+            <div class="pill">${gameType.file_type || "no file"}</div>
+          </div>
+        `;
+        card.onclick = () => openBidSheet(gameType);
+        els.gameTypesListEl.appendChild(card);
+      });
+    }
+
+    async function getProfileDetailsForWaitingRows(rows) {
+      const ids = rows.map((row) => row.host_id || row.player_x || row.player_x_id || row.user_id || row.owner_id).filter(Boolean);
+      await fetchProfilesByIds(ids);
+
+      return rows.map((row) => {
+        const hostId = row.host_id || row.player_x || row.player_x_id || row.user_id || row.owner_id || null;
+        const profile = hostId ? getProfileForId(hostId) : null;
+
+        return {
+          ...row,
+          resolved_host_name: row.host_name || profile?.full_name || "Player",
+          resolved_host_avatar_url: row.host_avatar_url || profile?.avatar_url || PLACEHOLDER_IMAGE,
+          resolved_host_id: hostId
+        };
+      });
+    }
+
+    async function loadWaitingGames(gameTypeId) {
+      const targetTypeId = gameTypeId || state.pendingGame?.game_type_id || null;
+      const rows = targetTypeId
+        ? await rpcRows("list_waiting_games", { p_game_type_id: targetTypeId })
+        : [];
+
+      els.waitingSessionsEl.innerHTML = "";
+
+      if (!targetTypeId) {
+        els.waitingSessionsEl.innerHTML = `<div class="empty-state">Choose a game type to see waiting users.</div>`;
+        return;
+      }
+
+      if (!rows.length) {
+        els.waitingSessionsEl.innerHTML = `<div class="empty-state">No waiting users for this game type.</div>`;
+        return;
+      }
+
+      const enrichedRows = await getProfileDetailsForWaitingRows(rows);
+
+      enrichedRows.forEach((row) => {
+        const bid = Number(row.bid_amount || 0);
+
+        const item = document.createElement("div");
+        item.className = "player-card";
+        item.innerHTML = `
+          <img class="avatar" src="${row.resolved_host_avatar_url}" alt="${row.resolved_host_name}">
+          <div class="player-main">
+            <div class="name">${row.resolved_host_name}</div>
+            <div class="sub">Waiting for an opponent</div>
+            <div class="bid-pill">Bid: ${bid}</div>
+          </div>
+          <button class="join-btn" type="button">Join</button>
+        `;
+
+        item.querySelector(".join-btn").onclick = async () => {
+          try {
+            const joined = await rpcSingle("join_waiting_game", { p_game_id: row.game_id });
+            state.currentGame = joined;
+            state.inGame = joined?.status === "playing";
+            updateSelectedPanels();
+
+            if (joined?.status === "playing") {
+              setDrawer(false);
+              closeBidSheet();
+              hidePendingBanner();
+              redirectToGame(joined);
+            }
+          } catch (err) {
+            showRawError("Could not join game", err);
+          }
+        };
+
+        els.waitingSessionsEl.appendChild(item);
+      });
+    }
+
+    function openBidSheet(gameType) {
+      const pendingBid = Number(state.pendingGame?.bid_amount || 0);
+      if (pendingBid > 0) {
+        setStatus("You already have a waiting bid. Continue or refund it first.");
+        return;
+      }
+
+      state.bidDraftGameType = gameType;
+      const maxMoney = Math.max(0, Number(state.profile?.money || 0));
+
+      els.bidGameName.textContent = `${gameType?.name || "Game"} · ID: ${gameType?.id || "—"}`;
+      els.bidBalance.textContent = String(maxMoney);
+
+      // Reset time selection back to default 5 mins
+      state.bidDraftTimeLimit = 5;
+      els.timeBtns.forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-time') === "5");
+      });
+
+      if (maxMoney <= 0) {
+        els.bidSlider.min = "0";
+        els.bidSlider.max = "0";
+        els.bidSlider.value = "0";
+        els.bidValue.textContent = "0";
+        els.bidHint.textContent = "You do not have enough money to bid.";
+        setBidOverlay(true);
+        return;
+      }
+
+      els.bidSlider.min = "1";
+      els.bidSlider.max = String(maxMoney);
+      els.bidSlider.step = "1";
+      els.bidSlider.value = "1";
+
+      els.bidValue.textContent = els.bidSlider.value;
+      els.bidHint.textContent = `Choose a bid from 1 to ${maxMoney}. This amount will be reserved when you create the waiting game.`;
+
+      setBidOverlay(true);
+    }
+
+    function closeBidSheet() {
+      setBidOverlay(false);
+      state.bidDraftGameType = null;
+    }
+
+    async function refreshPendingGame() {
+      try {
+        const pending = await rpcSingle("get_my_waiting_game");
+        const bid = Number(pending?.bid_amount || 0);
+
+        if (!pending || bid < 1) {
+          state.pendingGame = null;
+          hidePendingBanner();
+          if (!state.currentGame || state.currentGame.status !== "playing") {
+            setStatus("Idle");
+          }
+          renderGameTypes();
+          return null;
+        }
+
+        state.pendingGame = pending;
+        state.selectedGameType = state.gameTypes.find((g) => g.id === pending.game_type_id) || state.selectedGameType;
+        updateSelectedPanels();
+        renderPendingBanner(pending);
+        renderGameTypes();
+        setStatus(`You have a waiting bid of ${bid}.`);
+        await loadWaitingGames(pending.game_type_id).catch(() => {});
+        return pending;
+      } catch (err) {
+        showRawError("Could not load pending game", err);
+        return null;
+      }
+    }
+
+    async function createWaitingGameWithBid() {
+      try {
+        if (!state.bidDraftGameType) return;
+
+        const bidAmount = Number(els.bidSlider.value);
+        const maxMoney = Number(state.profile?.money || 0);
+
+        if (!bidAmount || bidAmount < 1) {
+          els.bidHint.textContent = "Please choose a valid bid.";
+          return;
+        }
+
+        if (bidAmount > maxMoney) {
+          els.bidHint.textContent = "That bid is higher than your balance.";
+          return;
+        }
+
+        // NEW: Passing p_time_limit based on user selection
+        const game = await rpcSingle("create_waiting_game", {
+          p_game_type_id: state.bidDraftGameType.id,
+          p_bid_amount: bidAmount,
+          p_time_limit: state.bidDraftTimeLimit
+        });
+
+        state.currentGame = game;
+        state.selectedGameType = state.bidDraftGameType;
+        state.inGame = game?.status === "playing";
+        updateSelectedPanels();
+
+        await loadProfile();
+        await refreshPendingGame();
+
+        closeBidSheet();
+
+        if (game?.status === "playing") {
+          setDrawer(false);
+          hidePendingBanner();
+          redirectToGame(game);
+        } else {
+          setStatus(`Waiting for opponent... Bid: ${bidAmount}`);
+        }
+      } catch (err) {
+        showRawError("Could not create waiting game", err);
+      }
+    }
+
+    async function refundPendingBid() {
+      try {
+        const pending = state.pendingGame || (await rpcSingle("get_my_waiting_game"));
+        if (!pending || Number(pending.bid_amount || 0) < 1) {
+          hidePendingBanner();
+          renderGameTypes();
+          setStatus("Bid refunded. You can start a new game.");
+          return;
+        }
+
+        try {
+          await rpcSingle("cancel_waiting_game", {
+            p_game_id: pending.id
+          });
+        } catch (err) {
+          if (!String(err?.message || err).toLowerCase().includes("game not found")) {
+            throw err;
+          }
+        }
+
+        state.pendingGame = null;
+        state.currentGame = null;
+        state.inGame = false;
+
+        hidePendingBanner();
+        await loadProfile();
+        renderGameTypes();
+        setStatus("Bid refunded. You can start a new game.");
+      } catch (err) {
+        showRawError("Could not refund bid", err);
+      }
+    }
+
+    async function continuePendingBid() {
+      try {
+        const pending = state.pendingGame || (await rpcSingle("get_my_waiting_game"));
+        if (!pending || Number(pending.bid_amount || 0) < 1) return;
+
+        const gameType = state.gameTypes.find((g) => g.id === pending.game_type_id) || null;
+        state.selectedGameType = gameType;
+        updateSelectedPanels();
+        setDrawer(false);
+        closeBidSheet();
+        renderPendingBanner(pending);
+        setStatus(`Continuing waiting game. Bid: ${pending.bid_amount || 0}`);
+      } catch (err) {
+        showRawError("Could not continue pending game", err);
+      }
+    }
+
+    async function redirectToGame(game) {
+      if (!game || !game.game_type_id) return;
+
+      const gameType = state.gameTypes.find((t) => t.id === game.game_type_id);
+      if (!gameType || !gameType.file_type) return;
+
+      const fileName = gameType.file_type.endsWith(".html")
+        ? gameType.file_type
+        : `${gameType.file_type}.html`;
+
+      window.location.href = `/games/${fileName}?gameId=${encodeURIComponent(game.id)}`;
+    }
+
+    async function loadCurrentPlayingGame() {
+      const active = await rpcSingle("get_active_playing_game");
+      state.currentGame = active;
+      state.inGame = !!active && active.status === "playing";
+
+      if (active && active.game_type_id) {
+        state.selectedGameType = state.gameTypes.find((t) => t.id === active.game_type_id) || null;
+        updateSelectedPanels();
+      }
+
+      if (active?.status === "playing") {
+        setDrawer(false);
+        closeBidSheet();
+        hidePendingBanner();
+        setStatus("You are in a game");
+        await redirectToGame(active);
+      } else {
+        setStatus("Idle");
+      }
+    }
+
+    async function openPersonalGame() {
+      state.personalGame = await rpcSingle("get_or_create_personal_game");
+      return state.personalGame;
+    }
+
+    async function joinByCode() {
+      try {
+        const code = els.gameCodeInput.value.trim();
+        if (!code) {
+          els.joinCodeStatus.textContent = "Enter a game code first.";
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("games")
+          .select("*")
+          .eq("id", code)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!data) {
+          els.joinCodeStatus.textContent = "Game code not found.";
+          return;
+        }
+
+        if (!state.selectedGameType || data.game_type_id !== state.selectedGameType.id) {
+          els.joinCodeStatus.textContent = "Select the same game type first.";
+          return;
+        }
+
+        const joined = await rpcSingle("join_waiting_game", { p_game_id: data.id });
+        state.currentGame = joined;
+        state.inGame = joined?.status === "playing";
+        els.joinCodeStatus.textContent = "Joined.";
+        updateSelectedPanels();
+
+        if (joined?.status === "playing") {
+          setDrawer(false);
+          closeBidSheet();
+          hidePendingBanner();
+          redirectToGame(joined);
+        }
+      } catch (err) {
+        showRawError("Could not join by code", err);
+      }
+    }
+
+    function subscribeToGameTypes() {
+      if (state.gameTypesChannel) {
+        supabase.removeChannel(state.gameTypesChannel);
+        state.gameTypesChannel = null;
+      }
+
+      state.gameTypesChannel = supabase
+        .channel("game-types-live")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "game_types" },
+          async () => {
+            await loadGameTypes().catch((err) => showRawError("Could not reload game types", err));
+            const locked = state.pendingGame && Number(state.pendingGame.bid_amount || 0) > 0;
+            if (state.selectedGameType && !locked) {
+              await loadWaitingGames(state.selectedGameType.id).catch(() => {});
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    function subscribeToGames() {
+      if (state.gamesChannel) {
+        supabase.removeChannel(state.gamesChannel);
+        state.gamesChannel = null;
+      }
+
+      state.gamesChannel = supabase
+        .channel("games-live")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "games" },
+          async (payload) => {
+            const updated = payload.new;
+            if (!updated) return;
+
+            const relevant =
+              updated.player_x === state.userId || updated.player_o === state.userId;
+
+            if (!relevant) return;
+
+            state.currentGame = updated;
+            state.inGame = updated.status === "playing";
+
+            if (updated.status === "playing") {
+              setDrawer(false);
+              closeBidSheet();
+              hidePendingBanner();
+              await redirectToGame(updated);
+            }
+
+            const lockedTypeId = state.pendingGame?.game_type_id || state.selectedGameType?.id || null;
+            if (lockedTypeId) {
+              await loadWaitingGames(lockedTypeId).catch(() => {});
+            }
+
+            if (updated.status === "idle" || updated.status === "waiting") {
+              setStatus("Idle");
+            }
+
+            if (updated.status === "waiting" && updated.player_x === state.userId) {
+              if (Number(updated.bid_amount || 0) > 0) {
+                state.pendingGame = updated;
+                renderPendingBanner(updated);
+                renderGameTypes();
+              } else {
+                hidePendingBanner();
+              }
+            }
+
+            if (updated.status === "finished") {
+              hidePendingBanner();
+              renderGameTypes();
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    // NEW: Time Selection Event Listeners
+    els.timeBtns.forEach(btn => {
+      btn.onclick = () => {
+        // Remove active class from all buttons
+        els.timeBtns.forEach(b => b.classList.remove('active'));
+        // Add active class to clicked button
+        btn.classList.add('active');
+        // Update state
+        state.bidDraftTimeLimit = parseInt(btn.getAttribute('data-time'), 10);
+      };
+    });
+
+    els.panelBtn.onclick = () => {
+      if (state.inGame) return;
+      setDrawer(true);
+    };
+
+    els.drawerCloseBtn.onclick = () => setDrawer(false);
+    els.drawerOverlay.addEventListener("click", (e) => {
+      if (e.target === els.drawerOverlay) setDrawer(false);
+    });
+
+    els.bidCloseBtn.onclick = closeBidSheet;
+    els.bidCancelBtn.onclick = closeBidSheet;
+    els.bidOverlay.addEventListener("click", (e) => {
+      if (e.target === els.bidOverlay) closeBidSheet();
+    });
+
+    els.bidSlider.addEventListener("input", () => {
+      els.bidValue.textContent = els.bidSlider.value;
+    });
+
+    els.bidConfirmBtn.onclick = createWaitingGameWithBid;
+    els.pendingRefundBtn.onclick = refundPendingBid;
+    els.pendingContinueBtn.onclick = continuePendingBid;
+    els.joinByCodeBtn.onclick = joinByCode;
+    els.gameCodeInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") joinByCode();
+    });
+
+    async function init() {
+      try {
+        await getUser();
+        await openPersonalGame();
+        await loadProfile();
+        await loadGameTypes();
+        await loadCurrentPlayingGame();
+        await refreshPendingGame();
+        subscribeToGameTypes();
+        subscribeToGames();
+        updateSelectedPanels();
+        setDrawer(false);
+      } catch (err) {
+        showRawError("Failed to load lobby", err);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
+Male it show the time_left from the function also the waiting for opponent text on the user waiting are not looking good assign it better(wherer the user who are waiting are listed) 
+Make full
