@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Neon Chess 3D</title>
+  <style>
+    :root {
+      --bg: #050816;
+      --accent: #7c3aed;
+      --accent2: #22d3ee;
+      --text: #f8fbff;
+      --card: rgba(10, 14, 28, 0.95);
+    }
+
+    body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; color: var(--text); }
+    
+    /* UI Overlay */
+    .gui { position: fixed; inset: 0; pointer-events: none; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; }
+    .gui * { pointer-events: auto; }
+
+    .top-bar { display: flex; justify-content: space-between; align-items: center; }
+    .status-pill { background: var(--card); padding: 8px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); font-weight: bold; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    .timer { font-family: monospace; color: var(--accent2); font-size: 18px; }
+
+    .btn { background: var(--accent); border: none; color: white; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+    
+    #three-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+    /* Winning Overlay */
+    .winner-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 100; text-align: center; }
+    .winner-overlay.open { display: flex; }
+  </style>
+</head>
+<body>
+
+  <div id="three-container"></div>
+
+  <div class="gui">
+    <div class="top-bar">
+      <button onclick="history.back()" class="btn" style="background: rgba(239,68,68,0.2); border: 1px solid red;">Exit</button>
+      <div id="timerDisplay" class="status-pill timer">30:00</div>
+      <div id="status" class="status-pill">Loading Game...</div>
+    </div>
+  </div>
+
+  <div class="winner-overlay" id="winnerOverlay">
+    <div style="background: var(--card); padding: 40px; border-radius: 24px; border: 1px solid var(--accent);">
+      <h1 id="winnerTitle">Checkmate!</h1>
+      <p id="winnerSub"></p>
+      <button onclick="location.href='/lobby.html'" class="btn">Return to Lobby</button>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient("https://eimecuiixwgmpfpedxpr.supabase.co", "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou");
+
+    // --- CONFIG & STATE ---
+    let scene, camera, renderer, raycaster, mouse;
+    let piecesGroup = new THREE.Group();
+    let boardGroup = new THREE.Group();
+    let state = { game: null, userId: null, selectedIdx: null, timerInterval: null };
+
+    const PIECE_MAP = {
+      'p': 'Pawn', 'r': 'Rook', 'n': 'Knight', 'b': 'Bishop', 'q': 'Queen', 'k': 'King',
+      'P': 'Pawn', 'R': 'Rook', 'N': 'Knight', 'B': 'Bishop', 'Q': 'Queen', 'K': 'King'
+    };
+
+    // --- INITIALIZE 3D SCENE ---
+    function init3D() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x050816);
+      
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 10, 10);
+      camera.lookAt(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      document.getElementById('three-container').appendChild(renderer.domElement);
+
+      const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+      const point = new THREE.PointLight(0x7c3aed, 15, 50);
+      point.position.set(5, 10, 5);
+      scene.add(ambient, point);
+
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
+
+      createBoard();
+      scene.add(boardGroup);
+      scene.add(piecesGroup);
+
+      window.addEventListener('click', onSelect);
+      animate();
+    }
+
+    function createBoard() {
+      for (let i = 0; i < 64; i++) {
+        const row = Math.floor(i / 8), col = i % 8;
+        const geo = new THREE.BoxGeometry(1, 0.2, 1);
+        const mat = new THREE.MeshStandardMaterial({ 
+          color: (row + col) % 2 === 0 ? 0x2e3552 : 0x1a1f35,
+          emissive: (row + col) % 2 === 0 ? 0x000000 : 0x7c3aed,
+          emissiveIntensity: 0.05
+        });
+        const tile = new THREE.Mesh(geo, mat);
+        tile.position.set(col - 3.5, 0, row - 3.5);
+        tile.userData = { index: i };
+        boardGroup.add(tile);
+      }
+    }
+
+    // Procedural Piece Generator (Instead of loading heavy models)
+    function createPieceMesh(type, color) {
+      const isWhite = color === 'white';
+      const mat = new THREE.MeshStandardMaterial({ 
+        color: isWhite ? 0xffffff : 0x222222,
+        metalness: 0.8, roughness: 0.2 
+      });
+      
+      let geo;
+      if (type === 'Pawn') geo = new THREE.SphereGeometry(0.3, 16, 16);
+      else if (type === 'Rook') geo = new THREE.BoxGeometry(0.5, 0.8, 0.5);
+      else if (type === 'Knight') geo = new THREE.CylinderGeometry(0.2, 0.4, 0.8, 8);
+      else if (type === 'Bishop') geo = new THREE.ConeGeometry(0.3, 0.9, 16);
+      else if (type === 'Queen') geo = new THREE.TorusGeometry(0.2, 0.2, 8, 16);
+      else geo = new THREE.OctahedronGeometry(0.5);
+
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.y = 0.5;
+      return mesh;
+    }
+
+    function renderPieces() {
+      while(piecesGroup.children.length > 0) piecesGroup.remove(piecesGroup.children[0]);
+      
+      const board = state.game.board_state;
+      Object.keys(board).forEach(idx => {
+        const p = board[idx];
+        if (!p || p === "") return;
+        
+        const row = Math.floor(parseInt(idx) / 8), col = parseInt(idx) % 8;
+        const color = (p === p.toUpperCase()) ? 'white' : 'black';
+        const mesh = createPieceMesh(PIECE_MAP[p], color);
+        
+        mesh.position.set(col - 3.5, 0.4, row - 3.5);
+        mesh.userData = { index: parseInt(idx), piece: p };
+        piecesGroup.add(mesh);
+      });
+    }
+
+    // --- GAME LOGIC ---
+    async function onSelect(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects([...piecesGroup.children, ...boardGroup.children]);
+      if (intersects.length === 0) return;
+
+      const target = intersects[0].object;
+      const targetIdx = target.userData.index;
+
+      // Logic: Selection
+      if (state.selectedIdx === null) {
+        const piece = state.game.board_state[targetIdx.toString()];
+        if (piece) {
+          const isWhiteTurn = state.game.turn === 'W';
+          const isPieceWhite = piece === piece.toUpperCase();
+          if (isWhiteTurn === isPieceWhite) {
+             state.selectedIdx = targetIdx;
+             target.material.emissive.set(0x22d3ee); // Highlight
+          }
+        }
+      } else {
+        // Move execution
+        await executeMove(state.selectedIdx, targetIdx);
+        state.selectedIdx = null;
+      }
+    }
+
+    async function executeMove(from, to) {
+      const { data, error } = await supabase.rpc('make_move', {
+        p_game_id: state.game.id,
+        p_cell_index: to,
+        p_from_index: from
+      });
+      if (error) alert(error.message);
+    }
+
+    // --- REAL TIME TIMER ---
+    function startTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+      state.timerInterval = setInterval(() => {
+        const now = new Date();
+        const lastMove = new Date(state.game.last_move_at);
+        const diffSeconds = Math.floor((now - lastMove) / 1000);
+        const remaining = Math.max(0, (state.game.time_left * 60) - diffSeconds);
+        
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        document.getElementById('timerDisplay').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+        if (remaining <= 0) {
+          supabase.rpc('handle_timeout', { p_game_id: state.game.id });
+        }
+      }, 1000);
+    }
+
+    async function syncGame() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const gameId = urlParams.get("gameId");
+      const { data: { user } } = await supabase.auth.getUser();
+      state.userId = user?.id;
+
+      const { data: game } = await supabase.from("games").select("*").eq("id", gameId).single();
+      state.game = game;
+      renderPieces();
+      startTimer();
+      updateUI();
+
+      supabase.channel(`chess_${gameId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games' }, 
+        payload => {
+          state.game = payload.new;
+          renderPieces();
+          startTimer();
+          updateUI();
+          if (payload.new.status === 'finished') showWinner();
+        }).subscribe();
+    }
+
+    function updateUI() {
+      const isMyTurn = (state.game.turn === 'W' && state.game.player_x === state.userId) || 
+                       (state.game.turn === 'B' && state.game.player_o === state.userId);
+      document.getElementById('status').textContent = isMyTurn ? "Your Turn" : "Opponent Thinking...";
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+
+    init3D();
+    syncGame();
+  </script>
+</body>
+</html>
