@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tournament Lobby</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-hover: #334155;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --success-hover: #059669;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --radius: 16px;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navbar */
+    .navbar {
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .brand {
+      font-size: 20px;
+      font-weight: 800;
+      background: linear-gradient(to right, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .wallet-pill {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 99px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .wallet-pill span { color: var(--success); }
+
+    /* Main Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .section-title {
+      font-size: 24px;
+      margin: 0 0 16px 0;
+      font-weight: 700;
+    }
+
+    /* Game Templates Scroll */
+    .templates-scroll {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding-bottom: 16px;
+      scrollbar-width: none;
+    }
+    .templates-scroll::-webkit-scrollbar { display: none; }
+
+    .game-card {
+      min-width: 200px;
+      background: var(--card-bg);
+      border: 2px solid transparent;
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .game-card:hover { background: var(--card-hover); }
+    .game-card.active {
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .game-image {
+      width: 64px;
+      height: 64px;
+      background: var(--bg);
+      border-radius: 12px;
+      margin: 0 auto 12px;
+      object-fit: cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .game-title { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+    .game-rake { font-size: 13px; color: var(--text-muted); }
+
+    /* Lobbies Area */
+    .lobbies-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 40px 0 20px 0;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: var(--success-hover); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: white; }
+    .btn-outline:hover { background: var(--card-hover); }
+
+    /* Lobbies Grid */
+    .lobbies-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .lobby-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .lobby-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .prize-pool { font-size: 24px; font-weight: 800; color: var(--success); }
+    .prize-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;}
+
+    .lobby-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      background: rgba(0,0,0,0.2);
+      padding: 12px;
+      border-radius: 12px;
+    }
+
+    .stat-item { display: flex; flex-direction: column; gap: 4px; }
+    .stat-value { font-weight: 600; font-size: 14px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal h3 { margin: 0 0 20px 0; font-size: 20px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 8px; color: var(--text-muted); font-size: 14px; }
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: white;
+      font-size: 16px;
+      box-sizing: border-box;
+      outline: none;
+    }
+    .form-group input:focus { border-color: var(--primary); }
+
+    .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
+    .modal-actions .btn { flex: 1; }
+
+    /* Utilities */
+    .hidden { display: none !important; }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      border: 1px dashed var(--border);
+      grid-column: 1 / -1;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="brand">PlayArena</div>
+    <div class="wallet-pill">
+      Wallet: <span id="userBalance">$0.00</span>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h2 class="section-title">Select Game</h2>
+    
+    <div class="templates-scroll" id="templatesContainer">
+      <div style="color: var(--text-muted);">Loading games...</div>
+    </div>
+
+    <div id="lobbiesSection" class="hidden">
+      <div class="lobbies-header">
+        <div>
+          <h2 class="section-title" id="selectedGameTitle" style="margin:0;">Waiting Rooms</h2>
+          <div style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">Join an open match or create your own.</div>
+        </div>
+        <button class="btn btn-primary" onclick="openCreateModal()">+ Create Tournament</button>
+      </div>
+
+      <div class="lobbies-grid" id="lobbiesContainer">
+        </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="createModal">
+    <div class="modal">
+      <h3>Create Tournament</h3>
+      
+      <div class="form-group">
+        <label>Entry Fee ($)</label>
+        <input type="number" id="createFee" step="0.50" min="0.50" placeholder="e.g. 5.00">
+      </div>
+      
+      <div class="form-group">
+        <label>Total Players (2-8)</label>
+        <input type="number" id="createPlayers" min="2" max="8" value="2">
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeCreateModal()">Cancel</button>
+        <button class="btn btn-success" onclick="submitCreateTournament()">Create & Join</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    // Initialize Supabase (Use your actual URL and Anon Key)
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    // App State
+    let templates = [];
+    let activeTemplateId = null;
+
+    // DOM Elements
+    const templatesContainer = document.getElementById('templatesContainer');
+    const lobbiesSection = document.getElementById('lobbiesSection');
+    const lobbiesContainer = document.getElementById('lobbiesContainer');
+    const selectedGameTitle = document.getElementById('selectedGameTitle');
+
+    // 1. Fetch Templates on Load
+    async function loadTemplates() {
+      const { data, error } = await supabase.rpc('list_tournament_templates');
+      
+      if (error) {
+        console.error(error);
+        templatesContainer.innerHTML = `<div style="color: var(--danger);">Error loading games.</div>`;
+        return;
+      }
+
+      templates = data || [];
+      renderTemplates();
+    }
+
+    // 2. Render the Game Menu
+    function renderTemplates() {
+      if (templates.length === 0) {
+        templatesContainer.innerHTML = `<div style="color: var(--text-muted);">No games available.</div>`;
+        return;
+      }
+
+      templatesContainer.innerHTML = templates.map(t => `
+        <div class="game-card ${t.id === activeTemplateId ? 'active' : ''}" onclick="selectTemplate('${t.id}', '${t.name}')">
+          <img src="${t.image_url || 'https://via.placeholder.com/64/1e293b/FFFFFF?text=Game'}" class="game-image" alt="${t.name}">
+          <div class="game-title">${t.name}</div>
+          <div class="game-rake">Rake: ${t.rake || 0}%</div>
+        </div>
+      `).join('');
+    }
+
+    // 3. Handle Template Selection
+    window.selectTemplate = async function(templateId, templateName) {
+      activeTemplateId = templateId;
+      selectedGameTitle.innerText = `${templateName} Lobbies`;
+      renderTemplates(); // Re-render to show active state
+      lobbiesSection.classList.remove('hidden');
+      
+      await loadLobbies(templateId);
+    };
+
+    // 4. Fetch Lobbies for Selected Game
+    async function loadLobbies(templateId) {
+      lobbiesContainer.innerHTML = `<div class="empty-state">Loading waiting rooms...</div>`;
+      
+      const { data, error } = await supabase.rpc('list_available_tournaments', { p_template_id: templateId });
+      
+      if (error) {
+        console.error(error);
+        lobbiesContainer.innerHTML = `<div class="empty-state">Error loading rooms.</div>`;
+        return;
+      }
+
+      const rooms = data || [];
+      
+      if (rooms.length === 0) {
+        lobbiesContainer.innerHTML = `
+          <div class="empty-state">
+            <h3>No open lobbies found</h3>
+            <p>Be the first to create a tournament for this game!</p>
+          </div>
+        `;
+        return;
+      }
+
+      lobbiesContainer.innerHTML = rooms.map(room => `
+        <div class="lobby-card">
+          <div class="lobby-top">
+            <div>
+              <div class="prize-label">Prize Pool</div>
+              <div class="prize-pool">$${Number(room.prize_pool).toFixed(2)}</div>
+            </div>
+            <span style="background: rgba(16, 185, 129, 0.1); color: var(--success); padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">WAITING</span>
+          </div>
+          
+          <div class="lobby-stats">
+            <div class="stat-item">
+              <span class="prize-label">Entry Fee</span>
+              <span class="stat-value">$${Number(room.entry_fee).toFixed(2)}</span>
+            </div>
+            <div class="stat-item">
+              <span class="prize-label">Max Players</span>
+              <span class="stat-value">${room.max_players} Players</span>
+            </div>
+          </div>
+          
+          <button class="btn btn-success" style="width: 100%;" onclick="joinTournament('${room.id}')">
+            Pay $${Number(room.entry_fee).toFixed(2)} & Join
+          </button>
+        </div>
+      `).join('');
+    }
+
+    // 5. Create Tournament Logic
+    window.openCreateModal = function() {
+      if (!activeTemplateId) return alert("Select a game first.");
+      document.getElementById('createModal').style.display = 'flex';
+    };
+
+    window.closeCreateModal = function() {
+      document.getElementById('createModal').style.display = 'none';
+      document.getElementById('createFee').value = '';
+      document.getElementById('createPlayers').value = '2';
+    };
+
+    window.submitCreateTournament = async function() {
+      const fee = parseFloat(document.getElementById('createFee').value);
+      const players = parseInt(document.getElementById('createPlayers').value);
+
+      if (isNaN(fee) || isNaN(players) || players < 2 || players > 8) {
+        return alert("Please enter valid parameters. Players must be between 2 and 8.");
+      }
+
+      const { data, error } = await supabase.rpc('create_custom_tournament', {
+        p_template_id: activeTemplateId,
+        p_entry_fee: fee,
+        p_max_players: players
+      });
+
+      if (error) {
+        alert("Error creating tournament: " + error.message);
+      } else {
+        alert("Tournament created successfully!");
+        closeCreateModal();
+        loadLobbies(activeTemplateId); // Refresh lobbies
+      }
+    };
+
+    // 6. Join Tournament Logic
+    window.joinTournament = async function(tournamentId) {
+      if (!confirm("Are you sure you want to pay the entry fee and join?")) return;
+
+      const { data, error } = await supabase.rpc('join_tournament', {
+        p_tournament_id: tournamentId
+      });
+
+      if (error) {
+        alert("Failed to join: " + error.message);
+      } else {
+        alert(data); // "Joined successfully..." or "Tournament full..."
+        loadLobbies(activeTemplateId); // Refresh lobbies
+      }
+    };
+
+    // Initialize
+    loadTemplates();
+
+    // Optional: Fetch user balance (Requires an auth session and profile RPC)
+    // async function updateWalletUI() { ... }
+  </script>
+</body>
+</html>
