@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tournament Test</title>
+  <style>
+    body {
+      background: #0f172a;
+      color: white;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    pre {
+      background: #1e293b;
+      padding: 16px;
+      border-radius: 12px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    button {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 10px;
+      background: #3b82f6;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>get_active_tournament Test</h1>
+  <button onclick="runTest()">Call Function</button>
+
+  <h3>Raw Response:</h3>
+  <pre id="output">Waiting...</pre>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    window.runTest = async function () {
+      const output = document.getElementById("output");
+      output.textContent = "Calling RPC...";
+
+      try {
+        const { data, error } = await supabase.rpc("get_active_tournament");
+
+        if (error) {
+          output.textContent = "ERROR:\n" + JSON.stringify(error, null, 2);
+          console.error(error);
+          return;
+        }
+
+        output.textContent = "RAW DATA:\n" + data;
+
+        const res = typeof data === "string" ? JSON.parse(data) : data;
+
+        output.textContent += "\n\nPARSED:\n" + JSON.stringify(res, null, 2);
+
+        if (res.status === "active_match_found") {
+          output.textContent += "\n\nRedirecting...";
+          setTimeout(() => {
+            window.location.href = `/games/${res.file_type}.html?match_id=${res.match_id}`;
+          }, 1500);
+        }
+
+      } catch (err) {
+        output.textContent = "JS ERROR:\n" + err.message;
+        console.error(err);
+      }
+    };
+  </script>
+</body>
+</html>
