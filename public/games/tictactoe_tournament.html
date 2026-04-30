@@ -1,0 +1,353 @@
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+  <meta charset="UTF-8" />  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>  
+  <title>Neon Tournament Tic Tac Toe</title>  
+  <style>  
+    :root {  
+      --bg: #050816;  
+      --card: rgba(10, 14, 28, 0.88);  
+      --card2: rgba(14, 20, 42, 0.9);  
+      --text: #f8fbff;  
+      --muted: #9aa4c1;  
+      --line: rgba(255,255,255,0.08);  
+      --accent: #7c3aed;  
+      --accent2: #22d3ee;  
+      --danger: #ef4444;  
+      --success: #22c55e;  
+      --shadow: 0 0 20px rgba(124, 58, 237, 0.22), 0 0 40px rgba(34, 211, 238, 0.12);  
+      --board-shadow: 0 0 0 1px rgba(124,58,237,.25), 0 20px 60px rgba(0,0,0,.45);  
+    }  
+  
+    * { box-sizing: border-box; }  
+  
+    body {  
+      margin: 0;  
+      min-height: 100vh;  
+      font-family: Arial, sans-serif;  
+      color: var(--text);  
+      background:  
+        radial-gradient(circle at top, rgba(124,58,237,.22), transparent 32%),  
+        radial-gradient(circle at bottom right, rgba(34,211,238,.18), transparent 28%),  
+        linear-gradient(180deg, #04050d 0%, #070b18 100%);  
+      display: flex;  
+      align-items: center;  
+      justify-content: center;  
+      padding: 18px;  
+    }  
+  
+    .app {  
+      width: 100%;  
+      max-width: 760px;  
+      background: var(--card);  
+      border: 1px solid var(--line);  
+      border-radius: 28px;  
+      box-shadow: var(--shadow);  
+      overflow: hidden;  
+      backdrop-filter: blur(14px);  
+      position: relative;  
+    }  
+  
+    .topbar {  
+      padding: 14px 14px 10px;  
+      display: flex;  
+      align-items: center;  
+      justify-content: space-between;  
+      gap: 12px;  
+      border-bottom: 1px solid var(--line);  
+      background: linear-gradient(180deg, rgba(255,255,255,.04), transparent);  
+    }  
+  
+    .exit-btn {  
+      width: 42px;  
+      height: 42px;  
+      border: none;  
+      border-radius: 12px;  
+      background: rgba(239,68,68,.92);  
+      color: #fff;  
+      font-size: 18px;  
+      font-weight: 800;  
+      cursor: pointer;  
+      display: grid;  
+      place-items: center;  
+      flex: 0 0 auto;  
+    }  
+  
+    .status-pill {  
+      padding: 10px 14px;  
+      border-radius: 999px;  
+      background: rgba(255,255,255,.06);  
+      border: 1px solid rgba(255,255,255,.08);  
+      color: var(--text);  
+      font-size: 13px;  
+      font-weight: 700;  
+      text-align: center;  
+      min-width: 120px;  
+      white-space: pre-line;  
+    }  
+  
+    .status-pill.live {  
+      background: rgba(34,197,94,.14);  
+      color: #a7f3d0;  
+      border-color: rgba(34,197,94,.25);  
+    }  
+  
+    .status-pill.waiting {  
+      background: rgba(245,158,11,.14);  
+      color: #fde68a;  
+      border-color: rgba(245,158,11,.25);  
+    }  
+  
+    .status-pill.finished {  
+      background: rgba(239,68,68,.14);  
+      color: #fecaca;  
+      border-color: rgba(239,68,68,.25);  
+    }  
+  
+    .content { padding: 16px; }  
+  
+    .board-shell {  
+      background: rgba(5, 10, 24, 0.9);  
+      border: 1px solid rgba(124,58,237,.24);  
+      border-radius: 24px;  
+      padding: 14px;  
+      box-shadow: var(--board-shadow);  
+    }  
+  
+    .board {  
+      display: grid;  
+      grid-template-columns: repeat(3, minmax(0, 1fr));  
+      gap: 12px;  
+      aspect-ratio: 1 / 1;  
+    }  
+  
+    .cell {  
+      border: 1px solid rgba(255,255,255,.08);  
+      border-radius: 18px;  
+      background:  
+        linear-gradient(180deg, rgba(124,58,237,.16), rgba(34,211,238,.06)),  
+        rgba(255,255,255,.04);  
+      box-shadow:  
+        inset 0 0 20px rgba(124,58,237,.08),  
+        0 0 0 1px rgba(255,255,255,.03);  
+      color: var(--text);  
+      font-size: clamp(42px, 7vw, 72px);  
+      font-weight: 900;  
+      cursor: pointer;  
+      display: flex;  
+      align-items: center;  
+      justify-content: center;  
+      transition: transform .14s ease, box-shadow .14s ease, background .14s ease;  
+      user-select: none;  
+      min-height: 90px;  
+    }  
+  
+    .cell:hover {  
+      transform: translateY(-2px) scale(1.01);  
+      box-shadow:  
+        inset 0 0 24px rgba(34,211,238,.12),  
+        0 0 0 1px rgba(34,211,238,.2),  
+        0 0 22px rgba(124,58,237,.15);  
+    }  
+  
+    .cell.filled { cursor: not-allowed; }  
+    .cell.x { color: #7dd3fc; text-shadow: 0 0 12px rgba(125,211,252,.9); }  
+    .cell.o { color: #fda4af; text-shadow: 0 0 12px rgba(253,164,175,.9); }  
+    .cell.winner {  
+      background: linear-gradient(180deg, rgba(34,197,94,.2), rgba(34,211,238,.1)), rgba(255,255,255,.05);  
+      box-shadow: 0 0 0 1px rgba(34,197,94,.35), 0 0 30px rgba(34,197,94,.18);  
+    }  
+  
+    .winner-overlay, .exit-overlay {  
+      position: fixed; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(8px);  
+      display: none; align-items: center; justify-content: center; z-index: 100; padding: 18px;  
+    }  
+  
+    .winner-overlay.open, .exit-overlay.open { display: flex; }  
+  
+    .winner-card, .exit-card {  
+      width: min(420px, 100%); border-radius: 24px; background: rgba(10, 14, 28, 0.96);  
+      border: 1px solid rgba(255,255,255,.10); box-shadow: 0 20px 60px rgba(0,0,0,.45);  
+      padding: 18px; transform: translateY(10px) scale(.98); animation: popIn .22s ease forwards;  
+    }  
+  
+    @keyframes popIn { to { transform: translateY(0) scale(1); } }  
+  
+    .winner-top { display: flex; align-items: center; gap: 14px; }  
+    .winner-avatar { width: 64px; height: 64px; border-radius: 18px; object-fit: cover; background: rgba(255,255,255,.08); flex: 0 0 auto; }  
+    .winner-title { margin: 0; font-size: 20px; font-weight: 900; }  
+    .winner-sub, .exit-sub { margin-top: 4px; font-size: 13px; color: var(--muted); word-break: break-word; line-height: 1.45; }  
+    .winner-badge { margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(34,197,94,.14); color: #a7f3d0; border: 1px solid rgba(34,197,94,.25); font-weight: 800; font-size: 13px; }  
+    .winner-actions, .exit-actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 10px; }  
+    .winner-close, .exit-cancel, .exit-continue { border: none; border-radius: 12px; padding: 10px 14px; color: #fff; font-weight: 800; cursor: pointer; }  
+    .winner-close, .exit-cancel { background: rgba(255,255,255,.08); }  
+    .exit-continue { background: rgba(239,68,68,.92); }  
+  </style>  
+</head>  
+<body>  
+  <div class="winner-overlay" id="winnerOverlay">  
+    <div class="winner-card">  
+      <div class="winner-top">  
+        <img id="winnerAvatar" class="winner-avatar" />  
+        <div>  
+          <h2 class="winner-title" id="winnerTitle">Winner</h2>  
+          <div class="winner-sub" id="winnerSub">—</div>  
+        </div>  
+      </div>  
+      <div class="winner-badge" id="winnerBadge">🏆 Match Finished</div>  
+      <div class="winner-actions">  
+        <button id="winnerCloseBtn" class="winner-close">Close</button>  
+      </div>  
+    </div>  
+  </div>  
+  
+  <div class="exit-overlay" id="exitOverlay">  
+    <div class="exit-card">  
+      <h2 class="exit-title">Exit Match?</h2>  
+      <div class="exit-sub">If you leave now, you may forfeit your tournament progress.</div>  
+      <div class="exit-actions">  
+        <button id="exitCancelBtn" class="exit-cancel">Cancel</button>  
+        <button id="exitContinueBtn" class="exit-continue">Confirm Exit</button>  
+      </div>  
+    </div>  
+  </div>  
+  
+  <div class="app">  
+    <div class="topbar">  
+      <button id="exitBtn" class="exit-btn">⟲</button>  
+      <div id="status" class="status-pill">Syncing...</div>  
+    </div>  
+    <div class="content">  
+      <div class="board-shell">  
+        <div id="board" class="board">  
+          <div class="cell" id="cell0"></div><div class="cell" id="cell1"></div><div class="cell" id="cell2"></div>  
+          <div class="cell" id="cell3"></div><div class="cell" id="cell4"></div><div class="cell" id="cell5"></div>  
+          <div class="cell" id="cell6"></div><div class="cell" id="cell7"></div><div class="cell" id="cell8"></div>  
+        </div>  
+      </div>  
+    </div>  
+  </div>  
+  
+  <script type="module">  
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";  
+  
+    const supabase = createClient(  
+      "https://eimecuiixwgmpfpedxpr.supabase.co",  
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"  
+    );  
+  
+    const els = {  
+      statusEl: document.getElementById("status"),  
+      boardEl: document.getElementById("board"),  
+      exitBtn: document.getElementById("exitBtn"),  
+      winnerOverlay: document.getElementById("winnerOverlay"),  
+      winnerAvatar: document.getElementById("winnerAvatar"),  
+      winnerTitle: document.getElementById("winnerTitle"),  
+      winnerSub: document.getElementById("winnerSub"),  
+      winnerBadge: document.getElementById("winnerBadge"),  
+      winnerCloseBtn: document.getElementById("winnerCloseBtn"),  
+      exitOverlay: document.getElementById("exitOverlay"),  
+      exitCancelBtn: document.getElementById("exitCancelBtn"),  
+      exitContinueBtn: document.getElementById("exitContinueBtn")  
+    };  
+  
+    const urlParams = new URLSearchParams(window.location.search);  
+    const urlMatchId = urlParams.get("matchId"); // Renamed from gameId
+  
+    const state = {  
+      userId: null,  
+      currentMatch: null,  
+      realtimeChannel: null  
+    };  
+  
+    function setStatus(text, mode = "") {  
+      els.statusEl.textContent = text;  
+      els.statusEl.className = "status-pill" + (mode ? ` ${mode}` : "");  
+    }  
+  
+    async function loadWinnerProfile(userId) {  
+      if (!userId) return null;  
+      const { data } = await supabase.from("profile").select("id, full_name, avatar_url").eq("id", userId).maybeSingle();  
+      return data;  
+    }  
+  
+    function renderBoard(board) {  
+      const safeBoard = Array.isArray(board) ? board : ["", "", "", "", "", "", "", "", ""];  
+      for (let i = 0; i < 9; i++) {  
+        const el = document.getElementById(`cell${i}`);  
+        const val = safeBoard[i] || "";  
+        el.textContent = val;  
+        el.className = "cell";  
+        if (val) el.classList.add(val.toLowerCase(), "filled");  
+      }  
+    }  
+  
+    async function syncMatch(match) {  
+      state.currentMatch = match;  
+      renderBoard(match.board_state);  
+      
+      if (match.status === "playing") {  
+        setStatus(`Round ${match.round_number} · Turn: ${match.turn}`, "live");  
+      } else if (match.status === "finished") {  
+        setStatus("Match Finished", "finished");  
+        if (match.winner_id) {  
+          const profile = await loadWinnerProfile(match.winner_id);  
+          els.winnerAvatar.src = profile?.avatar_url || "https://via.placeholder.com/128?text=User";  
+          els.winnerTitle.textContent = profile?.full_name || "Winner";  
+          els.winnerSub.textContent = `Tournament Champion`;  
+          els.winnerOverlay.classList.add("open");  
+        }  
+      } else {  
+        setStatus("Waiting...", "waiting");  
+      }  
+    }  
+  
+    function subscribeToMatch(matchId) {  
+      if (state.realtimeChannel) supabase.removeChannel(state.realtimeChannel);  
+      state.realtimeChannel = supabase.channel(`match-${matchId}`)  
+        .on("postgres_changes", { event: "*", schema: "public", table: "tournament_matches", filter: `id=eq.${matchId}` },   
+          (payload) => syncMatch(payload.new))  
+        .subscribe();  
+    }  
+  
+    async function makeMove(index) {  
+      if (!state.currentMatch || state.currentMatch.status !== "playing") return;  
+      try {  
+        const { data, error } = await supabase.rpc("make_tournament_move", {  
+          p_match_id: state.currentMatch.id,  
+          p_cell_index: index  
+        });  
+        if (error) alert(error.message);  
+        else syncMatch(data);  
+      } catch (err) { console.error(err); }  
+    }  
+  
+    async function init() {  
+      const { data: { session } } = await supabase.auth.getSession();  
+      if (!session) return setStatus("Login Required", "finished");  
+      state.userId = session.user.id;  
+  
+      if (urlMatchId) {  
+        const { data } = await supabase.from("tournament_matches").select("*").eq("id", urlMatchId).maybeSingle();  
+        if (data) {  
+          await syncMatch(data);  
+          subscribeToMatch(data.id);  
+        }  
+      }  
+    }  
+  
+    els.boardEl.onclick = (e) => {  
+      const cell = e.target.closest(".cell");  
+      if (cell) makeMove(parseInt(cell.id.replace("cell", "")));  
+    };  
+  
+    els.winnerCloseBtn.onclick = () => els.winnerOverlay.classList.remove("open");  
+    els.exitBtn.onclick = () => els.exitOverlay.classList.add("open");  
+    els.exitCancelBtn.onclick = () => els.exitOverlay.classList.remove("open");  
+    els.exitContinueBtn.onclick = () => window.location.href = "/lobby.html";  
+  
+    init();  
+  </script>  
+</body>  
+</html>
