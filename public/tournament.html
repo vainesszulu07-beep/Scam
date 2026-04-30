@@ -279,7 +279,7 @@
 
       if (res.status === 'active_match_found') {
         // Opponent found! Go to game immediately.
-        window.location.href = `games/${res.file_type}.html?match_id=${res.match_id}`;
+        window.location.href = `/games/${res.file_type}.html?match_id=${res.match_id}`;
       } 
       else if (res.status === 'waiting_for_opponent') {
         // User is queued. Show banner and start polling.
