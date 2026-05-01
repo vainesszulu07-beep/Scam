@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | PlayArena</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: rgba(255, 255, 255, 0.9);
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #dbe3ee;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --dark: #111827;
+      --shadow: 0 18px 50px rgba(15, 23, 42, 0.10);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 28%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 25%),
+        var(--bg);
+      min-height: 100vh;
+      padding: 28px 16px 40px;
+    }
+
+    .shell { max-width: 1180px; margin: 0 auto; }
+
+    /* Header & Tabs */
+    .header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .title-block h2 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
+    .title-block p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+
+    .nav-tabs {
+      display: flex;
+      background: rgba(255,255,255,0.5);
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      margin-bottom: 24px;
+      gap: 6px;
+    }
+
+    .nav-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .nav-btn.active {
+      background: white;
+      color: var(--primary);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+
+    /* Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--card);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(219, 227, 238, 0.9);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h3 { margin: 0 0 14px; font-size: 18px; }
+
+    /* Inputs & UI */
+    .admin-status {
+      margin: 10px 0 16px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      margin-bottom: 10px;
+      font-size: 15px;
+      outline: none;
+    }
+
+    textarea { height: 100px; resize: vertical; }
+
+    button {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.06s ease;
+    }
+
+    button:active { transform: translateY(1px); }
+
+    .primary { background: var(--primary); color: white; }
+    .danger { background: var(--danger); color: white; }
+    .dark { background: #334155; color: white; }
+    .light { background: #eef2f7; color: #111827; border: 1px solid #dbe3ee; }
+
+    /* Section Visibility */
+    .section-content { display: none; }
+    .section-content.active { display: grid; }
+
+    /* Cards */
+    .list { display: grid; gap: 12px; }
+    .type-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+
+    .type-card h4 { margin: 0 0 8px; font-size: 17px; }
+    .type-card p { margin: 0 0 10px; font-size: 14px; color: var(--muted); line-height: 1.4; }
+
+    #previewContainer {
+      margin: 15px 0; height: 200px; border: 1px dashed #cfd6dd;
+      border-radius: 14px; display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+    }
+    #previewContainer img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+
+    #processingOverlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7);
+      display: none; align-items: center; justify-content: center;
+      color: white; z-index: 1000; flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="shell">
+    <div class="header">
+      <div class="title-block">
+        <h2>PlayArena Admin</h2>
+        <p>Control center for games and tournament formats.</p>
+      </div>
+      <div class="admin-status" id="globalStatus">Checking Auth...</div>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-btn active" onclick="switchTab('games')">Games Catalogue</button>
+      <button class="nav-btn" onclick="switchTab('tournaments')">Tournament Types</button>
+    </div>
+
+    <div id="gamesSection" class="section-content grid active">
+      <div class="panel">
+        <h3 id="gameFormTitle">Add New Game</h3>
+        <input id="gameName" type="text" placeholder="Game Name">
+        <input id="boardType" type="text" placeholder="Board Logic Type (e.g. chess)">
+        <input id="fileType" type="text" placeholder="File Identifier (e.g. chess.html)">
+        
+        <input type="file" id="gameImage" accept="image/*">
+        <div id="previewContainer">
+            <img id="imagePreview" style="display:none;">
+            <div id="previewPlaceholder">Cover Art Preview</div>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+            <button id="saveGameBtn" class="primary" style="flex:2">Save Game</button>
+            <button onclick="resetGameForm()" class="light">Reset</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Live Games</h3>
+        <div id="gameTypesList" class="list"></div>
+      </div>
+    </div>
+
+    <div id="tournamentsSection" class="section-content grid">
+      <div class="panel">
+        <h3 id="tournFormTitle">Define Tournament Format</h3>
+        <input id="tournName" type="text" placeholder="Format Name (e.g. Single Elimination)">
+        <textarea id="tournDesc" placeholder="Brief description of how it works..."></textarea>
+        
+        <label style="font-size: 12px; color: var(--muted);">Rules Summary (JSON format)</label>
+        <textarea id="tournRules" placeholder='{ "win_points": 3, "loss_points": 0 }' style="font-family: monospace;"></textarea>
+
+        <div style="display:flex; gap:8px;">
+            <button id="saveTournBtn" class="primary" style="flex:2">Save Format</button>
+            <button onclick="resetTournForm()" class="light">Reset</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Available Formats</h3>
+        <div id="tournTypesList" class="list"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="processingOverlay">Processing...</div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const ADMIN_ID = "077c64ed-3e42-421a-92be-f8fff271d3a6";
+    let editingGameId = null;
+    let editingTournId = null;
+
+    // UI Switching
+    window.switchTab = (tab) => {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tab + 'Section').classList.add('active');
+    };
+
+    // --- TOURNAMENT LOGIC ---
+
+    async function loadTournaments() {
+      const { data, error } = await supabase.from('tournament_types').select('*').order('created_at', {ascending: false});
+      const list = document.getElementById('tournTypesList');
+      list.innerHTML = "";
+
+      if(data) {
+        data.forEach(t => {
+          const card = document.createElement('div');
+          card.className = "type-card";
+          card.innerHTML = `
+            <h4>${t.name}</h4>
+            <p>${t.description || 'No description'}</p>
+            <div style="display:flex; gap:5px;">
+                <button class="dark" onclick="editTourn('${t.id}')">Edit</button>
+                <button class="danger" onclick="deleteTourn('${t.id}')">Delete</button>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+      }
+    }
+
+    window.editTourn = async (id) => {
+      const { data } = await supabase.from('tournament_types').select('*').eq('id', id).single();
+      if(data) {
+        editingTournId = data.id;
+        document.getElementById('tournFormTitle').innerText = "Update Format";
+        document.getElementById('tournName').value = data.name;
+        document.getElementById('tournDesc').value = data.description;
+        document.getElementById('tournRules').value = JSON.stringify(data.rules_summary, null, 2);
+        document.getElementById('saveTournBtn').innerText = "Update Format";
+      }
+    };
+
+    window.deleteTourn = async (id) => {
+      if(!confirm("Delete this tournament format?")) return;
+      await supabase.from('tournament_types').delete().eq('id', id);
+      loadTournaments();
+    };
+
+    document.getElementById('saveTournBtn').onclick = async () => {
+      const name = document.getElementById('tournName').value;
+      const description = document.getElementById('tournDesc').value;
+      let rules = document.getElementById('tournRules').value;
+
+      try {
+        rules = rules ? JSON.parse(rules) : {};
+      } catch(e) {
+        return alert("Invalid JSON in Rules Summary");
+      }
+
+      const payload = { name, description, rules_summary: rules };
+
+      if(editingTournId) {
+        await supabase.from('tournament_types').update(payload).eq('id', editingTournId);
+      } else {
+        await supabase.from('tournament_types').insert(payload);
+      }
+      
+      resetTournForm();
+      loadTournaments();
+    };
+
+    window.resetTournForm = () => {
+      editingTournId = null;
+      document.getElementById('tournFormTitle').innerText = "Define Tournament Format";
+      document.getElementById('tournName').value = "";
+      document.getElementById('tournDesc').value = "";
+      document.getElementById('tournRules').value = "";
+      document.getElementById('saveTournBtn').innerText = "Save Format";
+    };
+
+    // --- AUTH & INIT ---
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || session.user.id !== ADMIN_ID) {
+        document.body.innerHTML = "<h1 style='text-align:center; margin-top:50px;'>403 - Unauthorized Access</h1>";
+        return;
+      }
+      document.getElementById('globalStatus').innerText = "Admin: " + session.user.email;
+      loadTournaments();
+      // loadGames(); // Connect your existing loadGames function here
+    }
+
+    init();
+  </script>
+</body>
+</html>
