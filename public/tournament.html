@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Game Lobby & Tournaments</title>
+  <style>
+    :root{
+      --bg:#f4f4f4;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+      --primary:#0d6efd;
+      --success:#16a34a;
+      --danger:#dc3545;
+      --shadow:0 10px 30px rgba(0,0,0,.08);
+      --sheet-shadow:0 -18px 50px rgba(0,0,0,.22);
+      --radius:18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 18px;
+    }
+
+    .wrap{
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width:0;
+    }
+
+    .brand h1{
+      margin:0;
+      font-size:24px;
+    }
+
+    .brand span{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.4;
+    }
+
+    .icon-btn{
+      width:44px;
+      height:44px;
+      border:none;
+      border-radius:14px;
+      background:#fff;
+      box-shadow: var(--shadow);
+      cursor:pointer;
+      display:grid;
+      place-items:center;
+      font-size:18px;
+    }
+
+    .status{
+      background: var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px 16px;
+      box-shadow: var(--shadow);
+      margin-bottom:14px;
+      white-space: pre-line;
+      word-wrap: break-word;
+    }
+
+    .card{
+      background: var(--card);
+      border-radius:18px;
+      padding:16px;
+      box-shadow: var(--shadow);
+      margin-bottom:14px;
+      border:1px solid var(--line);
+    }
+
+    .card h3{
+      margin:0 0 12px;
+      font-size:16px;
+    }
+
+    .selected-box{
+      display:grid;
+      gap:8px;
+    }
+
+    .selected-title{
+      font-size:16px;
+      font-weight:800;
+    }
+
+    .selected-meta{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.5;
+      white-space: pre-line;
+    }
+
+    .balance-pill{
+      display:inline-block;
+      margin-top:4px;
+      padding:5px 10px;
+      border-radius:999px;
+      background:#ecfdf5;
+      color:#166534;
+      font-size:12px;
+      font-weight:700;
+      width: fit-content;
+    }
+
+    .pending-banner{
+      display:none;
+      margin-top:10px;
+      border:1px solid #fde68a;
+      background:#fffbeb;
+      color:#92400e;
+      border-radius:16px;
+      padding:14px;
+      gap:10px;
+    }
+
+    .pending-banner.open{
+      display:grid;
+    }
+
+    .pending-game-name{
+      font-size:14px;
+      font-weight:800;
+      color:#78350f;
+    }
+
+    .pending-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+
+    .players-list{
+      display:grid;
+      gap:10px;
+    }
+
+    .player-card{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:14px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#fff;
+      box-shadow: 0 6px 16px rgba(0,0,0,.05);
+      transition: border-color 0.2s ease;
+    }
+
+    .player-card:hover {
+      border-color: #d1d5db;
+    }
+
+    .avatar{
+      width:48px;
+      height:48px;
+      border-radius:999px;
+      object-fit:cover;
+      background:#e5e7eb;
+      flex:0 0 auto;
+      border: 2px solid #f3f4f6;
+    }
+
+    .player-main{
+      flex:1;
+      min-width:0;
+    }
+
+    .player-main .name{
+      font-weight:800;
+      font-size:14px;
+      margin-bottom:4px;
+      line-height:1.2;
+    }
+
+    @keyframes pulse-dot {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .player-main .sub{
+      font-size:12px;
+      color: #10b981;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .player-main .sub::before {
+      content: "";
+      display: block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse-dot 2s infinite;
+    }
+
+    .player-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .bid-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:4px 10px;
+      border-radius:999px;
+      background:#eff6ff;
+      color:#1d4ed8;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    .time-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:4px 10px;
+      border-radius:999px;
+      background:#f3f4f6;
+      color:#4b5563;
+      font-size:11px;
+      font-weight:800;
+    }
+
+    .join-btn{
+      padding:10px 16px;
+      border:none;
+      border-radius:12px;
+      background: var(--primary);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+      white-space: nowrap;
+      font-size:13px;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+
+    .join-btn:hover {
+      background: #0b5ed7;
+    }
+
+    .join-btn:active {
+      transform: scale(0.96);
+    }
+
+    .refund-btn{
+      padding:9px 12px;
+      border:none;
+      border-radius:12px;
+      background: var(--danger);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+      white-space: nowrap;
+      font-size:13px;
+    }
+
+    .continue-btn{
+      padding:9px 12px;
+      border:none;
+      border-radius:12px;
+      background: var(--success);
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+      white-space: nowrap;
+      font-size:13px;
+    }
+
+    .empty-state{
+      padding:16px;
+      text-align:center;
+      color:var(--muted);
+      border:1px dashed #d1d5db;
+      border-radius:16px;
+      background:#fafafa;
+    }
+
+    .code-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
+    .code-input{
+      flex:1;
+      min-width: 180px;
+      padding:12px 14px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      outline:none;
+      background:#fff;
+    }
+
+    .code-submit{
+      padding:12px 14px;
+      border:none;
+      border-radius:12px;
+      background:#111827;
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .small-status {
+        margin-top: 8px;
+        font-size: 12px;
+        font-weight: bold;
+        color: var(--danger);
+    }
+
+    .drawer-overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.35);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease;
+      z-index:50;
+    }
+
+    .drawer-overlay.open{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .drawer{
+      position:fixed;
+      top:0;
+      left:0;
+      height:100vh;
+      width:min(420px, 92vw);
+      background:#fff;
+      border-right:1px solid var(--line);
+      box-shadow: 20px 0 50px rgba(0,0,0,.22);
+      transform: translateX(-100%);
+      transition: transform .25s ease;
+      z-index:60;
+      display:flex;
+      flex-direction:column;
+    }
+
+    .drawer-overlay.open .drawer{
+      transform: translateX(0);
+    }
+
+    .drawer-head{
+      padding:16px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .drawer-head h3{
+      margin:0;
+      font-size:18px;
+    }
+
+    .drawer-close{
+      width:42px;
+      height:42px;
+      border-radius:12px;
+      border:none;
+      background:#f3f4f6;
+      color:#111827;
+      cursor:pointer;
+      font-size:18px;
+    }
+
+    .drawer-body{
+      padding:16px;
+      overflow:auto;
+      display:grid;
+      gap:14px;
+    }
+
+    .drawer-section{
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      background:#fafafa;
+    }
+
+    .drawer-section h4{
+      margin:0 0 10px;
+      font-size:15px;
+    }
+
+    .bid-overlay{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.42);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease;
+      z-index:80;
+      display:grid;
+      place-items:center;
+      padding:16px;
+    }
+
+    .bid-overlay.open{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .bid-sheet{
+      width:min(520px, 100%);
+      background:#fff;
+      border-radius:22px;
+      box-shadow: var(--sheet-shadow);
+      border:1px solid var(--line);
+      overflow:hidden;
+    }
+
+    .bid-head{
+      padding:16px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .bid-head h3{
+      margin:0;
+      font-size:18px;
+    }
+
+    .bid-close{
+      width:40px;
+      height:40px;
+      border:none;
+      border-radius:12px;
+      background:#f3f4f6;
+      cursor:pointer;
+      font-size:18px;
+    }
+
+    .bid-body{
+      padding:16px;
+      display:grid;
+      gap:14px;
+    }
+
+    .bid-preview{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+      background:#fafafa;
+      display:grid;
+      gap:8px;
+    }
+
+    .bid-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      font-size:13px;
+      color:var(--muted);
+    }
+
+    .bid-value{
+      font-size:28px;
+      font-weight:900;
+      color:#111827;
+    }
+
+    .slider-wrap{
+      display:grid;
+      gap:8px;
+    }
+
+    .slider{
+      width:100%;
+    }
+
+    .bid-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      border:none;
+      border-radius:12px;
+      padding:12px 14px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .btn-main{
+      background: var(--primary);
+      color:#fff;
+    }
+
+    .btn-ghost{
+      background:#f3f4f6;
+      color:#111827;
+    }
+
+    .type-card{
+      border:1px solid var(--line);
+      border-radius:18px;
+      overflow:hidden;
+      background:#fff;
+      box-shadow: 0 8px 18px rgba(0,0,0,.06);
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+
+    .type-card:hover{
+      box-shadow: 0 12px 28px rgba(0,0,0,.10);
+    }
+
+    .type-card:active{
+      transform: scale(.985);
+    }
+
+    .type-image-wrap{
+      width:100%;
+      aspect-ratio: 16 / 9;
+      background:#f3f4f6;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      padding:10px;
+    }
+
+    .type-image{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      display:block;
+    }
+
+    .type-body{
+      padding:12px;
+    }
+
+    .type-name{
+      font-size:16px;
+      font-weight:800;
+      margin:0 0 6px;
+    }
+
+    .type-meta{
+      font-size:13px;
+      color:var(--muted);
+      margin:0;
+      line-height:1.4;
+      white-space: pre-line;
+    }
+
+    .pill{
+      display:inline-block;
+      margin-top:8px;
+      padding:5px 10px;
+      border-radius:999px;
+      background:#eef2ff;
+      color:#4338ca;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    @media (max-width: 640px){
+      body{ padding:12px; }
+      .topbar{ flex-direction:column; align-items:stretch; }
+      .code-row{ flex-direction:column; }
+      .code-input, .code-submit, .join-btn, .refund-btn, .continue-btn, .icon-btn{ width:100%; }
+      .bid-actions{ flex-direction:column; }
+      .btn{ width:100%; }
+      .pending-actions{ flex-direction:column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="drawer-overlay" id="drawerOverlay" aria-hidden="true">
+    <aside class="drawer" aria-label="Tournament types panel">
+      <div class="drawer-head">
+        <h3>Tournament types</h3>
+        <button id="drawerCloseBtn" class="drawer-close" aria-label="Close panel">✕</button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="drawer-section">
+          <h4>Available tournament types</h4>
+          <div id="gameTypesList"></div>
+        </div>
+
+        <div class="drawer-section">
+          <h4>Selected tournament type</h4>
+          <div class="selected-box">
+            <div class="selected-title" id="selectedTypeName">No type selected</div>
+            <div class="selected-meta" id="selectedTypeMeta">Tap a tournament type below.</div>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <h4>Waiting users</h4>
+          <div id="waitingSessions" class="players-list"></div>
+        </div>
+
+        <div class="drawer-section">
+          <h4>Join by code</h4>
+          <div class="code-row">
+            <input id="gameCodeInput" class="code-input" type="text" placeholder="Enter game code" />
+            <button id="joinByCodeBtn" class="code-submit" type="button">Join</button>
+          </div>
+          <div id="joinCodeStatus" class="small-status"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="bid-overlay" id="bidOverlay" aria-hidden="true">
+    <div class="bid-sheet" role="dialog" aria-modal="true" aria-labelledby="bidTitle">
+      <div class="bid-head">
+        <h3 id="bidTitle">Setup Tournament</h3>
+        <button id="bidCloseBtn" class="bid-close" aria-label="Close bid panel">✕</button>
+      </div>
+
+      <div class="bid-body">
+        <div class="bid-preview">
+          <div class="bid-row">
+            <span>Tournament type / Template ID</span>
+            <strong id="bidGameName">—</strong>
+          </div>
+          <div class="bid-row">
+            <span>Your balance</span>
+            <strong id="bidBalance">0</strong>
+          </div>
+          <div class="bid-value" id="bidValue">0</div>
+          <div class="slider-wrap">
+            <input id="bidSlider" class="slider" type="range" min="1" max="1" step="1" value="1">
+            <div class="small" id="bidHint" style="font-size:12px; color:var(--muted)">Entry fee deducted per player.</div>
+          </div>
+
+          <hr style="border: 0; border-top: 1px solid var(--line); margin: 10px 0;" />
+
+          <div class="bid-row">
+            <span>Max Players</span>
+            <strong id="playersValue">2</strong>
+          </div>
+          <div class="slider-wrap">
+            <input id="playersSlider" class="slider" type="range" min="2" max="8" step="1" value="2">
+          </div>
+
+          <div class="bid-row" style="margin-top:10px;">
+            <span>Tournament Type</span>
+            <strong id="selectedTourneyTypeName">—</strong>
+          </div>
+
+          <div id="timeSetup" style="display:none;">
+            <div class="bid-row" style="margin-top:10px;">
+              <span>Time limit (up to 2 hrs)</span>
+              <strong id="timeValue">120 mins</strong>
+            </div>
+            <div class="slider-wrap">
+              <input id="timeSlider" class="slider" type="range" min="5" max="120" step="5" value="120">
+            </div>
+          </div>
+
+        </div>
+
+        <div class="bid-actions">
+          <button id="bidCancelBtn" class="btn btn-ghost" type="button">Cancel</button>
+          <button id="bidConfirmBtn" class="btn btn-main" type="button">Create Tournament</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Game Lobby</h1>
+        <span>Select a tournament type, choose a bid, then create or join a waiting session.</span>
+      </div>
+      <button id="panelBtn" class="icon-btn" aria-label="Open game panel">☰</button>
+    </div>
+
+    <div id="status" class="status">Loading...</div>
+
+    <div class="card">
+      <h3>Selected tournament type</h3>
+      <div class="selected-box">
+        <div class="selected-title" id="mainSelectedTitle">No type selected</div>
+        <div class="selected-meta" id="mainSelectedMeta">Open the panel and choose a tournament type.</div>
+        <div class="balance-pill" id="balancePill">Balance: 0</div>
+
+        <div class="pending-banner" id="pendingBanner">
+          <div class="pending-game-name" id="pendingGameTypeName">Waiting bid</div>
+          <div id="pendingText">—</div>
+          <div class="pending-actions">
+            <button id="pendingContinueBtn" class="continue-btn" type="button">Continue waiting</button>
+            <button id="pendingRefundBtn" class="refund-btn" type="button">Refund bid</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const PLACEHOLDER_IMAGE = "https://via.placeholder.com/600x400?text=Game";
+
+    const els = {
+      panelBtn: document.getElementById("panelBtn"),
+      drawerOverlay: document.getElementById("drawerOverlay"),
+      drawerCloseBtn: document.getElementById("drawerCloseBtn"),
+      statusEl: document.getElementById("status"),
+      gameTypesListEl: document.getElementById("gameTypesList"),
+      waitingSessionsEl: document.getElementById("waitingSessions"),
+      selectedTypeName: document.getElementById("selectedTypeName"),
+      selectedTypeMeta: document.getElementById("selectedTypeMeta"),
+      mainSelectedTitle: document.getElementById("mainSelectedTitle"),
+      mainSelectedMeta: document.getElementById("mainSelectedMeta"),
+      gameCodeInput: document.getElementById("gameCodeInput"),
+      joinByCodeBtn: document.getElementById("joinByCodeBtn"),
+      joinCodeStatus: document.getElementById("joinCodeStatus"),
+      bidOverlay: document.getElementById("bidOverlay"),
+      bidCloseBtn: document.getElementById("bidCloseBtn"),
+      bidCancelBtn: document.getElementById("bidCancelBtn"),
+      bidConfirmBtn: document.getElementById("bidConfirmBtn"),
+      bidGameName: document.getElementById("bidGameName"),
+      bidBalance: document.getElementById("bidBalance"),
+      bidValue: document.getElementById("bidValue"),
+      bidSlider: document.getElementById("bidSlider"),
+      bidHint: document.getElementById("bidHint"),
+      balancePill: document.getElementById("balancePill"),
+      pendingBanner: document.getElementById("pendingBanner"),
+      pendingText: document.getElementById("pendingText"),
+      pendingContinueBtn: document.getElementById("pendingContinueBtn"),
+      pendingRefundBtn: document.getElementById("pendingRefundBtn"),
+      pendingGameTypeName: document.getElementById("pendingGameTypeName"),
+      selectedTourneyTypeName: document.getElementById("selectedTourneyTypeName"),
+
+      playersSlider: document.getElementById("playersSlider"),
+      playersValue: document.getElementById("playersValue"),
+      timeSetup: document.getElementById("timeSetup"),
+      timeSlider: document.getElementById("timeSlider"),
+      timeValue: document.getElementById("timeValue")
+    };
+
+    const state = {
+      userId: null,
+      profile: null,
+      pendingGame: null,
+      selectedGameType: null,
+      currentGame: null,
+      gameTypes: [],
+      drawerOpen: false,
+      inGame: false,
+      gameTypesChannel: null,
+      gamesChannel: null,
+      bidDraftGameType: null,
+      bidDraftTourneyType: {
+        id: "cc3a4b7a-d6e1-4215-9f8a-6193196ecfea",
+        name: "Normal"
+      },
+      profileCache: {}
+    };
+
+    function setStatus(text) {
+      els.statusEl.textContent = text;
+    }
+
+    function showRawError(context, err) {
+      const message = err?.message ? err.message : String(err);
+      setStatus(`${context}\n${message}`);
+      console.error(`[ERROR LOG] ${context}:`, err);
+    }
+
+    function normalizeRow(data) {
+      if (!data) return null;
+      if (Array.isArray(data)) return data[0] || null;
+      return data;
+    }
+
+    async function rpcSingle(name, args = {}) {
+      console.log(`[RPC CALL] Preparing to execute: ${name}`, JSON.parse(JSON.stringify(args)));
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) {
+        console.error(`[RPC FAILED] ${name} returned an error:`, error);
+        throw error;
+      }
+      console.log(`[RPC SUCCESS] ${name} returned:`, data);
+      return normalizeRow(data);
+    }
+
+    async function rpcRows(name, args = {}) {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw error;
+      return Array.isArray(data) ? data : data ? [data] : [];
+    }
+
+    async function getUser() {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error || !session || !session.user) throw new Error("Not logged in");
+      state.userId = session.user.id;
+      return state.userId;
+    }
+
+    async function loadProfile() {
+      const { data, error } = await supabase
+        .from("profile")
+        .select("id, full_name, avatar_url, money")
+        .eq("id", state.userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      state.profile = data || { money: 0 };
+      state.profileCache[state.userId] = state.profile;
+      els.balancePill.textContent = `Balance: ${Number(state.profile.money || 0)}`;
+      return state.profile;
+    }
+
+    function setDrawer(open) {
+      state.drawerOpen = open;
+      els.drawerOverlay.classList.toggle("open", open);
+      els.drawerOverlay.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+
+    function setBidOverlay(open) {
+      els.bidOverlay.classList.toggle("open", open);
+      els.bidOverlay.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+
+    function formatRulesSummary(rulesSummary) {
+      if (rulesSummary == null) return "No rules summary.";
+      if (typeof rulesSummary === "string") return rulesSummary;
+      try {
+        return JSON.stringify(rulesSummary, null, 2);
+      } catch {
+        return String(rulesSummary);
+      }
+    }
+
+    function updateSelectedPanels() {
+      const game = state.selectedGameType;
+      if (!game) {
+        els.selectedTypeName.textContent = "No type selected";
+        els.selectedTypeMeta.textContent = "Tap a tournament type below.";
+        els.mainSelectedTitle.textContent = "No type selected";
+        els.mainSelectedMeta.textContent = "Open the panel and choose a tournament type.";
+        els.selectedTourneyTypeName.textContent = "—";
+        return;
+      }
+
+      const meta = [
+        `Type: ${game.name || "Unknown"}`,
+        `ID: ${game.id || "—"}`,
+        game.description ? `Description: ${game.description}` : null,
+        game.rules_summary ? `Rules: ${formatRulesSummary(game.rules_summary)}` : null
+      ].filter(Boolean).join("\n");
+
+      els.selectedTypeName.textContent = game.name || "Selected type";
+      els.selectedTypeMeta.textContent = meta;
+      els.mainSelectedTitle.textContent = game.name || "Selected type";
+      els.mainSelectedMeta.textContent = meta;
+      els.selectedTourneyTypeName.textContent = game.name || "—";
+    }
+
+    function hidePendingBanner() {
+      state.pendingGame = null;
+      els.pendingBanner.classList.remove("open");
+    }
+
+    function renderPendingBanner(game) {
+      const bid = Number(game?.bid_amount || 0);
+      if (!game || bid < 1 || state.inGame) {
+        hidePendingBanner();
+        return;
+      }
+      const gameType = state.gameTypes.find((g) => g.id === game.game_type_id);
+      els.pendingGameTypeName.textContent = gameType?.name || "Waiting Tournament";
+      els.pendingText.textContent = `Entry Fee: ${bid}`;
+      els.pendingBanner.classList.add("open");
+    }
+
+    async function loadTournamentTypes() {
+      state.gameTypes = await rpcRows("list_tournament_types");
+      renderGameTypes();
+    }
+
+    function renderGameTypes() {
+      els.gameTypesListEl.innerHTML = "";
+      if (!state.gameTypes.length) {
+        els.gameTypesListEl.innerHTML = `<div class="empty-state">No tournament types yet.</div>`;
+        return;
+      }
+
+      state.gameTypes.forEach((tournamentType) => {
+        const card = document.createElement("div");
+        card.className = "type-card";
+
+        const summary = formatRulesSummary(tournamentType.rules_summary);
+
+        card.innerHTML = `
+          <div class="type-image-wrap">
+            <img class="type-image" src="${PLACEHOLDER_IMAGE}" alt="${tournamentType.name || "Tournament type"}">
+          </div>
+          <div class="type-body">
+            <div class="type-name">${tournamentType.name || "Unnamed type"}</div>
+            <p class="type-meta">${tournamentType.description || "No description."}</p>
+            <div class="pill">ID: ${tournamentType.id || "—"}</div>
+            <p class="type-meta" style="margin-top:10px;">${summary}</p>
+          </div>
+        `;
+
+        card.onclick = () => openBidSheet(tournamentType);
+        els.gameTypesListEl.appendChild(card);
+      });
+    }
+
+    async function resolveTournamentTypeIdByName(name) {
+      if (!name) return null;
+      try {
+        return await rpcSingle("get_tournament_type_id", { p_name: name });
+      } catch (err) {
+        console.warn("Could not resolve tournament type id by name", err);
+        return null;
+      }
+    }
+
+    function openBidSheet(tournamentType) {
+      state.bidDraftGameType = tournamentType;
+      const maxMoney = Math.max(0, Number(state.profile?.money || 0));
+
+      els.bidGameName.textContent = `${tournamentType?.name || "Type"} · ID: ${tournamentType?.id || "—"}`;
+      els.bidBalance.textContent = String(maxMoney);
+
+      state.bidDraftTourneyType = {
+        id: tournamentType?.id || null,
+        name: tournamentType?.name || "Unknown"
+      };
+
+      els.timeSetup.style.display = "none";
+      els.timeValue.textContent = "120 mins";
+      els.timeSlider.value = "120";
+
+      if (maxMoney <= 0) {
+        els.bidSlider.min = "0";
+        els.bidSlider.max = "0";
+        els.bidSlider.value = "0";
+        els.bidValue.textContent = "0";
+        els.bidHint.textContent = "You do not have enough money to enter.";
+        setBidOverlay(true);
+        return;
+      }
+
+      els.bidSlider.min = "1";
+      els.bidSlider.max = String(maxMoney);
+      els.bidSlider.step = "1";
+      els.bidSlider.value = "1";
+      els.bidValue.textContent = "1";
+      els.bidHint.textContent = "Entry fee deducted per player.";
+      setBidOverlay(true);
+    }
+
+    function closeBidSheet() {
+      setBidOverlay(false);
+      state.bidDraftGameType = null;
+    }
+
+    els.bidSlider.addEventListener("input", () => {
+      els.bidValue.textContent = els.bidSlider.value;
+    });
+
+    els.playersSlider.addEventListener("input", () => {
+      els.playersValue.textContent = els.playersSlider.value;
+    });
+
+    els.timeSlider.addEventListener("input", () => {
+      els.timeValue.textContent = `${els.timeSlider.value} mins`;
+    });
+
+    async function createWaitingGameWithBid() {
+      try {
+        if (!state.bidDraftGameType) return;
+
+        const entryFee = Number(els.bidSlider.value);
+        const maxPlayers = parseInt(els.playersSlider.value, 10);
+        const maxMoney = Number(state.profile?.money || 0);
+
+        if (!entryFee || entryFee < 1 || entryFee > maxMoney) {
+          els.bidHint.textContent = "Please choose a valid fee.";
+          return;
+        }
+
+        const tournamentTypeName = state.bidDraftTourneyType?.name || state.bidDraftGameType.name;
+        let tournamentTypeId = state.bidDraftTourneyType?.id || null;
+
+        if (!tournamentTypeId && tournamentTypeName) {
+          tournamentTypeId = await resolveTournamentTypeIdByName(tournamentTypeName);
+        }
+
+        if (!tournamentTypeId) {
+          throw new Error("Tournament type ID could not be resolved.");
+        }
+
+        const isTimed = tournamentTypeId === "efd4f65e-82e3-4f08-8796-0505ea5253ad";
+        const timeLimit = parseInt(els.timeSlider.value, 10);
+
+        const result = await rpcSingle("create_custom_tournament", {
+          p_template_id: state.bidDraftGameType.id,
+          p_entry_fee: entryFee,
+          p_max_players: maxPlayers,
+          p_tournament_type_id: tournamentTypeId,
+          p_time_left: isTimed ? timeLimit : null
+        });
+
+        state.currentGame = {
+          id: result.tournament_id,
+          status: "waiting",
+          game_type_id: state.bidDraftGameType.id,
+          bid_amount: entryFee,
+          tournament_type_id: tournamentTypeId
+        };
+
+        state.selectedGameType = state.bidDraftGameType;
+        updateSelectedPanels();
+        await loadProfile();
+
+        closeBidSheet();
+        setStatus(`Tournament created! Net Pool: ${result.net_pool}`);
+      } catch (err) {
+        showRawError("Could not create tournament", err);
+      }
+    }
+
+    els.panelBtn.onclick = () => {
+      if (!state.inGame) setDrawer(true);
+    };
+    els.drawerCloseBtn.onclick = () => setDrawer(false);
+    els.drawerOverlay.addEventListener("click", (e) => {
+      if (e.target === els.drawerOverlay) setDrawer(false);
+    });
+    els.bidCloseBtn.onclick = closeBidSheet;
+    els.bidCancelBtn.onclick = closeBidSheet;
+    els.bidConfirmBtn.onclick = createWaitingGameWithBid;
+
+    async function init() {
+      try {
+        await getUser();
+        await loadProfile();
+        await loadTournamentTypes();
+        updateSelectedPanels();
+        setDrawer(false);
+      } catch (err) {
+        showRawError("Failed to load lobby", err);
+      }
+    }
+
+    init();
+  </script>
+</body>
+  </html>
