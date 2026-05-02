@@ -1000,7 +1000,7 @@
       if (!confirm("Cancel this solo tournament and refund the entry fee?")) return;
 
       // Changed from cancel_solo_tournament to cancel_solo_tournament_joiner
-      const { data, error } = await supabase.rpc('cancel_solo_tournament_joiner', {
+      const { data, error } = await supabase.rpc('cancel_solo_tournament', {
         p_tournament_id: tournamentId
       });
 
