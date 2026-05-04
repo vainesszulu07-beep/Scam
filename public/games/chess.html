@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>2D Chess App</title>
+  <style>
+    :root {
+      --bg-dark: #0b1320;
+      --light-square: #ecc591;
+      --dark-square: #b88645;
+      --highlight: rgba(245, 214, 72, 0.8);
+      --text: #f8fbff;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --modal-bg: #1e293b;
+    }
+
+    body {
+      margin: 0;
+      background: #f0f4f8;
+      font-family: 'Segoe UI', sans-serif;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 420px;
+      background: var(--bg-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      font-weight: bold;
+      font-size: 1.2rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Button Styles */
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: white;
+      background: #334155;
+    }
+    .btn:hover { background: #475569; }
+    
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-danger:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .board-wrapper {
+      width: 100%;
+      padding: 0;
+      margin: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      width: 100%;
+      aspect-ratio: 1;
+      border: 2px solid #000;
+    }
+
+    .cell {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cell.light { background: var(--light-square); }
+    .cell.dark { background: var(--dark-square); }
+
+    .cell.selected::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--highlight);
+      z-index: 1;
+    }
+
+    .piece {
+      font-size: 2.2rem;
+      z-index: 2;
+      filter: drop-shadow(0px 3px 2px rgba(0,0,0,0.6));
+      transition: transform 0.1s ease;
+    }
+
+    .piece:active { transform: scale(1.1); }
+
+    .white-piece {
+      color: #f9f9f9;
+      -webkit-text-stroke: 1.5px #222;
+    }
+
+    .black-piece {
+      color: #222222;
+      -webkit-text-stroke: 1px #fff;
+    }
+
+    /* Overlay / Modal Styles */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    
+    .overlay.open { display: flex; }
+
+    .modal-card {
+      background: var(--modal-bg);
+      padding: 24px;
+      border-radius: 12px;
+      text-align: center;
+      width: 85%;
+      max-width: 320px;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .modal-card h2 { margin-top: 0; color: #fff; font-size: 1.4rem; }
+    .modal-card p { color: #cbd5e1; font-size: 0.95rem; margin-bottom: 24px; line-height: 1.4; }
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .modal-actions .btn { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    
+    <div class="overlay" id="quitOverlay">    
+      <div class="modal-card">    
+        <h2>Forfeit Game?</h2>    
+        <p>If you continue and quit the game, you will forfeit, and all winnings will go to your opponent.</p>    
+        <div class="modal-actions">
+          <button id="cancelQuitBtn" class="btn">Cancel</button>
+          <button id="confirmQuitBtn" class="btn btn-danger">Continue & Quit</button>    
+        </div>
+      </div>    
+    </div>
+
+    <div class="header">
+      <button id="quitBtn" class="btn btn-danger">Quit</button>
+      <span id="status">Loading...</span>
+    </div>
+
+    <div class="board-wrapper">
+      <div id="board" class="board"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const FALLBACK_URL = "/lobby.html";
+
+    let state = {
+      game: null,
+      userId: null,
+      selectedIdx: null,
+      timerInterval: null,
+      channel: null
+    };
+
+    const PIECE_SYMBOLS = {
+      'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+      'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚', 'P': '♟'
+    };
+
+    // UI Elements
+    const quitBtn = document.getElementById('quitBtn');
+    const quitOverlay = document.getElementById('quitOverlay');
+    const cancelQuitBtn = document.getElementById('cancelQuitBtn');
+    const confirmQuitBtn = document.getElementById('confirmQuitBtn');
+
+    // Quit Event Listeners
+    quitBtn.addEventListener('click', () => quitOverlay.classList.add('open'));
+    cancelQuitBtn.addEventListener('click', () => quitOverlay.classList.remove('open'));
+    
+    confirmQuitBtn.addEventListener('click', async () => {
+      if (!state.game) return;
+      
+      confirmQuitBtn.textContent = 'Leaving...';
+      confirmQuitBtn.disabled = true;
+      
+      try {
+        const { error } = await supabase.rpc('leave_game', {
+          p_game_id: state.game.id
+        });
+        
+        if (error) throw error;
+        // The realtime subscription will detect status change and kick the user out,
+        // but we can manually trigger it here just to be fast.
+        leavePage();
+      } catch (err) {
+        alert("Failed to quit: " + err.message);
+        confirmQuitBtn.textContent = 'Continue & Quit';
+        confirmQuitBtn.disabled = false;
+      }
+    });
+
+    function cleanup() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+
+      if (state.channel) {
+        supabase.removeChannel(state.channel);
+        state.channel = null;
+      }
+    }
+
+    function leavePage() {
+      cleanup();
+      window.location.replace(FALLBACK_URL);
+    }
+
+    function initBoard() {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
+
+      for (let i = 0; i < 64; i++) {
+        const row = Math.floor(i / 8);
+        const col = i % 8;
+        const cell = document.createElement('div');
+        const isLight = (row + col) % 2 === 0;
+
+        cell.className = `cell ${isLight ? 'light' : 'dark'}`;
+        cell.dataset.index = i;
+        cell.addEventListener('click', () => onCellClick(i));
+        boardEl.appendChild(cell);
+      }
+    }
+
+    function renderPieces() {
+      if (!state.game || !state.game.board_state) return;
+
+      document.querySelectorAll('.cell').forEach(cell => {
+        cell.innerHTML = '';
+        cell.classList.remove('selected');
+      });
+
+      const board = state.game.board_state;
+
+      Object.keys(board).forEach(idx => {
+        const p = board[idx];
+        if (!p || p === "") return;
+
+        const cell = document.querySelector(`.cell[data-index="${idx}"]`);
+        if (!cell) return;
+
+        const isWhite = (p === p.toUpperCase());
+        const colorClass = isWhite ? 'white-piece' : 'black-piece';
+
+        const pieceSpan = document.createElement('span');
+        pieceSpan.className = `piece ${colorClass}`;
+        pieceSpan.textContent = PIECE_SYMBOLS[p] || p;
+
+        cell.appendChild(pieceSpan);
+      });
+
+      if (state.selectedIdx !== null) {
+        const selectedCell = document.querySelector(`.cell[data-index="${state.selectedIdx}"]`);
+        if (selectedCell) selectedCell.classList.add('selected');
+      }
+    }
+
+    // Strict validation function
+    function isGameValid(game) {
+      if (!game || !state.userId) return false;
+      // Must be playing and user must be X or O
+      const isParticipant = (game.player_x === state.userId || game.player_o === state.userId);
+      const isPlaying = (game.status === 'playing');
+      return isParticipant && isPlaying;
+    }
+
+    function updateUI() {
+      if (!state.game) return;
+
+      const isMyTurn =
+        (state.game.turn === 'W' && state.game.player_x === state.userId) ||
+        (state.game.turn === 'B' && state.game.player_o === state.userId);
+
+      document.getElementById('status').textContent = isMyTurn ? "Your Turn" : "Opponent Thinking...";
+    }
+
+    async function onCellClick(index) {
+      if (!state.game || !isGameValid(state.game)) return;
+
+      const clickedPiece = state.game.board_state[index.toString()];
+
+      if (state.selectedIdx === null) {
+        if (clickedPiece) {
+          const isWhiteTurn = state.game.turn === 'W';
+          const isPieceWhite = clickedPiece === clickedPiece.toUpperCase();
+
+          if (isWhiteTurn === isPieceWhite) {
+            state.selectedIdx = index;
+            renderPieces();
+          }
+        }
+      } else {
+        if (state.selectedIdx !== index) {
+          await executeMove(state.selectedIdx, index);
+        }
+        state.selectedIdx = null;
+        renderPieces();
+      }
+    }
+
+    async function executeMove(from, to) {
+      const { error } = await supabase.rpc('make_move', {
+        p_game_id: state.game.id,
+        p_cell_index: to,
+        p_from_index: from
+      });
+
+      if (error) alert(error.message);
+    }
+
+    function startTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+
+      state.timerInterval = setInterval(() => {
+        if (!state.game || !isGameValid(state.game)) {
+          leavePage();
+          return;
+        }
+
+        const now = new Date();
+        const lastMove = new Date(state.game.last_move_at || now);
+        const diffSeconds = Math.floor((now - lastMove) / 1000);
+        const remaining = Math.max(0, (Number(state.game.time_left || 0) * 60) - diffSeconds);
+
+        if (remaining <= 0) {
+          supabase.rpc('handle_timeout', { p_game_id: state.game.id });
+        }
+      }, 1000);
+    }
+
+    async function syncGame() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const gameId = urlParams.get("gameId");
+      
+      if (!gameId) {
+        leavePage();
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      state.userId = user?.id;
+
+      if (!state.userId) {
+        leavePage();
+        return;
+      }
+
+      const { data: game, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("id", gameId)
+        .single();
+
+      if (error || !game) {
+        leavePage();
+        return;
+      }
+
+      // Initial validation check
+      if (!isGameValid(game)) {
+        leavePage();
+        return;
+      }
+
+      state.game = game;
+      renderPieces();
+      startTimer();
+      updateUI();
+
+      state.channel = supabase
+        .channel(`game_${gameId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'games', filter: `id=eq.${gameId}` },
+          payload => {
+            const nextGame = payload.new || payload.old;
+
+            if (!nextGame || !isGameValid(nextGame)) {
+              leavePage();
+              return;
+            }
+
+            state.game = nextGame;
+            state.selectedIdx = null;
+
+            renderPieces();
+            startTimer();
+            updateUI();
+          }
+        )
+        .subscribe();
+    }
+
+    initBoard();
+    syncGame();
+  </script>
+</body>
+</html>
