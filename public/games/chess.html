@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>2D Chess App</title>
+  <style>
+    :root {
+      --bg-dark: #0b1320;
+      --card-top: #1d3c63;
+      --card-bottom: #1a2536;
+      --light-square: #ecc591;
+      --dark-square: #b88645;
+      --highlight: rgba(245, 214, 72, 0.8);
+      --text: #f8fbff;
+    }
+
+    body { 
+      margin: 0; 
+      background: #f0f4f8; /* Background outside mobile view */
+      font-family: 'Segoe UI', sans-serif; 
+      color: var(--text); 
+      display: flex;
+      justify-content: center;
+    }
+    
+    /* Mobile App Container */
+    .app-container {
+      width: 100%;
+      max-width: 420px;
+      background: var(--bg-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    /* Header Bar */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      font-weight: bold;
+      font-size: 1.2rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .back-btn { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+    /* Player Info Cards */
+    .player-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 15px;
+      margin: 10px 15px;
+      border-radius: 12px;
+    }
+    .player-card.top { background: var(--card-top); }
+    .player-card.bottom { background: var(--card-bottom); }
+
+    .player-info { display: flex; align-items: center; gap: 10px; }
+    .avatar { width: 40px; height: 40px; background: #ddd; border-radius: 50%; overflow: hidden; }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .name-tag { display: flex; flex-direction: column; }
+    .name { font-weight: bold; font-size: 0.9rem; }
+    .rating { font-size: 0.8rem; color: #aaa; }
+
+    .timer { font-family: monospace; font-size: 1.1rem; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+
+    /* Chess Board */
+    .board-wrapper {
+      width: 100%;
+      padding: 0;
+      margin: 10px 0;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      width: 100%;
+      aspect-ratio: 1;
+      border: 2px solid #000;
+    }
+
+    .cell {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+    }
+    .cell.light { background: var(--light-square); }
+    .cell.dark { background: var(--dark-square); }
+    
+    /* Selection / Last Move Highlight */
+    .cell.selected::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--highlight);
+      z-index: 1;
+    }
+
+    /* "Sticker" style pieces */
+    .piece {
+      font-size: 2.2rem;
+      z-index: 2;
+      filter: drop-shadow(0px 3px 2px rgba(0,0,0,0.6));
+      transition: transform 0.1s ease;
+    }
+    .piece:active { transform: scale(1.1); }
+    
+    /* Using solid unicode shapes for both, styling via CSS */
+    .white-piece { color: #f9f9f9; -webkit-text-stroke: 1.5px #222; }
+    .black-piece { color: #222222; -webkit-text-stroke: 1px #fff; }
+
+    /* Winning Overlay */
+    .winner-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 100; text-align: center; }
+    .winner-overlay.open { display: flex; }
+    .btn { background: #7c3aed; border: none; color: white; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 15px;}
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <div class="header">
+      <button class="back-btn" onclick="history.back()">←</button>
+      <span id="status">CHECKMATE!</span>
+      <span style="font-size: 1rem;">📶</span>
+    </div>
+
+    <div class="player-card top">
+      <div class="player-info">
+        <div class="avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Elizabeth" alt="Opponent"></div>
+        <div class="name-tag">
+          <span class="name">Opponent</span>
+          <span class="rating">1322</span>
+        </div>
+      </div>
+      <div class="timer">⏱ <span id="timerOpponent">--:--</span></div>
+    </div>
+
+    <div class="board-wrapper">
+      <div id="board" class="board"></div>
+    </div>
+
+    <div class="player-card bottom">
+      <div class="player-info">
+        <div class="avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Player" alt="You"></div>
+        <div class="name-tag">
+          <span class="name">You</span>
+          <span class="rating">1247</span>
+        </div>
+      </div>
+      <div class="timer">⏱ <span id="timerPlayer">--:--</span></div>
+    </div>
+  </div>
+
+  <div class="winner-overlay" id="winnerOverlay">
+    <div style="background: var(--card-bottom); padding: 40px; border-radius: 24px; border: 1px solid #7c3aed;">
+      <h1 id="winnerTitle" style="margin-top:0;">Game Over</h1>
+      <p id="winnerSub"></p>
+      <button onclick="location.href='/lobby.html'" class="btn">Return to Lobby</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient("https://eimecuiixwgmpfpedxpr.supabase.co", "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou");
+
+    // State
+    let state = { game: null, userId: null, selectedIdx: null, timerInterval: null };
+
+    // Solid Unicode characters (we color them using CSS white-piece/black-piece classes)
+    const PIECE_SYMBOLS = {
+      'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟', // Black
+      'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚', 'P': '♟'  // White
+    };
+
+    // --- DOM INITIALIZATION ---
+    function initBoard() {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
+      
+      for (let i = 0; i < 64; i++) {
+        const row = Math.floor(i / 8);
+        const col = i % 8;
+        const cell = document.createElement('div');
+        
+        // Alternating tile colors
+        const isLight = (row + col) % 2 === 0;
+        cell.className = `cell ${isLight ? 'light' : 'dark'}`;
+        cell.dataset.index = i;
+        
+        cell.addEventListener('click', () => onCellClick(i));
+        boardEl.appendChild(cell);
+      }
+    }
+
+    function renderPieces() {
+      if (!state.game || !state.game.board_state) return;
+
+      // Clear all pieces and highlights
+      document.querySelectorAll('.cell').forEach(cell => {
+        cell.innerHTML = '';
+        cell.classList.remove('selected');
+      });
+
+      const board = state.game.board_state;
+      
+      Object.keys(board).forEach(idx => {
+        const p = board[idx];
+        if (!p || p === "") return;
+        
+        const cell = document.querySelector(`.cell[data-index="${idx}"]`);
+        const isWhite = (p === p.toUpperCase());
+        const colorClass = isWhite ? 'white-piece' : 'black-piece';
+        
+        const pieceSpan = document.createElement('span');
+        pieceSpan.className = `piece ${colorClass}`;
+        pieceSpan.textContent = PIECE_SYMBOLS[p];
+        
+        cell.appendChild(pieceSpan);
+      });
+
+      // Highlight currently selected cell if any
+      if (state.selectedIdx !== null) {
+        const selectedCell = document.querySelector(`.cell[data-index="${state.selectedIdx}"]`);
+        if (selectedCell) selectedCell.classList.add('selected');
+      }
+    }
+
+    // --- GAME INTERACTION ---
+    async function onCellClick(index) {
+      if (!state.game) return;
+
+      const clickedPiece = state.game.board_state[index.toString()];
+
+      // If nothing is selected yet, try to select a piece
+      if (state.selectedIdx === null) {
+        if (clickedPiece) {
+          const isWhiteTurn = state.game.turn === 'W';
+          const isPieceWhite = clickedPiece === clickedPiece.toUpperCase();
+          
+          // Basic check to see if player owns the piece (assuming standard rules)
+          if (isWhiteTurn === isPieceWhite) {
+            state.selectedIdx = index;
+            renderPieces(); // re-render to show highlight
+          }
+        }
+      } 
+      // If a piece is already selected, execute move
+      else {
+        // Prevent moving to the same square
+        if (state.selectedIdx !== index) {
+          await executeMove(state.selectedIdx, index);
+        }
+        // Deselect after click
+        state.selectedIdx = null;
+        renderPieces();
+      }
+    }
+
+    async function executeMove(from, to) {
+      const { data, error } = await supabase.rpc('make_move', {
+        p_game_id: state.game.id,
+        p_cell_index: to,
+        p_from_index: from
+      });
+      if (error) alert(error.message);
+    }
+
+    // --- TIMER & SYNC ---
+    function startTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+      
+      state.timerInterval = setInterval(() => {
+        if (!state.game) return;
+
+        const now = new Date();
+        const lastMove = new Date(state.game.last_move_at);
+        const diffSeconds = Math.floor((now - lastMove) / 1000);
+        const remaining = Math.max(0, (state.game.time_left * 60) - diffSeconds);
+        
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        const formattedTime = `${mins}:${secs.toString().padStart(2, '0')}`;
+        
+        // Simple logic to apply time to the active player's clock
+        const isMyTurn = (state.game.turn === 'W' && state.game.player_x === state.userId) || 
+                         (state.game.turn === 'B' && state.game.player_o === state.userId);
+
+        if (isMyTurn) {
+            document.getElementById('timerPlayer').textContent = formattedTime;
+        } else {
+            document.getElementById('timerOpponent').textContent = formattedTime;
+        }
+
+        if (remaining <= 0) {
+          supabase.rpc('handle_timeout', { p_game_id: state.game.id });
+        }
+      }, 1000);
+    }
+
+    async function syncGame() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const gameId = urlParams.get("gameId");
+      if(!gameId) return; // Prevent crash if opened without params
+
+      const { data: { user } } = await supabase.auth.getUser();
+      state.userId = user?.id;
+
+      const { data: game } = await supabase.from("games").select("*").eq("id", gameId).single();
+      state.game = game;
+      
+      renderPieces();
+      startTimer();
+      updateUI();
+
+      // Realtime subscription
+      supabase.channel(`chess_${gameId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games' }, 
+        payload => {
+          state.game = payload.new;
+          state.selectedIdx = null; // reset selection on new turn
+          renderPieces();
+          startTimer();
+          updateUI();
+          if (payload.new.status === 'finished') showWinner();
+        }).subscribe();
+    }
+
+    function updateUI() {
+      if (!state.game) return;
+      const isMyTurn = (state.game.turn === 'W' && state.game.player_x === state.userId) || 
+                       (state.game.turn === 'B' && state.game.player_o === state.userId);
+      document.getElementById('status').textContent = isMyTurn ? "Your Turn" : "Opponent Thinking...";
+    }
+
+    function showWinner() {
+        document.getElementById('winnerOverlay').classList.add('open');
+        document.getElementById('winnerSub').textContent = "The game has concluded.";
+    }
+
+    // Startup
+    initBoard();
+    syncGame();
+  </script>
+</body>
+</html>
