@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>2D Chess App</title>
+  <style>
+    :root {
+      --bg-dark: #0b1320;
+      --light-square: #ecc591;
+      --dark-square: #b88645;
+      --highlight: rgba(245, 214, 72, 0.8);
+      --text: #f8fbff;
+      --danger: #ef4444;
+      --danger-dark: #dc2626;
+    }
+
+    body {
+      margin: 0;
+      background: #f0f4f8;
+      font-family: 'Segoe UI', sans-serif;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 420px;
+      background: var(--bg-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 15px 16px;
+      font-weight: bold;
+      font-size: 1.05rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      position: relative;
+      z-index: 2;
+    }
+
+    .header-title {
+      flex: 1;
+      text-align: center;
+      min-width: 0;
+    }
+
+    .forfeit-btn {
+      border: none;
+      background: var(--danger);
+      color: white;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 9px 14px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+
+    .forfeit-btn:active {
+      transform: scale(0.98);
+    }
+
+    .forfeit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .board-wrapper {
+      width: 100%;
+      padding: 0;
+      margin: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      width: 100%;
+      aspect-ratio: 1;
+      border: 2px solid #000;
+    }
+
+    .cell {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cell.light { background: var(--light-square); }
+    .cell.dark { background: var(--dark-square); }
+
+    .cell.selected::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--highlight);
+      z-index: 1;
+    }
+
+    .piece {
+      font-size: 2.2rem;
+      z-index: 2;
+      filter: drop-shadow(0px 3px 2px rgba(0,0,0,0.6));
+      transition: transform 0.1s ease;
+    }
+
+    .piece:active { transform: scale(1.1); }
+
+    .white-piece {
+      color: #f9f9f9;
+      -webkit-text-stroke: 1.5px #222;
+    }
+
+    .black-piece {
+      color: #222222;
+      -webkit-text-stroke: 1px #fff;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(11, 19, 32, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    .overlay-card {
+      background: rgba(29, 60, 99, 0.9);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 22px 18px;
+      width: 100%;
+      max-width: 320px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    }
+
+    .overlay-title {
+      margin: 0 0 8px 0;
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+
+    .overlay-text {
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      color: rgba(248,251,255,0.86);
+    }
+
+    .overlay-pill {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      font-size: 0.8rem;
+      color: rgba(248,251,255,0.9);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="header">
+      <div style="width: 72px;"></div>
+      <span class="header-title" id="status">CHECKMATE!</span>
+      <button class="forfeit-btn" id="forfeitBtn" onclick="confirmForfeit()">Forfeit</button>
+    </div>
+
+    <div class="board-wrapper">
+      <div id="board" class="board"></div>
+
+      <div id="matchOverlay" class="overlay hidden">
+        <div class="overlay-card">
+          <h2 class="overlay-title" id="overlayTitle">Waiting</h2>
+          <p class="overlay-text" id="overlayText"></p>
+          <div class="overlay-pill" id="overlayPill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const FALLBACK_URL = "/tournament.html";
+
+    let state = {
+      game: null,
+      userId: null,
+      selectedIdx: null,
+      timerInterval: null,
+      channel: null,
+      participantChannel: null,
+      matchId: null,
+      tournamentId: null,
+      bye: false,
+      redirectLock: false
+    };
+
+    const PIECE_SYMBOLS = {
+      'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+      'R': '♜', 'N': '♞', 'B': '♝', 'Q': '♛', 'K': '♚', 'P': '♟'
+    };
+
+    function cleanup() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+
+      if (state.channel) {
+        supabase.removeChannel(state.channel);
+        state.channel = null;
+      }
+
+      if (state.participantChannel) {
+        supabase.removeChannel(state.participantChannel);
+        state.participantChannel = null;
+      }
+    }
+
+    function leavePage() {
+      if (state.redirectLock) return;
+      state.redirectLock = true;
+      cleanup();
+      window.location.replace(FALLBACK_URL);
+    }
+
+    function showOverlay(title, text, pill) {
+      document.getElementById('overlayTitle').textContent = title;
+      document.getElementById('overlayText').textContent = text;
+      document.getElementById('overlayPill').textContent = pill || '';
+      document.getElementById('matchOverlay').classList.remove('hidden');
+    }
+
+    function hideOverlay() {
+      document.getElementById('matchOverlay').classList.add('hidden');
+    }
+
+    function initBoard() {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
+
+      for (let i = 0; i < 64; i++) {
+        const row = Math.floor(i / 8);
+        const col = i % 8;
+        const cell = document.createElement('div');
+        const isLight = (row + col) % 2 === 0;
+
+        cell.className = `cell ${isLight ? 'light' : 'dark'}`;
+        cell.dataset.index = i;
+        cell.addEventListener('click', () => onCellClick(i));
+        boardEl.appendChild(cell);
+      }
+    }
+
+    function renderPieces() {
+      if (!state.game || !state.game.board_state) return;
+
+      document.querySelectorAll('.cell').forEach(cell => {
+        cell.innerHTML = '';
+        cell.classList.remove('selected');
+      });
+
+      const board = state.game.board_state;
+
+      Object.keys(board).forEach(idx => {
+        const p = board[idx];
+        if (!p || p === "") return;
+
+        const cell = document.querySelector(`.cell[data-index="${idx}"]`);
+        if (!cell) return;
+
+        const isWhite = (p === p.toUpperCase());
+        const colorClass = isWhite ? 'white-piece' : 'black-piece';
+
+        const pieceSpan = document.createElement('span');
+        pieceSpan.className = `piece ${colorClass}`;
+        pieceSpan.textContent = PIECE_SYMBOLS[p] || p;
+
+        cell.appendChild(pieceSpan);
+      });
+
+      if (state.selectedIdx !== null) {
+        const selectedCell = document.querySelector(`.cell[data-index="${state.selectedIdx}"]`);
+        if (selectedCell) selectedCell.classList.add('selected');
+      }
+    }
+
+    function isParticipant(game) {
+      if (!game || !state.userId) return false;
+      return game.player_1_id === state.userId || game.player_2_id === state.userId;
+    }
+
+    function isMyTurn(game) {
+      if (!game || !state.userId) return false;
+      return (
+        (game.turn === 'W' && game.player_1_id === state.userId) ||
+        (game.turn === 'B' && game.player_2_id === state.userId)
+      );
+    }
+
+    function syncForfeitButton() {
+      const btn = document.getElementById('forfeitBtn');
+      const canForfeit =
+        !!state.game &&
+        !state.bye &&
+        state.game.status === 'playing' &&
+        isParticipant(state.game) &&
+        !state.game.forfeit;
+
+      btn.disabled = !canForfeit;
+      btn.textContent = state.game?.forfeit ? 'Forfeited' : 'Forfeit';
+    }
+
+    function keepWaitingUX(title, text, pill) {
+      showOverlay(title, text, pill);
+      document.getElementById('status').textContent = title;
+      syncForfeitButton();
+    }
+
+    function handleEndedMatchOverlay() {
+      if (!state.game) return false;
+
+      const isWinner = state.game.winner_id && state.game.winner_id === state.userId;
+      const isForfeit = !!state.game.forfeit;
+
+      if (isWinner || isForfeit) {
+        keepWaitingUX(
+          isWinner ? 'Waiting for next round' : 'Waiting for next round',
+          isWinner
+            ? 'Your result has been recorded. Stay on this page and the next round will appear automatically.'
+            : 'This match ended by forfeit. Stay on this page and the tournament will continue automatically.',
+          `Tournament ${state.tournamentId || ''}`
+        );
+        return true;
+      }
+
+      return false;
+    }
+
+    async function confirmForfeit() {
+      if (!state.game) return;
+      if (state.game.status !== 'playing' || state.game.forfeit) return;
+      if (!isParticipant(state.game)) return;
+
+      const warning =
+        'This will immediately end your match, mark it as a forfeit, and give the win to your opponent. Continue?';
+
+      if (!confirm(warning)) return;
+
+      const { data, error } = await supabase.rpc('forfeit_tournament_match', {
+        p_match_id: state.matchId
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      try {
+        const res = typeof data === 'string' ? JSON.parse(data) : data;
+        if (res?.status === 'success') {
+          keepWaitingUX(
+            'Forfeit submitted',
+            'Your match has been closed. Waiting for the tournament to update...',
+            `Match ${state.game.round_number || 1}`
+          );
+          return;
+        }
+      } catch (_) {
+        // ignore parse issues
+      }
+
+      await refreshTournamentState();
+    }
+
+    function updateUI() {
+      if (!state.game) return;
+
+      if (state.bye) {
+        keepWaitingUX(
+          'Waiting for next round',
+          'You received a bye. Stay on this page and your next match will appear automatically when the round is created.',
+          `Tournament ${state.tournamentId || ''}`
+        );
+        return;
+      }
+
+      if (state.game.forfeit || (state.game.status === 'finished' && (state.game.winner_id === state.userId || state.game.forfeit))) {
+        handleEndedMatchOverlay();
+        return;
+      }
+
+      if (state.game.status === 'pending') {
+        keepWaitingUX(
+          'Waiting for opponent',
+          'You are in the tournament, but this match has not started yet.',
+          `Match ${state.game.round_number || 1}`
+        );
+        return;
+      }
+
+      if (state.game.status !== 'playing') {
+        leavePage();
+        return;
+      }
+
+      if (!isParticipant(state.game)) {
+        leavePage();
+        return;
+      }
+
+      hideOverlay();
+      document.getElementById('status').textContent = isMyTurn(state.game) ? "Your Turn" : "Opponent Thinking...";
+      syncForfeitButton();
+    }
+
+    async function onCellClick(index) {
+      if (!state.game) return;
+
+      if (state.bye) {
+        updateUI();
+        return;
+      }
+
+      if (state.game.status !== 'playing' || state.game.forfeit) {
+        updateUI();
+        return;
+      }
+
+      const clickedPiece = state.game.board_state[index.toString()];
+
+      if (state.selectedIdx === null) {
+        if (clickedPiece) {
+          const whiteTurn = state.game.turn === 'W';
+          const isPieceWhite = clickedPiece === clickedPiece.toUpperCase();
+
+          if (whiteTurn === isPieceWhite) {
+            state.selectedIdx = index;
+            renderPieces();
+          }
+        }
+      } else {
+        if (state.selectedIdx !== index) {
+          await executeMove(state.selectedIdx, index);
+        }
+        state.selectedIdx = null;
+        renderPieces();
+      }
+    }
+
+    async function executeMove(from, to) {
+      const { error } = await supabase.rpc('make_tournament_move', {
+        p_match_id: state.matchId,
+        p_cell_index: to,
+        p_from_index: from
+      });
+
+      if (error) alert(error.message);
+    }
+
+    function startTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+
+      state.timerInterval = setInterval(() => {
+        if (!state.game) return;
+
+        if (state.bye) {
+          updateUI();
+          return;
+        }
+
+        if (state.game.forfeit || state.game.status !== 'playing') {
+          updateUI();
+          return;
+        }
+
+        const now = new Date();
+        const lastMove = new Date(state.game.last_move_at || now);
+        const diffSeconds = Math.floor((now - lastMove) / 1000);
+        const remaining = Math.max(0, (Number(state.game.time || state.game.time_left || 0) * 60) - diffSeconds);
+
+        if (remaining <= 0) {
+          supabase.rpc('handle_timeout', { p_game_id: state.game.id });
+        }
+      }, 1000);
+    }
+
+    async function fetchParticipantState() {
+      if (!state.userId || !state.tournamentId) return null;
+
+      const { data, error } = await supabase
+        .from('tournament_participants')
+        .select('user_id, tournament_id, bye, wins, losses, games_played')
+        .eq('tournament_id', state.tournamentId)
+        .eq('user_id', state.userId)
+        .maybeSingle();
+
+      if (error) return null;
+      return data || null;
+    }
+
+    async function findCurrentActiveMatch() {
+      if (!state.userId || !state.tournamentId) return null;
+
+      const { data, error } = await supabase
+        .from('tournament_matches')
+        .select('*')
+        .eq('tournament_id', state.tournamentId)
+        .in('status', ['pending', 'playing', 'finished'])
+        .or(`player_1_id.eq.${state.userId},player_2_id.eq.${state.userId}`)
+        .order('round_number', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) return null;
+      return data || null;
+    }
+
+    async function refreshTournamentState() {
+      const participant = await fetchParticipantState();
+
+      if (!participant) {
+        if (state.game && (state.game.forfeit || state.game.winner_id === state.userId)) {
+          keepWaitingUX(
+            'Waiting for next round',
+            'Your result has been recorded. The next round will appear automatically when ready.',
+            `Tournament ${state.tournamentId || ''}`
+          );
+          return;
+        }
+
+        leavePage();
+        return;
+      }
+
+      state.bye = !!participant.bye;
+
+      if (state.bye) {
+        state.selectedIdx = null;
+        updateUI();
+        return;
+      }
+
+      const activeMatch = await findCurrentActiveMatch();
+
+      if (!activeMatch) {
+        if (state.game && state.game.status === 'pending' && isParticipant(state.game)) {
+          keepWaitingUX(
+            'Waiting for opponent',
+            'Your match is still pending and the second player has not joined yet.',
+            `Round ${state.game.round_number || 1}`
+          );
+          return;
+        }
+
+        if (state.game && (state.game.forfeit || state.game.winner_id === state.userId)) {
+          keepWaitingUX(
+            'Waiting for next round',
+            'Your result has been recorded. Stay here and the tournament will advance automatically.',
+            `Tournament ${state.tournamentId || ''}`
+          );
+          return;
+        }
+
+        leavePage();
+        return;
+      }
+
+      state.game = activeMatch;
+      state.matchId = activeMatch.id;
+      state.selectedIdx = null;
+
+      if (state.game.forfeit || state.game.winner_id === state.userId) {
+        handleEndedMatchOverlay();
+        return;
+      }
+
+      if (state.game.status === 'finished') {
+        if (state.game.winner_id === state.userId) {
+          keepWaitingUX(
+            'Waiting for next round',
+            'You won this match. Stay here for the next round.',
+            `Tournament ${state.tournamentId || ''}`
+          );
+          return;
+        }
+
+        leavePage();
+        return;
+      }
+
+      if (state.game.status === 'pending') {
+        keepWaitingUX(
+          'Waiting for opponent',
+          'You are in the tournament, but this match has not started yet.',
+          `Round ${state.game.round_number || 1}`
+        );
+        return;
+      }
+
+      if (state.game.status !== 'playing') {
+        leavePage();
+        return;
+      }
+
+      if (!isParticipant(state.game)) {
+        leavePage();
+        return;
+      }
+
+      renderPieces();
+      startTimer();
+      updateUI();
+    }
+
+    async function subscribeToMatch(matchId) {
+      if (state.channel) {
+        await supabase.removeChannel(state.channel);
+        state.channel = null;
+      }
+
+      state.channel = supabase
+        .channel(`tournament_match_${matchId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tournament_matches',
+            filter: `id=eq.${matchId}`
+          },
+          async payload => {
+            const nextMatch = payload.new || payload.old;
+
+            if (!nextMatch) {
+              await refreshTournamentState();
+              return;
+            }
+
+            state.game = nextMatch;
+            state.selectedIdx = null;
+            state.matchId = nextMatch.id;
+
+            if (state.game.forfeit || state.game.winner_id === state.userId) {
+              handleEndedMatchOverlay();
+              syncForfeitButton();
+              return;
+            }
+
+            await refreshTournamentState();
+
+            if (!state.bye && state.game && state.game.status === 'playing' && isParticipant(state.game)) {
+              renderPieces();
+              startTimer();
+              updateUI();
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    async function subscribeToTournament(tournamentId) {
+      if (state.participantChannel) {
+        await supabase.removeChannel(state.participantChannel);
+        state.participantChannel = null;
+      }
+
+      state.participantChannel = supabase
+        .channel(`tournament_${tournamentId}_live`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tournament_matches',
+            filter: `tournament_id=eq.${tournamentId}`
+          },
+          async () => {
+            await refreshTournamentState();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tournament_participants',
+            filter: `tournament_id=eq.${tournamentId}`
+          },
+          async () => {
+            await refreshTournamentState();
+          }
+        )
+        .subscribe();
+    }
+
+    async function syncGame() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const matchId = urlParams.get("match_id") || urlParams.get("gameId");
+
+      if (!matchId) {
+        leavePage();
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      state.userId = user?.id;
+
+      if (!state.userId) {
+        leavePage();
+        return;
+      }
+
+      let match = null;
+
+      const { data: matchData, error: matchError } = await supabase
+        .from("tournament_matches")
+        .select("*")
+        .eq("id", matchId)
+        .maybeSingle();
+
+      if (!matchError && matchData) {
+        match = matchData;
+      }
+
+      if (!match) {
+        const { data: participantRow } = await supabase
+          .from('tournament_participants')
+          .select('tournament_id, bye')
+          .eq('user_id', state.userId)
+          .order('joined_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (participantRow?.tournament_id) {
+          state.tournamentId = participantRow.tournament_id;
+          state.bye = !!participantRow.bye;
+
+          await subscribeToTournament(state.tournamentId);
+          await refreshTournamentState();
+          return;
+        }
+
+        leavePage();
+        return;
+      }
+
+      state.game = match;
+      state.matchId = match.id;
+      state.tournamentId = match.tournament_id;
+
+      if (!isParticipant(state.game)) {
+        leavePage();
+        return;
+      }
+
+      await subscribeToTournament(state.tournamentId);
+      await subscribeToMatch(state.matchId);
+
+      const participant = await fetchParticipantState();
+      state.bye = !!participant?.bye;
+
+      renderPieces();
+      startTimer();
+      updateUI();
+
+      await refreshTournamentState();
+    }
+
+    initBoard();
+    syncGame();
+
+    window.confirmForfeit = confirmForfeit;
+  </script>
+</body>
+  </html>
