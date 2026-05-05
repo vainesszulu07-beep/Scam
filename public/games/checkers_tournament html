@@ -1,0 +1,815 @@
+<!DOCTYPE html>    
+<html lang="en">    
+<head>    
+  <meta charset="UTF-8" />    
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>    
+  <title>Neon Checkers - Zambian Rules</title>    
+  <style>    
+    :root {    
+      --bg: #0b0e14;    
+      --card: rgba(16, 22, 35, 0.95);    
+      --text: #f8fbff;    
+      --muted: #8b95a8;    
+      --line: rgba(255,255,255,0.08);    
+      --accent: #d97706; 
+      --accent-hover: #f59e0b;
+      --accent2: #38bdf8;    
+      --danger: #ef4444;    
+      --success: #22c55e;    
+      
+      --dark-square: #4a3018; 
+      --light-square: #d2a679;
+      
+      --board-border: #2a1608;
+      --board-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 15px rgba(0,0,0,0.5);    
+    }    
+    
+    * { box-sizing: border-box; }    
+    
+    body {    
+      margin: 0;    
+      min-height: 100vh;    
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;    
+      color: var(--text);    
+      background: radial-gradient(circle at 50% 50%, #1e293b 0%, var(--bg) 100%);
+      display: flex;    
+      align-items: center;    
+      justify-content: center;    
+      padding: 10px;    
+    }    
+    
+    .app {    
+      width: 100%;    
+      max-width: 800px;    
+      background: var(--card);    
+      border: 1px solid var(--line);    
+      border-radius: 20px;    
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);   
+      overflow: hidden;    
+    }    
+    
+    .topbar {    
+      padding: 16px 20px;    
+      display: flex;    
+      align-items: center;    
+      justify-content: space-between;    
+      border-bottom: 1px solid var(--line);    
+      background: linear-gradient(180deg, rgba(255,255,255,.05), transparent);    
+    }    
+    
+    .btn {
+      padding: 8px 16px;    
+      border: none;    
+      border-radius: 8px;    
+      font-size: 14px;    
+      font-weight: 600;    
+      cursor: pointer;   
+      transition: all 0.2s;
+    }
+
+    .btn-danger {    
+      background: rgba(239,68,68,.15);    
+      color: #fca5a5;    
+      border: 1px solid rgba(239,68,68,.3);    
+    }
+    .btn-danger:hover { background: rgba(239,68,68,.25); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: 1px solid var(--accent-hover);
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    
+    .status-pill {    
+      padding: 8px 16px;    
+      border-radius: 999px;    
+      background: rgba(255,255,255,.05);    
+      border: 1px solid rgba(255,255,255,.1);    
+      font-size: 14px;    
+      font-weight: 700;    
+      letter-spacing: 0.5px;
+    }    
+    .status-pill.live { background: rgba(34,197,94,.1); color: #86efac; border-color: rgba(34,197,94,.3); }    
+    .status-pill.warning { background: rgba(245,158,11,.1); color: #fde68a; border-color: rgba(245,158,11,.3); }
+    
+    .content { padding: 20px; }    
+    
+    .board-shell {    
+      background: var(--board-border);
+      border: 4px solid #1a0b04;    
+      border-radius: 8px;    
+      padding: 16px;    
+      box-shadow: var(--board-shadow);    
+      margin: 0 auto;
+      max-width: 600px;
+    }    
+    
+    .board {    
+      display: grid;    
+      grid-template-columns: repeat(8, 1fr);    
+      gap: 0px;    
+      aspect-ratio: 1 / 1;    
+      width: 100%;    
+      border: 2px solid #000;
+    }    
+    
+    .cell {    
+      position: relative;    
+      aspect-ratio: 1 / 1;    
+      display: flex;    
+      align-items: center;    
+      justify-content: center;    
+      cursor: pointer; 
+      background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.02) 10px, rgba(0,0,0,0.02) 20px);
+    }    
+    
+    .cell.dark { background-color: var(--dark-square); box-shadow: inset 0 0 10px rgba(0,0,0,0.3); }    
+    .cell.light { background-color: var(--light-square); cursor: default; }    
+    
+    .cell.selected { 
+      box-shadow: inset 0 0 0 4px #fbbf24, inset 0 0 15px rgba(251, 191, 36, 0.5); 
+    }    
+    .cell.valid-target::after {    
+      content: '';    
+      width: 20%;    
+      height: 20%;    
+      background: rgba(34, 197, 94, 0.8);    
+      border-radius: 50%;    
+      box-shadow: 0 0 8px #22c55e;    
+    }    
+    
+    .piece {    
+      width: 85%;    
+      height: 85%;    
+      border-radius: 50%;    
+      position: relative;    
+      transition: transform 0.2s, box-shadow 0.2s;    
+      z-index: 2;
+    }    
+    
+    .piece:active { transform: scale(0.95); }
+
+    .piece.black { 
+      background: radial-gradient(circle at 35% 35%, #555 0%, #222 40%, #000 80%);
+      box-shadow: 
+        inset -2px -4px 6px rgba(0,0,0,0.8), 
+        inset 2px 4px 6px rgba(255,255,255,0.2), 
+        2px 6px 10px rgba(0,0,0,0.6);
+      border: 1px solid #111;
+    }    
+    
+    .piece.white { 
+      background: radial-gradient(circle at 35% 35%, #fff 0%, #e0e0e0 40%, #a0a0a0 80%);
+      box-shadow: 
+        inset -2px -4px 6px rgba(0,0,0,0.3), 
+        inset 2px 4px 6px rgba(255,255,255,0.9), 
+        2px 6px 10px rgba(0,0,0,0.5);
+      border: 1px solid #999;
+    }    
+
+    .piece::after {
+      content: '';
+      position: absolute;
+      inset: 15%;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.2);
+    }
+    .piece.white::after { border-color: rgba(0,0,0,0.1); }
+    
+    .piece.king::before {    
+      content: '♛';    
+      position: absolute;    
+      inset: 0;    
+      display: grid;    
+      place-items: center;    
+      color: #fbbf24;    
+      font-size: 28px;    
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);    
+      z-index: 3;
+    }    
+    
+    .overlay {    
+      position: fixed;    
+      inset: 0;    
+      background: rgba(0,0,0,.85);    
+      backdrop-filter: blur(5px);    
+      display: none;    
+      align-items: center;    
+      justify-content: center;    
+      z-index: 100;    
+    }    
+    
+    .overlay.open { display: flex; }    
+    
+    .modal-card {    
+      background: var(--card);    
+      padding: 30px;    
+      border-radius: 16px;    
+      text-align: center;    
+      border: 1px solid var(--line);
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }    
+
+    .modal-card h2 { margin-top: 0; color: #fff; }
+    .modal-card p { color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .legend {    
+      text-align: center;    
+      margin-top: 20px;    
+      font-size: 13px;    
+      color: var(--muted);    
+    }    
+  </style>    
+</head>    
+<body>    
+  
+  <div class="overlay" id="winnerOverlay">    
+    <div class="modal-card">    
+      <h2 id="winnerTitle">Winner!</h2>    
+      <p id="winnerSub"></p>    
+      <button onclick="window.location.replace('/tournament.html')" class="btn btn-primary">Back to Tournament</button>    
+    </div>    
+  </div>    
+
+  <div class="overlay" id="quitOverlay">    
+    <div class="modal-card" style="border-color: rgba(239,68,68,.3);">    
+      <h2>Forfeit Game?</h2>    
+      <p>If you continue and quit the game, you will forfeit, and the match will be closed for your opponent.</p>    
+      <div class="modal-actions">
+        <button id="cancelQuitBtn" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Cancel</button>
+        <button id="confirmQuitBtn" class="btn btn-danger">Continue & Quit</button>    
+      </div>
+    </div>    
+  </div>  
+    
+  <div class="app">    
+    <div class="topbar">    
+      <button id="quitBtn" class="btn btn-danger">Quit</button>    
+      <div id="status" class="status-pill">Loading...</div>    
+    </div>    
+    
+    <div class="content">    
+      <div class="board-shell">    
+        <div id="board" class="board"></div>    
+      </div>      
+      <div class="legend">Zambian Rules: Flying Kings & Double Jumps Required.</div>    
+    </div>    
+  </div>    
+    
+  <script type="module">    
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";    
+    
+    const supabase = createClient(    
+      "https://eimecuiixwgmpfpedxpr.supabase.co",    
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"    
+    );    
+
+    const FALLBACK_URL = "/tournament.html";
+    
+    const els = {    
+      statusEl: document.getElementById("status"),    
+      boardEl: document.getElementById("board"),    
+      winnerOverlay: document.getElementById("winnerOverlay"),    
+      winnerTitle: document.getElementById("winnerTitle"),    
+      winnerSub: document.getElementById("winnerSub"),
+      quitOverlay: document.getElementById("quitOverlay"),
+      quitBtn: document.getElementById("quitBtn"),
+      cancelQuitBtn: document.getElementById("cancelQuitBtn"),
+      confirmQuitBtn: document.getElementById("confirmQuitBtn")
+    };    
+    
+    const state = {    
+      userId: null,    
+      currentGame: null,    
+      selectedIndex: null,    
+      legalTargets: new Set(),
+      isDoubleJumpPending: false,
+      channel: null,
+      tournamentChannel: null,
+      participantChannel: null,
+      participantRow: null,
+      redirectLock: false
+    };    
+
+    function cleanup() {
+      if (state.channel) {
+        supabase.removeChannel(state.channel);
+        state.channel = null;
+      }
+      if (state.tournamentChannel) {
+        supabase.removeChannel(state.tournamentChannel);
+        state.tournamentChannel = null;
+      }
+      if (state.participantChannel) {
+        supabase.removeChannel(state.participantChannel);
+        state.participantChannel = null;
+      }
+    }
+
+    function leavePage() {
+      if (state.redirectLock) return;
+      state.redirectLock = true;
+      cleanup();
+      window.location.replace(FALLBACK_URL);
+    }
+
+    function isParticipant(game) {
+      if (!game || !state.userId) return false;
+      return game.player_1_id === state.userId || game.player_2_id === state.userId;
+    }
+
+    function isWinner(game) {
+      return !!game?.winner_id && game.winner_id === state.userId;
+    }
+
+    function isForfeit(game) {
+      return !!game?.forfeit;
+    }
+
+    function canStay(game) {
+      if (!game) return false;
+      if (isParticipant(game)) return true;
+      if (isWinner(game)) return true;
+      if (isForfeit(game)) return true;
+      return false;
+    }
+
+    function showWaitingOverlay(title, text) {
+      els.winnerTitle.textContent = title;
+      els.winnerSub.textContent = text;
+      els.winnerOverlay.classList.add("open");
+    }
+
+    function hideWinnerOverlay() {
+      els.winnerOverlay.classList.remove("open");
+    }
+
+    function syncStatus(text, mode = "") {
+      els.statusEl.textContent = text;
+      els.statusEl.className = "status-pill" + (mode ? ` ${mode}` : "");
+    }
+
+    function syncQuitButton() {
+      const canQuit =
+        !!state.currentGame &&
+        state.currentGame.status === "playing" &&
+        !state.currentGame.forfeit &&
+        !state.participantRow?.bye &&
+        isParticipant(state.currentGame);
+
+      els.quitBtn.disabled = !canQuit;
+    }
+
+    function getLegalTargetsFromSelected(board, selectedIndex, jumpsOnly = false) {    
+      const targets = new Set();    
+      const piece = String(board[selectedIndex] || "").trim().toLowerCase();    
+      if (!piece || piece === "") return targets;    
+    
+      const row = Math.floor(selectedIndex / 8);    
+      const col = selectedIndex % 8;    
+      const isKing = piece.length === 2;    
+      const color = piece[0]; 
+      const enemyColor = color === 'b' ? 'w' : 'b';    
+      const directions = [[1, 1], [1, -1], [-1, 1], [-1, -1]];    
+    
+      for (const [dr, dc] of directions) {    
+        if (!isKing) {    
+          const forward = color === 'b' ? 1 : -1;    
+          
+          if (!jumpsOnly && dr === forward) {    
+            const r1 = row + dr, c1 = col + dc;    
+            if (r1 >= 0 && r1 < 8 && c1 >= 0 && c1 < 8) {    
+              if (!board[r1 * 8 + c1] || board[r1 * 8 + c1] === "") targets.add(r1 * 8 + c1);    
+            }    
+          }    
+          
+          const r1 = row + dr, c1 = col + dc;    
+          const r2 = row + dr * 2, c2 = col + dc * 2;    
+          if (r2 >= 0 && r2 < 8 && c2 >= 0 && c2 < 8) {    
+            const midPiece = String(board[r1 * 8 + c1] || "").trim().toLowerCase();    
+            const destPiece = String(board[r2 * 8 + c2] || "").trim().toLowerCase();
+            if (midPiece && midPiece !== "" && midPiece[0] === enemyColor && destPiece === "") {    
+              targets.add(r2 * 8 + c2);    
+            }    
+          }    
+        } else {    
+          let r = row + dr, c = col + dc;    
+          let foundEnemy = false;    
+    
+          while (r >= 0 && r < 8 && c >= 0 && c < 8) {    
+            const idx = r * 8 + c;    
+            const currentPiece = String(board[idx] || "").trim().toLowerCase();    
+    
+            if (!foundEnemy) {    
+              if (!currentPiece || currentPiece === "") {    
+                if (!jumpsOnly) targets.add(idx);
+              } else if (currentPiece[0] === color) {    
+                break; 
+              } else {    
+                foundEnemy = true; 
+              }    
+            } else {    
+              if (!currentPiece || currentPiece === "") {    
+                targets.add(idx); 
+              } else {    
+                break; 
+              }    
+            }    
+            r += dr; c += dc;    
+          }    
+        }    
+      }    
+      return targets;    
+    }    
+    
+    function renderBoard() {    
+      els.boardEl.innerHTML = "";    
+      const board = state.currentGame?.board_state || Array(64).fill(null);    
+    
+      board.forEach((cellData, i) => {    
+        const row = Math.floor(i / 8), col = i % 8;    
+        const isDark = (row + col) % 2 === 1;    
+        const cell = document.createElement("div");    
+        cell.className = `cell ${isDark ? 'dark' : 'light'}`;    
+        
+        if (state.selectedIndex === i) cell.classList.add("selected");    
+        if (state.legalTargets.has(i)) cell.classList.add("valid-target");    
+    
+        if (cellData && cellData !== "") {    
+          const p = document.createElement("div");    
+          const pieceInfo = cellData.toLowerCase();    
+          p.className = `piece ${pieceInfo[0] === 'b' ? 'black' : 'white'} ${pieceInfo.length > 1 ? 'king' : ''}`;    
+          cell.appendChild(p);    
+        }    
+    
+        cell.onclick = () => handleCellClick(i);    
+        els.boardEl.appendChild(cell);    
+      });    
+    }    
+    
+    function updateStatus() {    
+      const g = state.currentGame;    
+      if (!g) return;
+
+      if (state.participantRow?.bye === true) {
+        syncStatus("Waiting for next round", "warning");
+        showWaitingOverlay(
+          "Waiting for next round",
+          "You received a bye. Stay on this page and your next match will appear automatically when the next round is created."
+        );
+        syncQuitButton();
+        return;
+      }
+
+      if (g.forfeit) {
+        syncStatus("Waiting for next round", "warning");
+        showWaitingOverlay(
+          "Waiting for next round",
+          "This match ended by forfeit. Stay on this page and the tournament will continue automatically."
+        );
+        syncQuitButton();
+        return;
+      }
+
+      if (g.status === "finished") {
+        if (isWinner(g)) {
+          syncStatus("Waiting for next round", "warning");
+          showWaitingOverlay(
+            "Waiting for next round",
+            "You won this match. Stay on this page and the next round will appear automatically."
+          );
+          syncQuitButton();
+          return;
+        }
+        leavePage();
+        return;
+      }
+
+      if (g.status === "pending") {
+        syncStatus("Waiting for opponent", "warning");
+        showWaitingOverlay(
+          "Waiting for opponent",
+          "Your match is ready, but the second player has not joined yet."
+        );
+        syncQuitButton();
+        return;
+      }
+
+      if (g.status !== "playing") {
+        leavePage();
+        return;
+      }
+
+      if (!isParticipant(g)) {
+        leavePage();
+        return;
+      }
+
+      hideWinnerOverlay();
+
+      const isMyTurn = (g.turn === 'B' && g.player_1_id === state.userId) || (g.turn === 'W' && g.player_2_id === state.userId);
+      if (state.isDoubleJumpPending) {
+        syncStatus("Double Jump Required!", "warning");
+      } else {
+        syncStatus(isMyTurn ? "Your Turn" : `Waiting for ${g.turn}...`, "live");
+      }
+      syncQuitButton();
+    }    
+    
+    async function handleCellClick(index) {    
+      if (!state.currentGame || state.currentGame.status !== 'playing' || state.currentGame.forfeit) return;
+      if (state.participantRow?.bye === true) return;
+      if (!isParticipant(state.currentGame)) return;
+      
+      if (state.currentGame.turn === 'B' && state.currentGame.player_1_id !== state.userId) return;
+      if (state.currentGame.turn === 'W' && state.currentGame.player_2_id !== state.userId) return;
+
+      const board = state.currentGame.board_state;    
+      const piece = String(board[index] || "").trim().toLowerCase();    
+      const turn = state.currentGame.turn;
+
+      if (state.isDoubleJumpPending && index !== state.selectedIndex) {
+          if (state.legalTargets.has(index)) {
+              await executeMove(index);
+          }
+          return;
+      }
+    
+      if (piece && piece[0].toUpperCase() === turn) {    
+        state.selectedIndex = index;    
+        state.legalTargets = getLegalTargetsFromSelected(board, index, false);    
+        renderBoard();    
+        return;    
+      }    
+    
+      if (state.selectedIndex !== null && state.legalTargets.has(index)) {    
+        await executeMove(index);
+      }    
+    }    
+
+    async function executeMove(toIndex) {
+        const fromIndex = state.selectedIndex;
+        const previousTurn = state.currentGame.turn;
+
+        try {    
+          const { data, error } = await supabase.rpc('make_tournament_move', {    
+            p_match_id: state.currentGame.id,    
+            p_cell_index: toIndex,    
+            p_from_index: fromIndex    
+          });    
+          if (error) throw error;    
+          
+          const updatedGame = data?.[0] || data;
+          
+          if (updatedGame && updatedGame.turn === previousTurn) {
+              state.isDoubleJumpPending = true;
+              state.selectedIndex = toIndex; 
+              state.legalTargets = getLegalTargetsFromSelected(updatedGame.board_state, toIndex, true); 
+          } else {
+              state.isDoubleJumpPending = false;
+              state.selectedIndex = null;    
+              state.legalTargets = new Set();    
+          }
+
+          state.currentGame = updatedGame || state.currentGame;
+          await refreshEverything();
+          renderBoard();
+          updateStatus();
+        } catch (err) {    
+          alert("Move failed: " + err.message);    
+        }    
+    }
+    
+    async function openQuitOverlay() {
+      if (!state.currentGame || state.currentGame.status !== "playing" || state.currentGame.forfeit) return;
+      if (state.participantRow?.bye === true) return;
+      if (!isParticipant(state.currentGame)) return;
+      els.quitOverlay.classList.add("open");
+    }
+
+    function closeQuitOverlay() {
+      els.quitOverlay.classList.remove("open");
+    }
+
+    async function confirmQuit() {
+      if (!state.currentGame) return;
+      if (!isParticipant(state.currentGame)) return;
+
+      els.confirmQuitBtn.textContent = "Leaving...";
+      els.confirmQuitBtn.disabled = true;
+
+      try {
+        const { error } = await supabase.rpc("forfeit_tournament_match", {
+          p_match_id: state.currentGame.id
+        });
+        if (error) throw error;
+
+        closeQuitOverlay();
+        await refreshEverything();
+        syncStatus("Waiting for next round", "warning");
+      } catch (err) {
+        alert("Failed to quit: " + err.message);
+      } finally {
+        els.confirmQuitBtn.textContent = "Continue & Quit";
+        els.confirmQuitBtn.disabled = false;
+      }
+    }
+    
+    async function fetchParticipantState(tournamentId) {
+      if (!state.userId || !tournamentId) return null;
+      const { data, error } = await supabase
+        .from("tournament_participants")
+        .select("user_id, tournament_id, bye, wins, losses, games_played")
+        .eq("tournament_id", tournamentId)
+        .eq("user_id", state.userId)
+        .maybeSingle();
+      if (error) return null;
+      return data || null;
+    }
+
+    async function fetchCurrentMatch(matchId) {
+      const { data, error } = await supabase
+        .from("tournament_matches")
+        .select("*")
+        .eq("id", matchId)
+        .maybeSingle();
+      if (error) return null;
+      return data || null;
+    }
+
+    async function fetchAliveMatchForTournament(tournamentId) {
+      const { data, error } = await supabase
+        .from("tournament_matches")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .or(`player_1_id.eq.${state.userId},player_2_id.eq.${state.userId}`)
+        .in("status", ["pending", "playing", "finished"])
+        .order("round_number", { ascending: true })
+        .order("id", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) return null;
+      return data || null;
+    }
+
+    async function refreshEverything() {
+      if (!state.currentGame) return;
+
+      state.participantRow = await fetchParticipantState(state.currentGame.tournament_id);
+      const liveMatch = await fetchAliveMatchForTournament(state.currentGame.tournament_id);
+
+      if (!state.participantRow && !liveMatch && !state.currentGame.forfeit && !isWinner(state.currentGame)) {
+        leavePage();
+        return;
+      }
+
+      if (liveMatch) {
+        state.currentGame = liveMatch;
+      }
+
+      renderBoard();
+      updateStatus();
+    }
+    
+    function subscribeToMatch(matchId) {
+      if (state.channel) {
+        supabase.removeChannel(state.channel);
+        state.channel = null;
+      }
+
+      state.channel = supabase.channel(`game_updates_${matchId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'tournament_matches', filter: `id=eq.${matchId}` },     
+          async payload => {    
+            const nextGame = payload.new || payload.old;
+            if (!nextGame) {
+              await refreshEverything();
+              return;
+            }
+
+            state.currentGame = nextGame;
+            state.selectedIndex = null;
+            state.legalTargets = new Set();
+
+            if (!canStay(nextGame) && !state.participantRow) {
+              leavePage();
+              return;
+            }
+
+            await refreshEverything();
+            renderBoard();
+            updateStatus();
+          }
+        )
+        .subscribe();
+    }
+
+    function subscribeToTournament(tournamentId) {
+      if (state.tournamentChannel) {
+        supabase.removeChannel(state.tournamentChannel);
+        state.tournamentChannel = null;
+      }
+
+      state.tournamentChannel = supabase.channel(`tournament_updates_${tournamentId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'tournament_matches', filter: `tournament_id=eq.${tournamentId}` },
+          async () => {
+            await refreshEverything();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'tournament_participants', filter: `tournament_id=eq.${tournamentId}` },
+          async () => {
+            await refreshEverything();
+          }
+        )
+        .subscribe();
+    }
+
+    async function init() {    
+      const { data: { user } } = await supabase.auth.getUser();    
+      state.userId = user?.id;    
+
+      if (!state.userId) {
+        leavePage();
+        return;
+      }
+    
+      const urlParams = new URLSearchParams(window.location.search);    
+      const matchId = urlParams.get("gameId") || urlParams.get("match_id");    
+    
+      if (!matchId) {    
+        leavePage();
+        return;    
+      }    
+    
+      const game = await fetchCurrentMatch(matchId);    
+      
+      if (!game) {
+        leavePage();
+        return;
+      }
+
+      state.currentGame = game;
+      state.participantRow = await fetchParticipantState(game.tournament_id);
+
+      if (!canStay(game) && !state.participantRow) {
+        leavePage();
+        return;
+      }
+
+      if (state.participantRow?.bye === true) {
+        state.isDoubleJumpPending = false;
+        syncStatus("Waiting for next round", "warning");
+        showWaitingOverlay(
+          "Waiting for next round",
+          "You received a bye. Stay on this page and your next match will appear automatically when the bracket advances."
+        );
+      }
+
+      renderBoard();    
+      updateStatus();   
+
+      if (game.status === 'finished' && isWinner(game)) {
+        showWaitingOverlay("Waiting for next round", "Your match has finished and you won. Stay on this page.");
+      }
+
+      subscribeToMatch(game.id);    
+      subscribeToTournament(game.tournament_id);
+
+      state.channel = state.channel;    
+    }    
+    
+    els.boardEl.onclick = (e) => {    
+      const cell = e.target.closest(".cell");    
+      if (cell) {    
+        const idx = parseInt(cell.id.replace("cell", ""));    
+        if (!state.currentGame) return;    
+        if (state.currentGame.status !== "playing") return;    
+        if (state.currentGame.forfeit) return;    
+        if (state.participantRow?.bye === true) return;
+        handleCellClick(idx);    
+      }    
+    };    
+    
+    els.winnerCloseBtn.onclick = () => els.winnerOverlay.classList.remove("open");
+    els.quitBtn.onclick = openQuitOverlay;
+    els.cancelQuitBtn.onclick = closeQuitOverlay;
+    els.confirmQuitBtn.onclick = confirmQuit;
+    
+    init();    
+  </script>    
+</body>    
+    </html>
