@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>2D Chess App</title>
+  <style>
+    :root {
+      --bg-dark: #0b1320;
+      --light-square: #ecc591;
+      --dark-square: #b88645;
+      --highlight: rgba(245, 214, 72, 0.8);
+      --text: #f8fbff;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --modal-bg: #1e293b;
+    }
+
+    body {
+      margin: 0;
+      background: #f0f4f8;
+      font-family: 'Segoe UI', sans-serif;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 420px;
+      background: var(--bg-dark);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      font-weight: bold;
+      font-size: 1.2rem;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: white;
+      background: #334155;
+    }
+
+    .btn:hover { background: #475569; }
+
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-danger:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .board-wrapper {
+      width: 100%;
+      padding: 0;
+      margin: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      width: 100%;
+      aspect-ratio: 1;
+      border: 2px solid #000;
+    }
+
+    .cell {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cell.light { background: var(--light-square); }
+    .cell.dark { background: var(--dark-square); }
+
+    .cell.selected::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--highlight);
+      z-index: 1;
+    }
+
+    .piece {
+      font-size: 2.2rem;
+      z-index: 2;
+      filter: drop-shadow(0px 3px 2px rgba(0,0,0,0.6));
+      transition: transform 0.1s ease;
+    }
+
+    .piece:active { transform: scale(1.1); }
+
+    .white-piece {
+      color: #f9f9f9;
+      -webkit-text-stroke: 1.5px #222;
+    }
+
+    .black-piece {
+      color: #222222;
+      -webkit-text-stroke: 1px #fff;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .overlay.open { display: flex; }
+
+    .modal-card {
+      background: var(--modal-bg);
+      padding: 24px;
+      border-radius: 12px;
+      text-align: center;
+      width: 85%;
+      max-width: 320px;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .modal-card h2 { margin-top: 0; color: #fff; font-size: 1.4rem; }
+    .modal-card p { color: #cbd5e1; font-size: 0.95rem; margin-bottom: 24px; line-height: 1.4; }
+
+    .modal-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .modal-actions .btn { flex: 1; }
+
+    @media (max-width: 640px) {
+      .header {
+        padding: 12px 14px;
+        font-size: 1rem;
+      }
+      .btn {
+        padding: 8px 12px;
+      }
+      .piece {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+
+    <div class="overlay" id="quitOverlay">
+      <div class="modal-card">
+        <h2>Quit game?</h2>
+        <p>If you continue and quit the game, you will leave the match.</p>
+        <div class="modal-actions">
+          <button id="cancelQuitBtn" class="btn">Cancel</button>
+          <button id="confirmQuitBtn" class="btn btn-danger">Quit</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="header">
+      <button id="quitBtn" class="btn btn-danger">Quit</button>
+      <span id="status">Loading...</span>
+    </div>
+
+    <div class="board-wrapper">
+      <div id="board" class="board"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const FALLBACK_URL = "/lobby.html";
+
+    const PIECE_SYMBOLS = {
+      r: '♜', n: '♞', b: '♝', q: '♛', k: '♚', p: '♟',
+      R: '♜', N: '♞', B: '♝', Q: '♛', K: '♚', P: '♟'
+    };
+
+    const els = {
+      statusEl: document.getElementById("status"),
+      boardEl: document.getElementById("board"),
+      quitBtn: document.getElementById("quitBtn"),
+      quitOverlay: document.getElementById("quitOverlay"),
+      cancelQuitBtn: document.getElementById("cancelQuitBtn"),
+      confirmQuitBtn: document.getElementById("confirmQuitBtn")
+    };
+
+    const state = {
+      game: null,
+      userId: null,
+      selectedIdx: null,
+      timerInterval: null,
+      channel: null
+    };
+
+    function cleanup() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+
+      if (state.channel) {
+        supabase.removeChannel(state.channel);
+        state.channel = null;
+      }
+    }
+
+    function leavePage() {
+      cleanup();
+      window.location.replace(FALLBACK_URL);
+    }
+
+    function normalizeRow(data) {
+      if (!data) return null;
+      if (Array.isArray(data)) return data[0] || null;
+      return data;
+    }
+
+    async function rpcSingle(name, args = {}) {
+      const { data, error } = await supabase.rpc(name, args);
+      if (error) throw error;
+      return normalizeRow(data);
+    }
+
+    function setStatus(text) {
+      els.statusEl.textContent = text;
+    }
+
+    function createEmptyBoard() {
+      return {};
+    }
+
+    function getBoardValue(board, index) {
+      if (!board) return "";
+      if (Array.isArray(board)) return board[index] || "";
+      if (typeof board === "object") {
+        return board[index] || board[String(index)] || "";
+      }
+      return "";
+    }
+
+    function clearBoardSelection() {
+      document.querySelectorAll(".cell").forEach(cell => cell.classList.remove("selected"));
+    }
+
+    function isGameValid(game) {
+      if (!game || !state.userId) return false;
+      const isParticipant = game.player_x === state.userId || game.player_o === state.userId;
+      const isPlayable = game.status === "playing" || game.status === "finished";
+      return isParticipant && isPlayable;
+    }
+
+    function getMySymbol(game) {
+      if (!game || !state.userId) return null;
+
+      if (game.game_type_id && game.player_x === state.userId) {
+        return "W";
+      }
+      if (game.game_type_id && game.player_o === state.userId) {
+        return "B";
+      }
+      return null;
+    }
+
+    function isMyTurn(game) {
+      if (!game || game.status !== "playing") return false;
+      const mySymbol = getMySymbol(game);
+      return !!mySymbol && game.turn === mySymbol;
+    }
+
+    function updateUI() {
+      if (!state.game) {
+        setStatus("Loading...");
+        return;
+      }
+
+      if (state.game.status === "finished") {
+        if (state.game.winner_user === state.userId) {
+          setStatus("Game finished · You won");
+        } else if (state.game.winner) {
+          setStatus("Game finished · Opponent won");
+        } else {
+          setStatus("Game finished · Draw");
+        }
+        return;
+      }
+
+      if (state.game.status === "waiting") {
+        setStatus("Waiting for opponent");
+        return;
+      }
+
+      setStatus(isMyTurn(state.game) ? "Your turn" : "Opponent's turn");
+    }
+
+    function renderPieces() {
+      const board = state.game?.board_state || createEmptyBoard();
+
+      document.querySelectorAll(".cell").forEach(cell => {
+        cell.innerHTML = "";
+        cell.classList.remove("selected");
+      });
+
+      for (let i = 0; i < 64; i++) {
+        const p = getBoardValue(board, i);
+        if (!p) continue;
+
+        const cell = document.querySelector(`.cell[data-index="${i}"]`);
+        if (!cell) continue;
+
+        const isWhite = p === p.toUpperCase();
+        const colorClass = isWhite ? "white-piece" : "black-piece";
+
+        const pieceSpan = document.createElement("span");
+        pieceSpan.className = `piece ${colorClass}`;
+        pieceSpan.textContent = PIECE_SYMBOLS[p] || p;
+
+        cell.appendChild(pieceSpan);
+      }
+
+      if (state.selectedIdx !== null) {
+        const selectedCell = document.querySelector(`.cell[data-index="${state.selectedIdx}"]`);
+        if (selectedCell) selectedCell.classList.add("selected");
+      }
+    }
+
+    function initBoard() {
+      els.boardEl.innerHTML = "";
+
+      for (let i = 0; i < 64; i++) {
+        const row = Math.floor(i / 8);
+        const col = i % 8;
+        const cell = document.createElement("div");
+        const isLight = (row + col) % 2 === 0;
+
+        cell.className = `cell ${isLight ? "light" : "dark"}`;
+        cell.dataset.index = i;
+        cell.addEventListener("click", () => onCellClick(i));
+        els.boardEl.appendChild(cell);
+      }
+    }
+
+    function cleanupAndLeave() {
+      cleanup();
+      window.location.replace(FALLBACK_URL);
+    }
+
+    function openQuitModal() {
+      els.quitOverlay.classList.add("open");
+    }
+
+    function closeQuitModal() {
+      els.quitOverlay.classList.remove("open");
+    }
+
+    async function performQuit() {
+      if (!state.game) return cleanupAndLeave();
+
+      els.confirmQuitBtn.textContent = "Quitting...";
+      els.confirmQuitBtn.disabled = true;
+
+      try {
+        const { error } = await supabase.rpc("leave_game", {
+          p_game_id: state.game.id
+        });
+
+        if (error) throw error;
+        cleanupAndLeave();
+      } catch (err) {
+        alert("Failed to quit: " + (err?.message || err));
+        els.confirmQuitBtn.textContent = "Quit";
+        els.confirmQuitBtn.disabled = false;
+      }
+    }
+
+    async function executeMove(from, to) {
+      const { error } = await supabase.rpc("make_move", {
+        p_game_id: state.game.id,
+        p_from_index: from,
+        p_cell_index: to
+      });
+
+      if (error) throw error;
+    }
+
+    async function onCellClick(index) {
+      if (!state.game || !isGameValid(state.game) || state.game.status !== "playing") return;
+
+      const clickedPiece = getBoardValue(state.game.board_state, index);
+
+      if (state.selectedIdx === null) {
+        if (!clickedPiece) return;
+
+        const isWhitePiece = clickedPiece === clickedPiece.toUpperCase();
+        const mySymbol = getMySymbol(state.game);
+
+        if ((mySymbol === "W" && isWhitePiece) || (mySymbol === "B" && !isWhitePiece)) {
+          state.selectedIdx = index;
+          clearBoardSelection();
+          renderPieces();
+        }
+
+        return;
+      }
+
+      if (state.selectedIdx === index) {
+        state.selectedIdx = null;
+        clearBoardSelection();
+        renderPieces();
+        return;
+      }
+
+      try {
+        await executeMove(state.selectedIdx, index);
+        state.selectedIdx = null;
+      } catch (err) {
+        alert("Could not make move: " + (err?.message || err));
+        state.selectedIdx = null;
+      }
+
+      clearBoardSelection();
+      await refreshCurrentGame();
+    }
+
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      state.userId = user?.id || null;
+      if (!state.userId) throw new Error("Not logged in");
+    }
+
+    async function loadInitialGame() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const gameId = urlParams.get("gameId");
+
+      if (!gameId) return null;
+
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("id", gameId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data || null;
+    }
+
+    async function loadActiveGameIfNeeded() {
+      return await rpcSingle("get_active_playing_game");
+    }
+
+    async function refreshCurrentGame() {
+      if (!state.game?.id) return;
+
+      const { data, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("id", state.game.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) return leavePage();
+
+      state.game = data;
+      renderPieces();
+      updateUI();
+      if (state.game.status === "finished") {
+        await showWinnerIfFinished(state.game);
+      }
+    }
+
+    async function loadGame() {
+      await loadUser();
+
+      let game = await loadInitialGame();
+      if (!game) {
+        game = await loadActiveGameIfNeeded();
+      }
+
+      if (!game || !isGameValid(game)) {
+        leavePage();
+        return;
+      }
+
+      state.game = game;
+      renderPieces();
+      updateUI();
+      subscribeToGame(game.id);
+      startTimer();
+
+      if (game.status === "finished") {
+        await showWinnerIfFinished(game);
+      }
+    }
+
+    async function loadWinnerProfile(userId) {
+      if (!userId) return null;
+
+      const { data, error } = await supabase
+        .from("profile")
+        .select("id, full_name, avatar_url")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data || null;
+    }
+
+    function openWinnerPopup({ winnerUser, winnerSymbol, winnings = 0, isDraw = false }) {
+      if (isDraw) {
+        els.winnerAvatar.src = "https://via.placeholder.com/128?text=%E2%80%94";
+        els.winnerAvatar.alt = "Draw";
+        els.winnerTitle.textContent = "Draw";
+        els.winnerSub.textContent = "No winner this round.";
+        els.winnerBadge.textContent = "🤝 Match ended in a draw";
+      } else {
+        const name = winnerUser?.full_name || "Winner";
+        const avatar = winnerUser?.avatar_url || "https://via.placeholder.com/128?text=User";
+        const amount = new Intl.NumberFormat().format(Number(winnings || 0));
+
+        els.winnerAvatar.src = avatar;
+        els.winnerAvatar.alt = `${name} avatar`;
+        els.winnerTitle.textContent = name;
+        els.winnerSub.textContent = `Winner ID: ${winnerUser?.id || "—"}${winnerSymbol ? ` · Symbol: ${winnerSymbol}` : ""}`;
+        els.winnerBadge.textContent = `🏆 Won ${amount}`;
+      }
+
+      els.winnerOverlay.classList.add("open");
+      els.winnerOverlay.setAttribute("aria-hidden", "false");
+    }
+
+    function closeWinnerPopup() {
+      els.winnerOverlay.classList.remove("open");
+      els.winnerOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    async function showWinnerIfFinished(game) {
+      if (!game || game.status !== "finished") return;
+
+      if (game.winner_user) {
+        try {
+          const profile = await loadWinnerProfile(game.winner_user);
+          openWinnerPopup({
+            winnerUser: profile || { id: game.winner_user, full_name: "Winner", avatar_url: null },
+            winnerSymbol: game.winner || null,
+            winnings: game.winnings || 0,
+            isDraw: false
+          });
+        } catch (err) {
+          openWinnerPopup({
+            winnerUser: { id: game.winner_user, full_name: "Winner", avatar_url: null },
+            winnerSymbol: game.winner || null,
+            winnings: game.winnings || 0,
+            isDraw: false
+          });
+        }
+      } else {
+        openWinnerPopup({
+          winnerUser: null,
+          winnerSymbol: null,
+          winnings: 0,
+          isDraw: true
+        });
+      }
+
+      scheduleFinishedCleanup();
+    }
+
+    function subscribeToGame(gameId) {
+      if (state.channel) {
+        supabase.removeChannel(state.channel);
+        state.channel = null;
+      }
+
+      state.channel = supabase
+        .channel(`game-${gameId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "games", filter: `id=eq.${gameId}` },
+          async (payload) => {
+            const nextGame = payload.new || payload.old;
+            if (!nextGame || !isGameValid(nextGame)) {
+              leavePage();
+              return;
+            }
+
+            state.game = nextGame;
+            state.selectedIdx = null;
+            renderPieces();
+            updateUI();
+
+            if (nextGame.status === "finished") {
+              await showWinnerIfFinished(nextGame);
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    function startTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+
+      state.timerInterval = setInterval(async () => {
+        if (!state.game || !isGameValid(state.game)) {
+          leavePage();
+          return;
+        }
+
+        if (state.game.status !== "playing") return;
+
+        const timeLeft = Number(state.game.time_left ?? 0);
+
+        if (timeLeft <= 0) {
+          try {
+            await supabase.rpc("handle_timeout", { p_game_id: state.game.id });
+            await refreshCurrentGame();
+          } catch (err) {
+            console.error(err);
+          }
+        }
+      }, 1000);
+    }
+
+    function scheduleFinishedCleanup() {
+      if (!state.game || state.cleanupDoneForGameId === state.game.id) return;
+
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+
+      if (state.channel) {
+        supabase.removeChannel(state.channel);
+        state.channel = null;
+      }
+
+      if (state.cleanupTimer) clearTimeout(state.cleanupTimer);
+
+      const gameId = state.game.id;
+      state.cleanupTimer = setTimeout(async () => {
+        try {
+          if (state.cleanupDoneForGameId === gameId) return;
+          state.cleanupDoneForGameId = gameId;
+
+          await rpcSingle("leave_game", { p_game_id: gameId });
+          closeWinnerPopup();
+          leavePage();
+        } catch (err) {
+          console.error(err);
+          leavePage();
+        }
+      }, 2200);
+    }
+
+    els.quitBtn.addEventListener("click", openQuitModal);
+    els.cancelQuitBtn.addEventListener("click", closeQuitModal);
+    els.confirmQuitBtn.addEventListener("click", performQuit);
+
+    els.winnerCloseBtn.addEventListener("click", closeWinnerPopup);
+
+    els.winnerOverlay.addEventListener("click", (e) => {
+      if (e.target === els.winnerOverlay) closeWinnerPopup();
+    });
+
+    els.quitOverlay.addEventListener("click", (e) => {
+      if (e.target === els.quitOverlay) closeQuitModal();
+    });
+
+    els.boardEl.addEventListener("click", (e) => {
+      const cell = e.target.closest(".cell");
+      if (!cell) return;
+      const index = Number(cell.dataset.index);
+      onCellClick(index);
+    });
+
+    initBoard();
+    loadGame().catch(err => {
+      console.error(err);
+      leavePage();
+    });
+  </script>
+</body>
+</html>
