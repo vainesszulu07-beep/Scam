@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phone Debug | Chat-Bet</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #fafafa; display: flex; justify-content: center; padding: 40px; }
+    .card { background: white; padding: 30px; border: 1px solid #000; width: 100%; max-width: 400px; box-shadow: 10px 10px 0px #000; }
+    h2 { text-transform: uppercase; letter-spacing: 2px; margin-top: 0; }
+    .input-group { margin-bottom: 20px; text-align: left; }
+    label { display: block; font-size: 10px; font-weight: 700; margin-bottom: 5px; }
+    input { width: 100%; padding: 12px; border: 2px solid #000; box-sizing: border-box; font-size: 16px; outline: none; }
+    button { width: 100%; padding: 15px; background: #000; color: #fff; border: none; font-weight: 700; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+    button:disabled { background: #666; }
+    #otpSection { display: none; margin-top: 20px; border-top: 2px solid #000; padding-top: 20px; }
+    
+    /* ERROR STYLING - RAW OUTPUT */
+    #debug-log { margin-top: 20px; text-align: left; background: #fff0f0; border: 1px solid red; padding: 10px; font-family: monospace; font-size: 11px; color: red; display: none; white-space: pre-wrap; overflow-x: auto; }
+    .success-msg { color: green; font-weight: bold; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Phone Access</h2>
+  <p style="font-size: 12px; color: #666;">Enter your Zambian number to receive a security code.</p>
+
+  <div class="input-group">
+    <label>ZAMBIAN PHONE NUMBER</label>
+    <input type="tel" id="phone" value="+260" placeholder="+260 9XXXXXXXX">
+  </div>
+  <button id="sendBtn">Get Code</button>
+
+  <div id="otpSection">
+    <div class="input-group">
+      <label>6-DIGIT CODE</label>
+      <input type="text" id="otp" placeholder="000000">
+    </div>
+    <button id="verifyBtn">Verify Account</button>
+  </div>
+
+  <div id="debug-log"></div>
+  <div id="status-msg" class="success-msg"></div>
+</div>
+
+<script type="module">
+  import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+  // Replace these with your actual keys
+  const SUPABASE_URL = "https://eimecuiixwgmpfpedxpr.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou";
+  
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const phoneInput = document.getElementById('phone');
+  const sendBtn = document.getElementById('sendBtn');
+  const otpSection = document.getElementById('otpSection');
+  const otpInput = document.getElementById('otp');
+  const verifyBtn = document.getElementById('verifyBtn');
+  const debugLog = document.getElementById('debug-log');
+  const statusMsg = document.getElementById('status-msg');
+
+  // Helper to show raw errors
+  function showError(err) {
+    debugLog.style.display = 'block';
+    debugLog.textContent = "RAW ERROR FROM SUPABASE:\n" + JSON.stringify(err, null, 2);
+    statusMsg.textContent = "";
+  }
+
+  // Helper to show success
+  function showSuccess(msg) {
+    debugLog.style.display = 'none';
+    statusMsg.textContent = msg;
+  }
+
+  // PHASE 1: Send the SMS
+  sendBtn.addEventListener('click', async () => {
+    const phone = phoneInput.value.trim();
+    sendBtn.disabled = true;
+    sendBtn.textContent = "Processing...";
+
+    const { data, error } = await supabase.auth.signInWithOtp({
+      phone: phone,
+      options: {
+        // This ensures the user is created if they don't exist
+        shouldCreateUser: true 
+      }
+    });
+
+    if (error) {
+      showError(error);
+      sendBtn.disabled = false;
+      sendBtn.textContent = "Get Code";
+    } else {
+      showSuccess("Code sent to " + phone);
+      otpSection.style.display = 'block';
+      sendBtn.style.display = 'none';
+    }
+  });
+
+  // PHASE 2: Verify the Code
+  verifyBtn.addEventListener('click', async () => {
+    const phone = phoneInput.value.trim();
+    const token = otpInput.value.trim();
+    verifyBtn.disabled = true;
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone,
+      token,
+      type: 'sms'
+    });
+
+    if (error) {
+      showError(error);
+      verifyBtn.disabled = false;
+    } else {
+      showSuccess("Authenticated! Redirecting...");
+      console.log("User data:", data);
+      setTimeout(() => {
+        window.location.href = "lobby.html";
+      }, 1500);
+    }
+  });
+</script>
+
+</body>
+</html>
