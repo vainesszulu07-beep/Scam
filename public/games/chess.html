@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Zambia P2P Chess</title>
+  <style>
+    :root {
+      --bg-dark: #0b1320;
+      --light-square: #ecc591;
+      --dark-square: #b88645;
+      --highlight: rgba(245, 214, 72, 0.8);
+      --text: #f8fbff;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --modal-bg: #1e293b;
+      --muted: #cbd5e1;
+    }
+
+    body { margin: 0; background: #f0f4f8; font-family: 'Segoe UI', sans-serif; color: var(--text); display: flex; justify-content: center; }
+    .app-container { width: 100%; max-width: 420px; background: var(--bg-dark); min-height: 100vh; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.5); position: relative; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; font-weight: bold; font-size: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.1); gap: 12px; }
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; color: white; background: #334155; }
+    .btn-danger { background: var(--danger); }
+    .board-wrapper { width: 100%; display: flex; align-items: center; flex: 1; }
+    .board { display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; aspect-ratio: 1; border: 2px solid #000; }
+    .cell { display: flex; justify-content: center; align-items: center; position: relative; cursor: pointer; user-select: none; }
+    .cell.light { background: var(--light-square); }
+    .cell.dark { background: var(--dark-square); }
+    .cell.selected::after { content: ''; position: absolute; inset: 0; background: var(--highlight); z-index: 1; }
+    .piece { font-size: 2.2rem; z-index: 2; filter: drop-shadow(0px 3px 2px rgba(0,0,0,0.6)); transition: transform 0.1s ease; }
+    .white-piece { color: #f9f9f9; -webkit-text-stroke: 1.5px #222; }
+    .black-piece { color: #222222; -webkit-text-stroke: 1px #fff; }
+    .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .overlay.open { display: flex; }
+    .modal-card { background: var(--modal-bg); padding: 24px; border-radius: 12px; text-align: center; width: 85%; max-width: 320px; border: 1px solid rgba(239, 68, 68, 0.4); }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="overlay" id="quitOverlay">
+      <div class="modal-card">
+        <h2>Quit game?</h2>
+        <p>If you leave now, you will forfeit the match.</p>
+        <div style="display:flex; gap:10px;">
+          <button id="cancelQuitBtn" class="btn" style="flex:1">Cancel</button>
+          <button id="confirmQuitBtn" class="btn btn-danger" style="flex:1">Quit</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="header">
+      <button id="quitBtn" class="btn btn-danger">Quit</button>
+      <span id="status">Syncing...</span>
+    </div>
+
+    <div class="board-wrapper">
+      <div id="board" class="board"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const EDGE_URL = "https://eimecuiixwgmpfpedxpr.supabase.co/functions/v1/clever-processor";
+    const FALLBACK_URL = "/lobby.html";
+
+    const PIECE_SYMBOLS = {
+      r: '♜', n: '♞', b: '♝', q: '♛', k: '♚', p: '♟',
+      R: '♜', N: '♞', B: '♝', Q: '♛', K: '♚', P: '♟'
+    };
+
+    const state = {
+      game: null,
+      userId: null,
+      selectedIdx: null,
+      busy: false,
+      channel: null
+    };
+
+    const els = {
+      statusEl: document.getElementById("status"),
+      boardEl: document.getElementById("board"),
+      quitBtn: document.getElementById("quitBtn"),
+      quitOverlay: document.getElementById("quitOverlay"),
+      confirmQuitBtn: document.getElementById("confirmQuitBtn"),
+      cancelQuitBtn: document.getElementById("cancelQuitBtn")
+    };
+
+    // --- Core Logic ---
+
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not logged in");
+      state.userId = user.id;
+    }
+
+    async function callProcessor(payload) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(EDGE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ gameId: state.game.id, ...payload })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    // --- Chess Brain Interface ---
+
+    function isMyTurn(game) {
+      if (!game || game.status !== "playing") return false;
+      // Brain says: w = player_x, b = player_o
+      return game.turn === 'w' ? game.player_x === state.userId : game.player_o === state.userId;
+    }
+
+    function isMyPiece(piece) {
+      if (!piece) return false;
+      const isWhite = piece === piece.toUpperCase();
+      const amIWhite = state.game.player_x === state.userId;
+      return amIWhite ? isWhite : !isWhite;
+    }
+
+    // --- Rendering ---
+
+    function renderBoard() {
+      const grid = state.game?.board_state?.grid || Array(64).fill("");
+      els.boardEl.innerHTML = "";
+
+      grid.forEach((piece, i) => {
+        const row = Math.floor(i / 8), col = i % 8;
+        const cell = document.createElement("div");
+        cell.className = `cell ${(row + col) % 2 === 0 ? "light" : "dark"}`;
+        if (state.selectedIdx === i) cell.classList.add("selected");
+
+        if (piece) {
+          const span = document.createElement("span");
+          span.className = `piece ${piece === piece.toUpperCase() ? "white-piece" : "black-piece"}`;
+          span.textContent = PIECE_SYMBOLS[piece] || piece;
+          cell.appendChild(span);
+        }
+
+        cell.onclick = () => onCellClick(i);
+        els.boardEl.appendChild(cell);
+      });
+    }
+
+    function updateUI() {
+      const g = state.game;
+      if (g.status === "finished") {
+        els.statusEl.textContent = g.winner_user === state.userId ? "Victory!" : "Game Over";
+        return;
+      }
+      els.statusEl.textContent = isMyTurn(g) ? "Your Turn" : "Opponent's Turn";
+    }
+
+    // --- Interactions ---
+
+    async function onCellClick(index) {
+      if (state.busy || state.game.status !== "playing") return;
+
+      const grid = state.game.board_state?.grid || [];
+      const piece = grid[index];
+
+      // Select piece
+      if (state.selectedIdx === null) {
+        if (piece && isMyPiece(piece) && isMyTurn(state.game)) {
+          state.selectedIdx = index;
+          renderBoard();
+        }
+        return;
+      }
+
+      // Deselect or Switch
+      if (state.selectedIdx === index) {
+        state.selectedIdx = null;
+        renderBoard();
+        return;
+      }
+
+      if (piece && isMyPiece(piece)) {
+        state.selectedIdx = index;
+        renderBoard();
+        return;
+      }
+
+      // Execute Move
+      const from = state.selectedIdx;
+      state.selectedIdx = null;
+      state.busy = true;
+      renderBoard(); // Clear selection immediately for UX
+
+      try {
+        await callProcessor({ fromIndex: from, toIndex: index });
+        // Realtime will update the board
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        state.busy = false;
+      }
+    }
+
+    // --- Lifecycle ---
+
+    async function loadGame() {
+      await loadUser();
+      const urlParams = new URLSearchParams(window.location.search);
+      const gameId = urlParams.get("gameId");
+
+      const { data: game, error } = await supabase.from("games").select("*").eq("id", gameId).single();
+      if (error || !game) return window.location.replace(FALLBACK_URL);
+
+      state.game = game;
+
+      // INITIALIZATION CHECK: If board is null or no turn, call start
+      if (!game.board_state || !game.turn) {
+        els.statusEl.textContent = "Initializing...";
+        try {
+          const result = await callProcessor({ action: "start" });
+          state.game.board_state = result.board;
+          state.game.turn = result.turn;
+        } catch (err) {
+          console.error("Init Error:", err);
+        }
+      }
+
+      renderBoard();
+      updateUI();
+      subscribe(game.id);
+    }
+
+    function subscribe(id) {
+      state.channel = supabase.channel(`game:${id}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${id}` }, (payload) => {
+          state.game = payload.new;
+          renderBoard();
+          updateUI();
+          if (state.game.status === "finished") {
+             setTimeout(() => window.location.replace(FALLBACK_URL), 3000);
+          }
+        })
+        .subscribe();
+    }
+
+    // --- UI Listeners ---
+    els.quitBtn.onclick = () => els.quitOverlay.classList.add("open");
+    els.cancelQuitBtn.onclick = () => els.quitOverlay.classList.remove("open");
+    els.confirmQuitBtn.onclick = () => window.location.replace(FALLBACK_URL);
+
+    loadGame().catch(() => window.location.replace(FALLBACK_URL));
+  </script>
+</body>
+</html>
