@@ -1,0 +1,86 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Handle Timeout Tester</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+    }
+    .card {
+      max-width: 700px;
+      margin: auto;
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+    }
+    input {
+      background: #334155;
+      color: white;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+    pre {
+      margin-top: 20px;
+      background: black;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Manual handle_timeout Tester</h2>
+    <p>Enter a game UUID and manually call your SQL function.</p><input id="uuid" placeholder="Enter game UUID here" />
+<button onclick="runTimeout()">Run handle_timeout</button>
+
+<pre id="output">Waiting...</pre>
+
+  </div>  <script>
+    const SUPABASE_URL = "YOUR_SUPABASE_URL";
+    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+    async function runTimeout() {
+      const gameId = document.getElementById('uuid').value.trim();
+      const output = document.getElementById('output');
+
+      output.textContent = 'Loading...';
+
+      try {
+        const body = gameId ? { p_game_id: gameId } : {};
+
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/handle_timeout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify(body)
+        });
+
+        const text = await res.text();
+
+        output.textContent = `Status: ${res.status}\n\n${text}`;
+      } catch (err) {
+        output.textContent = 'RAW ERROR:\n' + err.stack;
+      }
+    }
+  </script></body>
+  </html>
