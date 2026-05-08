@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chess Viewer</title>
+  <style>
+    :root {
+      --bg: #111;
+      --panel: #0b0b0b;
+      --line: #333;
+      --text: #f3f3f3;
+      --muted: #aaa;
+      --light: #f0d9b5;
+      --dark: #b58863;
+      --accent: #00ff7f;
+      --danger: #ff5c5c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .wrap {
+      width: min(100%, 980px);
+    }
+
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .meta div {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #0f0f0f;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .value {
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    @media (max-width: 820px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 72px);
+      grid-template-rows: repeat(8, 72px);
+      border: 4px solid #2a2a2a;
+      width: fit-content;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 620px) {
+      #board {
+        grid-template-columns: repeat(8, 42px);
+        grid-template-rows: repeat(8, 42px);
+      }
+    }
+
+    .square {
+      width: 72px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      user-select: none;
+      position: relative;
+    }
+
+    @media (max-width: 620px) {
+      .square {
+        width: 42px;
+        height: 42px;
+        font-size: 24px;
+      }
+    }
+
+    .light { background: var(--light); }
+    .dark { background: var(--dark); }
+
+    .coord {
+      position: absolute;
+      left: 4px;
+      bottom: 2px;
+      font-size: 10px;
+      color: rgba(0,0,0,0.45);
+      pointer-events: none;
+    }
+
+    #status {
+      white-space: pre-wrap;
+      line-height: 1.5;
+      min-height: 120px;
+    }
+
+    .good { color: var(--accent); }
+    .bad { color: var(--danger); }
+
+    button {
+      background: var(--accent);
+      color: #000;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover { opacity: 0.9; }
+
+    select {
+      background: #222;
+      border: 1px solid #444;
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      outline: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>My Chess Game</h1>
+      <div class="controls">
+        <select id="orientationSelect">
+          <option value="white">White at bottom</option>
+          <option value="black">Black at bottom</option>
+        </select>
+        <button id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+
+    <div class="meta card">
+      <div>
+        <div class="label">Logged-in user</div>
+        <div id="userInfo" class="value">Loading...</div>
+      </div>
+      <div>
+        <div class="label">Game ID</div>
+        <div id="gameIdInfo" class="value">-</div>
+      </div>
+      <div>
+        <div class="label">Turn</div>
+        <div id="turnInfo" class="value">-</div>
+      </div>
+      <div>
+        <div class="label">Status</div>
+        <div id="statusInfo" class="value">Loading...</div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="card">
+        <div id="board"></div>
+      </div>
+
+      <div class="card">
+        <div class="label">Viewer log</div>
+        <div id="status">Loading board...</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const SUPABASE_URL = "https://eimecuiixwgmpfpedxpr.supabase.co";
+    const SUPABASE_ANON = "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    const boardEl = document.getElementById("board");
+    const statusEl = document.getElementById("status");
+    const userInfoEl = document.getElementById("userInfo");
+    const gameIdInfoEl = document.getElementById("gameIdInfo");
+    const turnInfoEl = document.getElementById("turnInfo");
+    const statusInfoEl = document.getElementById("statusInfo");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const orientationSelect = document.getElementById("orientationSelect");
+
+    const pieceMap = {
+      P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔",
+      p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚",
+    };
+
+    function renderBoard(grid, orientation = "white") {
+      boardEl.innerHTML = "";
+      const isBlackBottom = orientation === "black";
+
+      for (let visualIndex = 0; visualIndex < 64; visualIndex++) {
+        const square = document.createElement("div");
+        const row = Math.floor(visualIndex / 8);
+        const col = visualIndex % 8;
+        square.className = "square " + ((row + col) % 2 === 0 ? "light" : "dark");
+
+        const boardIndex = isBlackBottom ? 63 - visualIndex : visualIndex;
+        const piece = grid?.[boardIndex] ?? "";
+        square.textContent = pieceMap[piece] || "";
+
+        const coord = document.createElement("div");
+        coord.className = "coord";
+        coord.textContent = boardIndex;
+
+        square.appendChild(coord);
+        boardEl.appendChild(square);
+      }
+    }
+
+    function safeParseBoardState(boardState) {
+      if (!boardState) return null;
+      let parsed = boardState;
+      let safetyLoop = 0;
+
+      while (typeof parsed === "string" && safetyLoop < 5) {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          try {
+            parsed = JSON.parse(parsed.replace(/'/g, '"'));
+          } catch {
+            break;
+          }
+        }
+        safetyLoop++;
+      }
+      return parsed;
+    }
+
+    function fenToGrid(fen) {
+      if (!fen || typeof fen !== "string") return null;
+      const placement = fen.split(" ")[0];
+      const rows = placement.split("/");
+      if (rows.length !== 8) return null;
+
+      const grid = [];
+      for (const row of rows) {
+        for (const ch of row) {
+          if (/\d/.test(ch)) {
+            for (let i = 0; i < Number(ch); i++) grid.push("");
+          } else {
+            grid.push(ch);
+          }
+        }
+      }
+      return grid.length === 64 ? grid : null;
+    }
+
+    function objectMapToGrid(obj) {
+      const grid = new Array(64).fill("");
+      for (let i = 0; i < 64; i++) {
+        if (Object.prototype.hasOwnProperty.call(obj, String(i))) {
+          grid[i] = obj[String(i)] ?? "";
+        }
+      }
+      return grid;
+    }
+
+    /**
+     * Upgraded Extractor: Handles raw FEN, Arrays, and nested objects
+     */
+    function extractGrid(boardState) {
+      const parsed = safeParseBoardState(boardState);
+      if (!parsed) return null;
+
+      // 1. If it's a raw FEN string (not an object)
+      if (typeof parsed === "string" && parsed.split("/").length >= 7) {
+        return fenToGrid(parsed);
+      }
+
+      // 2. If it's a direct array
+      if (Array.isArray(parsed) && parsed.length >= 64) {
+        return parsed.slice(0, 64);
+      }
+
+      // 3. If it's an object containing data
+      if (parsed && typeof parsed === "object") {
+        if (Array.isArray(parsed.grid)) return parsed.grid.slice(0, 64);
+        if (Array.isArray(parsed.board)) return parsed.board.slice(0, 64);
+        if (parsed.fen) return fenToGrid(parsed.fen);
+        
+        // Check for square map { "0": "r", "1": "n" ... }
+        const keys = Object.keys(parsed);
+        if (keys.some(k => !isNaN(k))) return objectMapToGrid(parsed);
+      }
+
+      return null;
+    }
+
+    function showMessage(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.className = isError ? "bad" : "";
+    }
+
+    async function loadMyGame() {
+      try {
+        showMessage("Loading your game...");
+
+        const { data: userRes, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+
+        const user = userRes?.user;
+        if (!user) {
+          userInfoEl.textContent = "Not signed in";
+          gameIdInfoEl.textContent = "-";
+          turnInfoEl.textContent = "-";
+          statusInfoEl.textContent = "Not signed in";
+          renderBoard(new Array(64).fill(""), orientationSelect.value);
+          showMessage("No active session found. Sign in first.", true);
+          return;
+        }
+
+        userInfoEl.textContent = user.email || user.id;
+
+        const { data: games, error } = await supabase
+          .from("games")
+          .select("id, status, turn, board_state, player_x, player_o, last_move_at, winner")
+          .or(`player_x.eq.${user.id},player_o.eq.${user.id}`)
+          .order("last_move_at", { ascending: false })
+          .limit(1);
+
+        if (error) throw error;
+
+        const game = games?.[0];
+        if (!game) {
+          gameIdInfoEl.textContent = "-";
+          turnInfoEl.textContent = "-";
+          statusInfoEl.textContent = "No game found";
+          renderBoard(new Array(64).fill(""), orientationSelect.value);
+          showMessage("No game found for this user.", true);
+          return;
+        }
+
+        gameIdInfoEl.textContent = game.id;
+        turnInfoEl.textContent = game.turn ?? "-";
+        statusInfoEl.textContent = game.status ?? "-";
+
+        const grid = extractGrid(game.board_state);
+
+        if (!grid) {
+          renderBoard(new Array(64).fill(""), orientationSelect.value);
+          showMessage(
+            "Game found, but board_state could not be read. Ensure it contains a valid grid, board, square map, or FEN.",
+            true
+          );
+          return;
+        }
+
+        renderBoard(grid, orientationSelect.value);
+
+        showMessage(
+          `Loaded successfully\n\nGame ID: ${game.id}\nTurn: ${game.turn}\nStatus: ${game.status}\nWinner: ${game.winner ?? "-"}`
+        );
+      } catch (err) {
+        renderBoard(new Array(64).fill(""), orientationSelect.value);
+        showMessage(`Error: ${err.message}`, true);
+      }
+    }
+
+    refreshBtn.addEventListener("click", loadMyGame);
+    orientationSelect.addEventListener("change", loadMyGame);
+
+    loadMyGame();
+    setInterval(loadMyGame, 5000);
+  </script>
+</body>
+</html>
