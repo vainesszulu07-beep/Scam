@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edge Function Debugger - Secure Mode</title>
+    <style>
+        body { font-family: monospace; background: #1a1a1a; color: #00ff00; padding: 20px; line-height: 1.6; }
+        .box { border: 1px solid #333; padding: 15px; margin-top: 10px; background: #000; overflow-x: auto; white-space: pre-wrap; }
+        
+        /* UI State Styles */
+        .hidden { display: none; }
+        .locked { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+        
+        .status-item { margin: 5px 0; padding: 5px; border-radius: 4px; }
+        .pass { color: #00ff00; }
+        .fail { color: #ff4444; border: 1px solid #ff4444; }
+        
+        input { background: #222; border: 1px solid #444; color: #00ff00; padding: 10px; width: 350px; outline: none; }
+        button { padding: 10px 25px; cursor: pointer; background: #00ff00; border: none; font-weight: bold; color: #000; transition: 0.3s; }
+        button:hover { background: #00cc00; transform: scale(1.05); }
+        h3 { border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+    <h2>Chess Logic Debugger</h2>
+
+    <div id="checklist">
+        <div id="check-config" class="status-item">⌛ Checking Configuration...</div>
+        <div id="check-auth" class="status-item">⌛ Checking Authentication...</div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
+
+    <div id="mainUI" class="locked">
+        <div style="margin-bottom: 15px;">
+            <label>Ready to start! Enter Game ID:</label><br>
+            <input type="text" id="gameId" placeholder="Paste UUID here...">
+        </div>
+        <button id="startBtn">Trigger action: "start"</button>
+    </div>
+
+    <h3>Output Log:</h3>
+    <div id="output" class="box">System initializing...</div>
+
+    <script type="module">
+        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+        // 1. CONFIGURATION
+        const SUPABASE_URL = "https://eimecuiixwgmpfpedxpr.supabase.co";
+        const ANON_KEY = "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou";
+        const EDGE_URL = `${SUPABASE_URL}/functions/v1/clever-processor`;
+
+        const supabase = createClient(SUPABASE_URL, ANON_KEY);
+
+        // Elements
+        const mainUI = document.getElementById('mainUI');
+        const output = document.getElementById('output');
+        const checkConfig = document.getElementById('check-config');
+        const checkAuth = document.getElementById('check-auth');
+
+        // Function to run pre-check
+        async function runPreCheck() {
+            let configReady = false;
+            let authReady = false;
+
+            // Check Config
+            if (SUPABASE_URL && ANON_KEY && !ANON_KEY.includes("your-")) {
+                checkConfig.innerHTML = "✔ Config: Loaded Successfully";
+                checkConfig.className = "status-item pass";
+                configReady = true;
+            } else {
+                checkConfig.innerHTML = "✘ Config: Missing URL or Anon Key!";
+                checkConfig.className = "status-item fail";
+            }
+
+            // Check Auth
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                checkAuth.innerHTML = `✔ Auth: Logged in as ${session.user.email}`;
+                checkAuth.className = "status-item pass";
+                authReady = true;
+            } else {
+                checkAuth.innerHTML = "✘ Auth: No active session. Please log in to your app first.";
+                checkAuth.className = "status-item fail";
+                output.textContent = "Error: Authentication required. Open your main application, log in, then refresh this page.";
+            }
+
+            // Unlock UI if everything is perfect
+            if (configReady && authReady) {
+                mainUI.classList.remove('locked');
+                output.textContent = "All systems green. Ready for input.";
+            }
+        }
+
+        // Run the check on load
+        runPreCheck();
+
+        // The Start Button Logic
+        document.getElementById('startBtn').onclick = async () => {
+            const gameId = document.getElementById('gameId').value.trim();
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (!gameId) {
+                output.textContent = "Wait! You forgot to enter the Game ID.";
+                return;
+            }
+
+            output.textContent = "Sending request to Referee...";
+            
+            try {
+                const response = await fetch(EDGE_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${session.access_token}`,
+                        "apikey": ANON_KEY
+                    },
+                    body: JSON.stringify({ gameId, action: "start" })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    output.className = "box error";
+                    output.textContent = `HTTP ERROR ${response.status}\n${JSON.stringify(result, null, 2)}`;
+                } else {
+                    output.className = "box";
+                    output.textContent = `SUCCESS!\n${JSON.stringify(result, null, 2)}`;
+                }
+            } catch (err) {
+                output.className = "box error";
+                output.textContent = `CRASH: ${err.message}`;
+            }
+        };
+    </script>
+</body>
+</html>
