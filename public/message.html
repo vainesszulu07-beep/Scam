@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messages</title>
+
+<style>
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  background:#f4f4f4;
+  padding-bottom: 110px;
+}
+.container{
+  max-width:520px;
+  margin:auto;
+}
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px;
+  background:white;
+  border-bottom:1px solid #e5e5e5;
+  font-size:18px;
+  font-weight:600;
+}
+.search-btn{
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+}
+.search-btn:hover{ background:#f1f1f1; }
+
+.users-top{
+  display:flex;
+  overflow-x:auto;
+  gap:14px;
+  padding:10px;
+  background:white;
+  border-bottom:1px solid #eee;
+}
+.user-card{
+  position:relative;
+  flex:0 0 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  font-size:12px;
+  color:#444;
+  cursor:pointer;
+}
+.user-card img{
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  object-fit:cover;
+}
+.online-dot{
+  position:absolute;
+  bottom:2px;
+  right:2px;
+  width:11px;
+  height:11px;
+  border-radius:50%;
+  border:2px solid white;
+}
+
+.conversation-list{
+  margin-top:6px;
+}
+.conversation{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px;
+  background:white;
+  border-bottom:1px solid #eee;
+  cursor:pointer;
+  position:relative;
+}
+.conversation img{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  object-fit:cover;
+}
+.conv-info{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+.conv-name{
+  font-size:14px;
+  font-weight:600;
+  display:flex;
+  justify-content:space-between;
+}
+.conv-last{
+  font-size:12px;
+  color:#555;
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.last-message-time{
+  font-size:11px;
+  color:#888;
+}
+.last-seen{
+  font-size:11px;
+  color:#777;
+  margin-top:2px;
+}
+
+.unread-message{ background:#f2f5ff; }
+.unread-count{
+  background:#1877f2;
+  color:white;
+  font-size:11px;
+  border-radius:10px;
+  padding:1px 6px;
+  margin-left:5px;
+}
+
+.typing-indicator{
+  font-size:12px;
+  color:#1877f2;
+  font-style:italic;
+}
+
+.skeleton{
+  display:flex;
+  gap:12px;
+  padding:12px;
+  background:white;
+  border-bottom:1px solid #eee;
+}
+.skel-avatar{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background:#e0e0e0;
+}
+.skel-lines{
+  flex:1;
+}
+.skel-line{
+  height:10px;
+  background:#e0e0e0;
+  margin-bottom:8px;
+  border-radius:4px;
+}
+
+.last-seen-anim{
+  opacity:0;
+  transition:opacity .4s ease;
+  font-style:italic;
+  color:#666;
+}
+.last-seen-anim.show{
+  opacity:1;
+}
+
+/* Floating Navigation Bar */
+.bottom-nav-wrapper {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  border-radius: 999px;
+}
+
+.bottom-nav-wrapper::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4285f4, #ea4335, #fbbc05, #34a853, #4285f4);
+  background-size: 200% 100%;
+  filter: blur(10px);
+  animation: googleShine 3s linear infinite;
+  z-index: -1;
+  opacity: 0.85;
+}
+
+@keyframes googleShine {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.bottom-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 8px 20px;
+  border-radius: 999px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.nav-item {
+  color: #6b7280;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.nav-item svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  transition: all 0.3s ease;
+}
+
+.nav-item:hover, .nav-item.active {
+  color: #0d6efd;
+  background: #eff6ff;
+  transform: translateY(-4px);
+}
+
+@media (max-width: 640px){
+  body{
+    padding-bottom: 90px;
+  }
+
+  .bottom-nav{
+    gap: 12px;
+    padding: 8px 16px;
+  }
+
+  .nav-item{
+    width: 42px;
+    height: 42px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    Messages
+    <span id="searchUsers" class="search-btn">
+      <svg viewBox="0 0 24 24" width="22" height="22">
+        <circle cx="11" cy="11" r="7" stroke="#333" stroke-width="2" fill="none"/>
+        <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="#333" stroke-width="2"/>
+      </svg>
+    </span>
+  </div>
+
+  <div id="usersTop" class="users-top"></div>
+  <div id="conversationList" class="conversation-list"></div>
+
+</div>
+
+<div class="bottom-nav-wrapper">
+  <nav class="bottom-nav">
+    <a href="message.html" class="nav-item active" aria-label="Messages">
+      <svg viewBox="0 0 24 24">
+        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/>
+      </svg>
+    </a>
+    <a href="lobby.html" class="nav-item" aria-label="Lobby">
+      <svg viewBox="0 0 24 24">
+        <path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+      </svg>
+    </a>
+    <a href="settings.html" class="nav-item" aria-label="Settings">
+      <svg viewBox="0 0 24 24">
+        <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
+      </svg>
+    </a>
+  </nav>
+</div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+const supabase = createClient(
+  "https://eimecuiixwgmpfpedxpr.supabase.co",
+  "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+);
+
+const usersTop = document.getElementById("usersTop");
+const conversationList = document.getElementById("conversationList");
+const searchUsers = document.getElementById("searchUsers");
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) {
+  alert("Not logged in");
+  throw new Error("No session");
+}
+const userId = session.user.id;
+
+/* ===== HELPERS ===== */
+function nowLusakaUTC() {
+  const now = new Date();
+  const offset = -120;
+  return new Date(now.getTime() - offset * 60 * 1000);
+}
+
+function isActive(lastSeen) {
+  if (!lastSeen) return false;
+  const diffMinutes = (nowLusakaUTC() - new Date(lastSeen)) / 1000 / 60;
+  return diffMinutes < 2;
+}
+
+function formatLastSeen(lastSeen) {
+  if (!lastSeen) return "Offline";
+
+  const seenDate = new Date(lastSeen);
+  if (Number.isNaN(seenDate.getTime())) return "Offline";
+
+  const diffMs = nowLusakaUTC() - seenDate;
+  const diffMinutes = diffMs / 1000 / 60;
+  const diffHours = diffMs / 1000 / 60 / 60;
+
+  if (diffMinutes < 2) {
+    return "Online";
+  }
+
+  if (diffHours < 24) {
+    return "Last seen today at " + seenDate.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+
+  const daysOffline = Math.floor(diffHours / 24);
+
+  if (daysOffline === 1) {
+    return "Last seen 1 day offline";
+  }
+
+  return `Last seen ${daysOffline} days offline`;
+}
+
+/* ===== UPDATE OWN LAST SEEN ===== */
+async function updateLastSeen() {
+  await supabase.from("profile")
+    .update({ last_seen: nowLusakaUTC().toISOString() })
+    .eq("id", userId);
+}
+updateLastSeen();
+setInterval(updateLastSeen, 30000);
+
+/* ===== SEARCH ===== */
+searchUsers.addEventListener("click", () => {
+  window.location.href = "search.html";
+});
+
+/* ===== LOADING SKELETON ===== */
+function showLoading() {
+  conversationList.innerHTML = "";
+  for (let i = 0; i < 6; i++) {
+    conversationList.innerHTML += `
+      <div class="skeleton">
+        <div class="skel-avatar"></div>
+        <div class="skel-lines">
+          <div class="skel-line" style="width:60%"></div>
+          <div class="skel-line" style="width:40%"></div>
+        </div>
+      </div>`;
+  }
+}
+showLoading();
+
+/* ===== LOAD USERS ===== */
+let allUsers = [];
+async function loadUsers() {
+  const { data: users, error } = await supabase.from("profile")
+    .select("id,full_name,avatar_url,last_seen")
+    .neq("id", userId);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+  allUsers = users || [];
+  renderUsers();
+}
+
+function renderUsers() {
+  usersTop.innerHTML = "";
+  allUsers.forEach(u => {
+    const active = isActive(u.last_seen);
+    const card = document.createElement("div");
+    card.className = "user-card";
+    card.innerHTML = `
+      <img src="${u.avatar_url || 'https://via.placeholder.com/60'}">
+      <span class="online-dot" style="background:${active ? 'green' : 'grey'}"></span>
+      <div>${u.full_name || u.id}</div>`;
+    card.onclick = () => openConversation(u.id);
+    usersTop.appendChild(card);
+  });
+}
+
+/* ===== LONG PRESS FUNCTION ===== */
+function enableLongPress(conv, lastMsgDiv, originalMsg, lastSeenText) {
+  let timer;
+  conv.addEventListener("touchstart", () => {
+    timer = setTimeout(() => {
+      lastMsgDiv.classList.add("last-seen-anim");
+      lastMsgDiv.innerText = lastSeenText;
+      setTimeout(() => lastMsgDiv.classList.add("show"), 50);
+      setTimeout(() => {
+        lastMsgDiv.classList.remove("show");
+        setTimeout(() => {
+          lastMsgDiv.innerHTML = originalMsg;
+          lastMsgDiv.classList.remove("last-seen-anim");
+        }, 300);
+      }, 5000);
+    }, 500);
+  });
+  conv.addEventListener("touchend", () => { clearTimeout(timer); });
+}
+
+/* ===== OPEN OR CREATE CONVERSATION ===== */
+async function openConversation(otherUserId) {
+  const { data: conversationId, error } = await supabase.rpc("get_or_create_conversation", {
+    p_other_user_id: otherUserId
+  });
+
+  if (error) {
+    console.error(error);
+    alert(error.message);
+    return;
+  }
+
+  window.location.href = `view-chat.html?conversationId=${conversationId}`;
+}
+
+/* ===== LOAD CONVERSATIONS ===== */
+async function loadConversations() {
+  const { data: convs, error } = await supabase.rpc("get_my_conversations");
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  conversationList.innerHTML = "";
+
+  for (const c of (convs || [])) {
+    const otherUserId = c.other_user_id;
+    const other = {
+      full_name: c.other_full_name,
+      avatar_url: c.other_avatar_url,
+      last_seen: c.other_last_seen
+    };
+
+    const active = isActive(other.last_seen);
+
+    let lastMsg = c.last_message_content || "";
+    const lastMsgSender = c.last_message_sender_id || null;
+    const lastMsgRead = false;
+    const lastMsgMedia = c.last_message_media_url || null;
+
+    if (lastMsgMedia) {
+      const ext = lastMsgMedia.split(".").pop().toLowerCase();
+      if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'].includes(ext)) {
+        lastMsg = `${other.full_name} sent an image`;
+      } else if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) {
+        lastMsg = `${other.full_name} sent a video`;
+      } else {
+        lastMsg = `${other.full_name} sent a file`;
+      }
+    }
+
+    const conv = document.createElement("div");
+    conv.className = "conversation";
+    if ((c.unread_count || 0) > 0) conv.classList.add("unread-message");
+    conv.onclick = () => openConversation(otherUserId);
+
+    conv.innerHTML = `
+      <img src="${other.avatar_url || 'https://via.placeholder.com/50'}">
+      <span class="online-dot" style="position:absolute;top:10px;left:44px;width:10px;height:10px;background:${active ? 'green' : 'grey'}"></span>
+      <div class="conv-info">
+        <div class="conv-name">
+          <span>${other.full_name || otherUserId}</span>
+          ${c.unread_count ? `<span class="unread-count">${c.unread_count}</span>` : ""}
+        </div>
+        <div class="conv-last">
+          ${lastMsg}
+          <span class="last-message-time">
+            ${c.last_message_created_at ? new Date(c.last_message_created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+          </span>
+          ${lastMsgSender === userId ? `<span class="last-message-time">${lastMsgRead ? '✔✔' : '✔'}</span>` : ''}
+        </div>
+        <div class="typing-indicator" style="display:none">typing...</div>
+      </div>
+    `;
+
+    conversationList.appendChild(conv);
+
+    const lastMsgDiv = conv.querySelector(".conv-last");
+    const originalMsgHTML = lastMsgDiv.innerHTML;
+    const lastSeenText = formatLastSeen(other.last_seen);
+    enableLongPress(conv, lastMsgDiv, originalMsgHTML, lastSeenText);
+
+    supabase.channel("chat-" + c.conversation_id)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${c.conversation_id}` },
+        payload => {
+          conversationList.prepend(conv);
+        }
+      )
+      .subscribe();
+  }
+}
+
+/* ===== INITIAL ===== */
+await loadUsers();
+await loadConversations();
+setInterval(() => {
+  loadUsers();
+  loadConversations();
+}, 30000);
+
+</script>
+
+</body>
+  </html>
