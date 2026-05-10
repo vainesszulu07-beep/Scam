@@ -168,7 +168,7 @@ const loader = document.getElementById('loader');
 const backBtn = document.getElementById('backBtn');
 
 backBtn.onclick = () => {
-  window.location.href = "messages.html";
+  window.location.href = "message.html";
 };
 
 const { data: { session } } = await supabase.auth.getSession();
