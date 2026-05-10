@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Send Video</title>
+
+<style>
+  :root {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --danger-color: #ef4444;
+    --danger-hover: #dc2626;
+    --dark-color: #374151;
+    --dark-hover: #1f2937;
+    --bg-color: #f3f4f6;
+    --card-bg: #ffffff;
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+  }
+
+  body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-color);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+
+  .app-container {
+    background: var(--card-bg);
+    width: 100%;
+    max-width: 480px;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    padding: 24px;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  .back-arrow {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 20px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.2s;
+    user-select: none;
+  }
+  .back-arrow:hover {
+    color: var(--text-main);
+  }
+
+  h2 {
+    text-align: center;
+    margin-top: 0;
+    color: var(--text-main);
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .info-text {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px;
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+
+  .file-upload-wrapper {
+    margin-bottom: 16px;
+  }
+
+  .file-upload-label {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 12px;
+    background: #f8fafc;
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    color: var(--primary-color);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .file-upload-label:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+  }
+
+  input[type="file"] {
+    display: none;
+  }
+
+  button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: background 0.2s;
+  }
+
+  .primary { background: var(--primary-color); color: white; }
+  .primary:hover { background: var(--primary-hover); }
+
+  .danger { background: var(--danger-color); color: white; }
+  .danger:hover { background: var(--danger-hover); }
+
+  .dark { background: var(--dark-color); color: white; }
+  .dark:hover { background: var(--dark-hover); }
+
+  .light {
+    background: #f3f4f6;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+  }
+  .light:hover { background: #e5e7eb; }
+
+  #previewContainer {
+    margin-top: 15px;
+    text-align: center;
+  }
+
+  #previewContainer video {
+    max-width: 100%;
+    border-radius: 8px;
+    display: block;
+    margin: auto;
+    background: #000;
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 16px;
+  }
+
+  #sendBtn {
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  #processingOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    font-weight: 500;
+    z-index: 999;
+    flex-direction: column;
+  }
+
+  .spinner {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 12px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .small-note {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+</style>
+</head>
+
+<body>
+  <div class="app-container">
+    <div class="back-arrow" id="backArrow">←</div>
+
+    <h2>Send a Video</h2>
+    <p class="info-text">You can attach an optional message with your video before sending.</p>
+
+    <textarea id="messageContent" placeholder="Write a message to go with your video..."></textarea>
+
+    <div class="file-upload-wrapper">
+      <label for="mediaFile" class="file-upload-label">
+        + Choose a Video
+      </label>
+      <input type="file" id="mediaFile" accept="video/*">
+    </div>
+
+    <div id="previewContainer">
+      <video id="videoPreview" controls style="display:none;"></video>
+    </div>
+
+    <div class="action-buttons">
+      <button id="discardBtn" class="danger" style="display:none;">Discard</button>
+    </div>
+
+    <button id="sendBtn" class="primary">Send</button>
+
+    <div class="small-note">Only video files are allowed.</div>
+  </div>
+
+  <div id="processingOverlay">
+    <div class="spinner"></div>
+    Processing...
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabase = createClient(
+      "https://eimecuiixwgmpfpedxpr.supabase.co",
+      "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou"
+    );
+
+    const params = new URLSearchParams(window.location.search);
+    const conversationId = params.get("conversationId");
+
+    if (!conversationId) {
+      alert("Conversation not found! Please open a chat first.");
+      throw new Error("Missing conversationId");
+    }
+
+    const overlay = document.getElementById("processingOverlay");
+    const mediaFileEl = document.getElementById("mediaFile");
+    const videoPreviewEl = document.getElementById("videoPreview");
+    const messageContentEl = document.getElementById("messageContent");
+    const sendBtn = document.getElementById("sendBtn");
+    const discardBtn = document.getElementById("discardBtn");
+    const backArrow = document.getElementById("backArrow");
+
+    let currentUserId = null;
+    let selectedVideoFile = null;
+    let uploadedVideoUrl = null;
+    let uploadedVideoId = null;
+
+    backArrow.onclick = () => {
+      window.location.href = `view-chat.html?conversationId=${conversationId}`;
+    };
+
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = "index.html";
+        return;
+      }
+      currentUserId = session.user.id;
+    })();
+
+    mediaFileEl.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith("video/")) {
+        alert("Only video files are allowed.");
+        mediaFileEl.value = "";
+        return;
+      }
+
+      selectedVideoFile = file;
+      uploadedVideoUrl = null;
+      uploadedVideoId = null;
+
+      videoPreviewEl.src = URL.createObjectURL(file);
+      videoPreviewEl.style.display = "block";
+      discardBtn.style.display = "inline-block";
+    });
+
+    discardBtn.onclick = () => {
+      selectedVideoFile = null;
+      uploadedVideoUrl = null;
+      uploadedVideoId = null;
+      videoPreviewEl.src = "";
+      videoPreviewEl.style.display = "none";
+      discardBtn.style.display = "none";
+      mediaFileEl.value = "";
+    };
+
+    sendBtn.onclick = async () => {
+      const content = messageContentEl.value.trim();
+
+      if (!content && !selectedVideoFile) {
+        alert("Message cannot be empty");
+        return;
+      }
+
+      overlay.style.display = "flex";
+
+      try {
+        if (selectedVideoFile) {
+          const { signature, timestamp, apiKey, cloudName } = await fetch("/api/video.js").then(r => r.json());
+
+          const formData = new FormData();
+          formData.append("file", selectedVideoFile);
+          formData.append("api_key", apiKey);
+          formData.append("timestamp", timestamp);
+          formData.append("signature", signature);
+          formData.append("folder", "videos");
+
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+
+          const videoData = await new Promise((resolve, reject) => {
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(JSON.parse(xhr.responseText));
+              } else {
+                reject(new Error("Upload failed"));
+              }
+            };
+            xhr.onerror = () => reject(new Error("Upload error"));
+            xhr.send(formData);
+          });
+
+          uploadedVideoUrl = videoData.secure_url;
+          uploadedVideoId = videoData.public_id;
+        }
+
+        const { error } = await supabase.from("messages").insert([{
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          content,
+          media_url: uploadedVideoUrl,
+          media_id: uploadedVideoId
+        }]);
+
+        if (error) throw error;
+
+        window.location.href = `view-chat.html?conversationId=${conversationId}`;
+      } catch (err) {
+        console.error(err);
+        alert("Failed to send message: " + err.message);
+      } finally {
+        overlay.style.display = "none";
+      }
+    };
+  </script>
+</body>
+  </html>
