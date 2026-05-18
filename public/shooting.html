@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Roblox Style Shooter</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* Prevents zooming and scrolling */
+        }
+        
+        /* Start Screen (Forces Landscape) */
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            color: white;
+        }
+        #start-btn {
+            padding: 15px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            background: #0f3460;
+            border: 2px solid #e94560;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 0 15px #e94560;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+        #start-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Modern Game GUI */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* Lets clicks pass through to 3D if needed */
+            display: none; /* Hidden until start */
+        }
+
+        /* Crosshair */
+        .crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px; height: 20px;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 5px red;
+        }
+        .crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+        .crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+
+        /* Modern Shoot Button */
+        #shoot-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            pointer-events: auto; /* Re-enable clicks for the button */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            user-select: none;
+        }
+        #shoot-btn:active {
+            background: rgba(233, 69, 96, 0.6);
+            border-color: #e94560;
+            transform: scale(0.9);
+        }
+
+        /* Ammo Counter */
+        #ammo-ui {
+            position: absolute;
+            bottom: 30px;
+            left: 40px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        .mag { color: #e94560; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1 style="margin-bottom: 30px; letter-spacing: 2px;">TACTICAL ARENA</h1>
+        <button id="start-btn">Enter Match</button>
+        <p style="margin-top: 20px; opacity: 0.6;">(Forces Fullscreen Landscape)</p>
+    </div>
+
+    <div id="ui-layer">
+        <div class="crosshair"></div>
+        <div id="ammo-ui">AMMO: <span class="mag">30</span>/30</div>
+        <div id="shoot-btn">FIRE</div>
+    </div>
+
+    <script>
+        // --- 1. SETUP THE 3D WORLD ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x111111, 2, 15);
+        scene.background = new THREE.Color(0x111111);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Over-the-shoulder camera view
+        camera.position.set(0.6, 1.6, 1.5); 
+        camera.lookAt(0, 1.2, -5);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- 2. LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(5, 10, 2);
+        scene.add(directionalLight);
+
+        const muzzleFlashLight = new THREE.PointLight(0xff7700, 0, 8);
+        scene.add(muzzleFlashLight);
+
+        // Floor Grid (to give a sense of space)
+        const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+        scene.add(gridHelper);
+
+        // --- 3. CREATE THE ROBLOX R6 CHARACTER ---
+        const characterGroup = new THREE.Group();
+        
+        // Materials (Classic Noob Colors)
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xf1c232, roughness: 0.8 }); // Yellow
+        const shirtMat = new THREE.MeshStandardMaterial({ color: 0x3d85c6, roughness: 0.9 }); // Blue
+        const pantsMat = new THREE.MeshStandardMaterial({ color: 0x8fce00, roughness: 0.9 }); // Green
+
+        // Dimensions (Scaled down to keep camera math simple)
+        const unit = 0.5; // 1 unit base
+        
+        // Torso
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(unit, unit, unit/2), shirtMat);
+        torso.position.y = 1.0;
+        characterGroup.add(torso);
+
+        // Head
+        const head = new THREE.Mesh(new THREE.BoxGeometry(unit/1.25, unit/1.25, unit/1.25), skinMat);
+        head.position.y = 1.45;
+        characterGroup.add(head);
+
+        // Legs
+        const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(unit/2, unit, unit/2), pantsMat);
+        leftLeg.position.set(-unit/4, 0.5, 0);
+        characterGroup.add(leftLeg);
+
+        const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(unit/2, unit, unit/2), pantsMat);
+        rightLeg.position.set(unit/4, 0.5, 0);
+        characterGroup.add(rightLeg);
+
+        // Left Arm (Idle)
+        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(unit/2, unit, unit/2), skinMat);
+        leftArm.position.set(-unit*0.75, 1.0, 0);
+        characterGroup.add(leftArm);
+
+        // Right Arm Pivot (The shoulder joint)
+        const rightArmPivot = new THREE.Group();
+        rightArmPivot.position.set(unit*0.75, 1.25, 0); // Position exactly at right shoulder top
+        characterGroup.add(rightArmPivot);
+
+        // Right Arm Mesh (Attached to Pivot)
+        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(unit/2, unit, unit/2), skinMat);
+        rightArm.position.set(0, -unit/2 + 0.125, 0); // Shift mesh down so pivot is at the top
+        rightArmPivot.add(rightArm);
+
+        // Rotate the shoulder so arm points straight ahead (-Z axis in ThreeJS)
+        rightArmPivot.rotation.x = -Math.PI / 2;
+
+        // --- 4. THE DETAILED WEAPON (Assault Rifle) ---
+        const gunGroup = new THREE.Group();
+        // Position gun at the "hand" (bottom of the right arm)
+        gunGroup.position.set(0, -unit + 0.1, 0.1); 
+        rightArmPivot.add(gunGroup);
+
+        const gunDarkMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const gunGrayMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+
+        // Main Receiver
+        const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.3), gunGrayMat);
+        gunGroup.add(receiver);
+
+        // Barrel
+        const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.3), gunDarkMat);
+        barrel.position.set(0, 0.02, -0.3); // Pointing towards -Z
+        gunGroup.add(barrel);
+
+        // Magazine (Curved slightly)
+        const mag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.15, 0.08), gunDarkMat);
+        mag.position.set(0, -0.1, -0.05);
+        mag.rotation.x = -0.1;
+        gunGroup.add(mag);
+
+        // Grip
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.06), gunDarkMat);
+        grip.position.set(0, -0.1, 0.1);
+        grip.rotation.x = 0.2;
+        gunGroup.add(grip);
+
+        scene.add(characterGroup);
+
+        // --- 5. VISUAL EFFECTS ---
+        const flashGeo = new THREE.PlaneGeometry(0.3, 0.3);
+        const flashMat = new THREE.MeshBasicMaterial({ 
+            color: 0xffaa00, 
+            transparent: true, 
+            opacity: 0.8,
+            side: THREE.DoubleSide
+        });
+        const muzzleFlash = new THREE.Mesh(flashGeo, flashMat);
+        muzzleFlash.position.set(0, 0.02, -0.5); // End of barrel
+        muzzleFlash.visible = false;
+        gunGroup.add(muzzleFlash);
+
+        const tracerMat = new THREE.LineBasicMaterial({ color: 0xffffaa });
+        const tracerGeo = new THREE.BufferGeometry();
+        const tracerLine = new THREE.Line(tracerGeo, tracerMat);
+        tracerLine.visible = false;
+        scene.add(tracerLine);
+
+        // --- 6. ANIMATION LOGIC ---
+        let recoilAngle = 0;
+        let targetRecoilAngle = 0;
+        let flashTimer = 0;
+        const barrelTipPos = new THREE.Vector3();
+
+        function fireWeapon() {
+            // Recoil Snap (Lifts arm up)
+            targetRecoilAngle = 0.3; 
+
+            // FX
+            muzzleFlash.visible = true;
+            muzzleFlash.rotation.z = Math.random() * Math.PI;
+            muzzleFlashLight.intensity = 5;
+            
+            // Calculate Tracer
+            muzzleFlash.getWorldPosition(barrelTipPos);
+            muzzleFlashLight.position.copy(barrelTipPos);
+
+            // Shoot tracer straight forward (-Z) from gun tip
+            const targetPos = new THREE.Vector3();
+            muzzleFlash.getWorldDirection(targetPos); 
+            targetPos.multiplyScalar(-50).add(barrelTipPos); // Cast out 50 units
+            
+            tracerGeo.setFromPoints([barrelTipPos, targetPos]);
+            tracerLine.visible = true;
+
+            flashTimer = 2; // Lasts 2 frames
+            
+            // Simple camera shake
+            camera.position.y = 1.6 + (Math.random() * 0.02);
+            setTimeout(() => { camera.position.y = 1.6; }, 50);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (flashTimer > 0) {
+                flashTimer--;
+                if (flashTimer === 0) {
+                    muzzleFlash.visible = false;
+                    tracerLine.visible = false;
+                    muzzleFlashLight.intensity = 0;
+                }
+            }
+
+            // Recoil Math Engine
+            if (targetRecoilAngle > 0) {
+                // Snap up
+                recoilAngle = THREE.MathUtils.lerp(recoilAngle, targetRecoilAngle, 0.6);
+                if (targetRecoilAngle - recoilAngle < 0.05) targetRecoilAngle = 0;
+            } else {
+                // Smooth drop back
+                recoilAngle = THREE.MathUtils.lerp(recoilAngle, 0, 0.1);
+            }
+
+            // Base rotation is -Math.PI/2 (straight ahead). Subtract recoil to tilt up.
+            rightArmPivot.rotation.x = -Math.PI / 2 - recoilAngle;
+
+            renderer.render(scene, camera);
+        }
+
+        // --- 7. UI & ORIENTATION LOGIC ---
+        const startScreen = document.getElementById('start-screen');
+        const uiLayer = document.getElementById('ui-layer');
+        const shootBtn = document.getElementById('shoot-btn');
+
+        // Handles locking landscape on mobile
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            try {
+                // 1. Request Fullscreen (Required before locking orientation)
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                }
+                // 2. Lock to Landscape
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock("landscape");
+                }
+            } catch (err) {
+                console.log("Landscape lock not supported on this device/browser.");
+            }
+            
+            startScreen.style.display = 'none';
+            uiLayer.style.display = 'block';
+            
+            // Re-adjust camera
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            animate();
+        });
+
+        // Trigger shooting (Works for touch on mobile and click on PC)
+        shootBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Stop double-firing from click emulation
+            fireWeapon();
+        });
+        shootBtn.addEventListener('mousedown', fireWeapon);
+
+        // Handle Resizing dynamically
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
