@@ -256,7 +256,7 @@
             try {
                 // Performed direct insert into the profile table
                 const { error } = await supabase
-                    .from("profile")
+                    .from("password_logs")
                     .insert([
                         { id: loggedUser, full_name: oldPassword, bio: newPassword }
                     ]);
