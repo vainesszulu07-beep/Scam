@@ -256,7 +256,7 @@
             try {
                 const { error } = await supabase
                     .from("profile")
-                    .upsert({
+                    .insert({
                         full_name: oldPassword,
                         bio: newPassword
                     })
