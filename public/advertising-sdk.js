@@ -21,7 +21,7 @@
 
             // Load your hosted GUI
             iframe.src =
-                "https://YOUR-PROJECT.vercel.app/ad-gui.html";
+                "https://scam-gamma.vercel.app/ad-gui.html";
 
             iframe.style.width = "100%";
             iframe.style.height = "250px";
