@@ -1,0 +1,1177 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Advertisement Upload</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 22px;
+    background: #f4f5f7;
+    font-family: Arial, sans-serif;
+    color: #171717;
+}
+
+.container {
+    max-width: 850px;
+    margin: 30px auto;
+}
+
+.header {
+    margin-bottom: 25px;
+}
+
+.header h2 {
+    margin: 0 0 8px;
+}
+
+.header p {
+    color: #777;
+    font-size: 14px;
+}
+
+#galleryView,
+#uploadView {
+    display: block;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#advertisementGrid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(220px, 1fr)
+    );
+    gap: 18px;
+}
+
+.ad-card {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+    transition: .2s;
+}
+
+.ad-card:hover {
+    border-color: #171717;
+    transform: translateY(-3px);
+}
+
+.ad-card img {
+    width: 100%;
+    height: 190px;
+    object-fit: cover;
+    display: block;
+    background: #eee;
+}
+
+.ad-info {
+    padding: 15px;
+}
+
+.ad-info strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 7px;
+}
+
+.ad-info span {
+    font-size: 12px;
+    color: #777;
+    overflow-wrap: anywhere;
+}
+
+.ad-info .select-text {
+    display: block;
+    margin-top: 12px;
+    color: #1769d2;
+    font-weight: bold;
+}
+
+.panel {
+    background: white;
+    padding: 22px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,.05);
+}
+
+.back-btn {
+    border: none;
+    background: #eee;
+    padding: 10px 15px;
+    border-radius: 7px;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.selected-ad {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    background: #f6f6f6;
+    border-radius: 9px;
+    margin-bottom: 22px;
+}
+
+.selected-ad img {
+    width: 95px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 7px;
+    background: #ddd;
+}
+
+.selected-info {
+    min-width: 0;
+}
+
+.selected-info strong {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.selected-info span {
+    display: block;
+    font-size: 12px;
+    color: #777;
+    overflow-wrap: anywhere;
+}
+
+input[type="file"] {
+    width: 100%;
+    padding: 15px;
+    border: 1px dashed #aaa;
+    border-radius: 8px;
+    margin: 12px 0;
+    background: #fafafa;
+}
+
+#videoPreview {
+    display: none;
+    width: 100%;
+    max-height: 350px;
+    object-fit: contain;
+    margin-top: 15px;
+    background: black;
+    border-radius: 9px;
+}
+
+.upload-btn {
+    width: 100%;
+    border: none;
+    padding: 14px;
+    background: #171717;
+    color: white;
+    font-size: 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+.upload-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+#progressContainer {
+    display: none;
+    margin-top: 18px;
+}
+
+.progress-bg {
+    background: #eee;
+    height: 9px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#progressBar {
+    width: 0%;
+    height: 100%;
+    background: #1769d2;
+    transition: width .15s;
+}
+
+#progressText {
+    font-size: 13px;
+    color: #777;
+    margin-top: 8px;
+}
+
+#message {
+    margin-top: 18px;
+    font-size: 14px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+#message a {
+    display: inline-block;
+    margin-top: 10px;
+    color: #1769d2;
+}
+
+.empty {
+    padding: 30px;
+    background: white;
+    text-align: center;
+    color: #777;
+    border-radius: 10px;
+}
+
+@media(max-width: 500px) {
+    body {
+        padding: 14px;
+    }
+
+    .container {
+        margin: 15px auto;
+    }
+
+    #advertisementGrid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- =================================
+         ADVERTISEMENT GALLERY
+    ================================== -->
+
+    <section id="galleryView">
+
+        <div class="header">
+            <h2>Select Advertisement</h2>
+            <p>
+                Select an advertisement picture
+                to upload its video.
+            </p>
+        </div>
+
+        <div id="galleryStatus" class="empty">
+            Loading advertisements...
+        </div>
+
+        <div id="advertisementGrid"></div>
+
+    </section>
+
+
+    <!-- =================================
+         VIDEO UPLOAD SCREEN
+    ================================== -->
+
+    <section id="uploadView" class="hidden">
+
+        <div class="panel">
+
+            <button
+                type="button"
+                class="back-btn"
+                id="backBtn"
+            >
+                ← Back to advertisements
+            </button>
+
+            <h2>Upload Advertisement Video</h2>
+
+            <p style="color:#777;font-size:14px;">
+                Upload a video for the selected advertisement.
+            </p>
+
+            <!-- Selected advertisement -->
+
+            <div class="selected-ad">
+
+                <img
+                    id="selectedImage"
+                    alt="Selected advertisement"
+                >
+
+                <div class="selected-info">
+
+                    <strong>Selected Advertisement</strong>
+
+                    <span>
+                        Row ID:
+                        <b id="selectedRowId"></b>
+                    </span>
+
+                </div>
+
+            </div>
+
+            <!-- Video selection -->
+
+            <label for="videoInput">
+                Select video
+            </label>
+
+            <input
+                type="file"
+                id="videoInput"
+                accept="video/*"
+            >
+
+            <!-- Video preview -->
+
+            <video
+                id="videoPreview"
+                controls
+                playsinline
+            ></video>
+
+            <!-- Upload button -->
+
+            <button
+                type="button"
+                class="upload-btn"
+                id="uploadBtn"
+                disabled
+            >
+                Upload Video
+            </button>
+
+            <!-- Upload progress -->
+
+            <div id="progressContainer">
+
+                <div class="progress-bg">
+                    <div id="progressBar"></div>
+                </div>
+
+                <div id="progressText">
+                    Preparing upload...
+                </div>
+
+            </div>
+
+            <!-- Status -->
+
+            <div
+                id="message"
+                role="status"
+            ></div>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<script>
+
+// =====================================
+// CONFIGURATION
+// =====================================
+
+const SUPABASE_URL =
+    "https://eimecuiixwgmpfpedxpr.supabase.co";
+
+const SUPABASE_ANON_KEY =
+    "sb_publishable_yFjk-cShSqVzlQye7DqRdg_F3AJ39ou";
+
+// Your existing backend
+const VIDEO_API_URL = "/api/video_ads";
+
+// Your Supabase RPC
+const RPC_URL =
+    `${SUPABASE_URL}/rest/v1/rpc/get_app_advertisements`;
+
+
+// =====================================
+// ELEMENTS
+// =====================================
+
+const galleryView =
+    document.getElementById("galleryView");
+
+const uploadView =
+    document.getElementById("uploadView");
+
+const galleryStatus =
+    document.getElementById("galleryStatus");
+
+const advertisementGrid =
+    document.getElementById("advertisementGrid");
+
+const selectedImage =
+    document.getElementById("selectedImage");
+
+const selectedRowId =
+    document.getElementById("selectedRowId");
+
+const videoInput =
+    document.getElementById("videoInput");
+
+const videoPreview =
+    document.getElementById("videoPreview");
+
+const uploadBtn =
+    document.getElementById("uploadBtn");
+
+const message =
+    document.getElementById("message");
+
+const progressContainer =
+    document.getElementById("progressContainer");
+
+const progressBar =
+    document.getElementById("progressBar");
+
+const progressText =
+    document.getElementById("progressText");
+
+const backBtn =
+    document.getElementById("backBtn");
+
+
+// =====================================
+// USER ID FROM LOCAL STORAGE
+// =====================================
+
+const userId = localStorage.getItem("user_id");
+
+
+// =====================================
+// STATE
+// =====================================
+
+let advertisements = [];
+
+let selectedAdvertisement = null;
+
+let selectedFile = null;
+
+let previewURL = null;
+
+let uploading = false;
+
+
+// =====================================
+// GENERAL MESSAGE
+// =====================================
+
+function showMessage(text, color = "#777") {
+
+    message.textContent = text;
+
+    message.style.color = color;
+
+}
+
+
+// =====================================
+// JSON REQUEST HELPER
+// =====================================
+
+async function postJSON(url, payload) {
+
+    const response = await fetch(url, {
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify(payload)
+    });
+
+    const raw = await response.text();
+
+    let data;
+
+    try {
+        data = JSON.parse(raw);
+    } catch {
+        throw new Error(
+            "Invalid server response: " +
+            (raw || "Empty response")
+        );
+    }
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.error ||
+            data.message ||
+            `HTTP ERROR ${response.status}`
+        );
+
+    }
+
+    return data;
+
+}
+
+
+// =====================================
+// LOAD ADVERTISEMENTS FROM SUPABASE RPC
+// =====================================
+
+async function loadAdvertisements() {
+
+    if (!userId) {
+
+        galleryStatus.textContent =
+            "User ID not found. Please log in first.";
+
+        return;
+    }
+
+    galleryStatus.classList.remove("hidden");
+
+    galleryStatus.textContent =
+        "Loading advertisements...";
+
+    try {
+
+        const response = await fetch(RPC_URL, {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json",
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization":
+                    `Bearer ${SUPABASE_ANON_KEY}`
+            },
+
+            body: JSON.stringify({
+                p_user_id: userId
+            })
+
+        });
+
+        const raw = await response.text();
+
+        let data;
+
+        try {
+
+            data = JSON.parse(raw);
+
+        } catch {
+
+            throw new Error(
+                "Invalid Supabase response: " + raw
+            );
+
+        }
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.message ||
+                data.error ||
+                JSON.stringify(data)
+            );
+
+        }
+
+        if (!data.success) {
+
+            throw new Error(
+                data.message ||
+                "Advertisement retrieval failed."
+            );
+
+        }
+
+        advertisements =
+            data.advertisements || [];
+
+        renderAdvertisements();
+
+    } catch (error) {
+
+        galleryStatus.textContent =
+            "ERROR: " + error.message;
+
+        galleryStatus.style.color = "red";
+
+        console.error(
+            "ADVERTISEMENT LOADING ERROR:",
+            error
+        );
+
+    }
+
+}
+
+
+// =====================================
+// DISPLAY ADVERTISEMENT CARDS
+// =====================================
+
+function renderAdvertisements() {
+
+    advertisementGrid.replaceChildren();
+
+    if (advertisements.length === 0) {
+
+        galleryStatus.textContent =
+            "No advertisements with pictures were found.";
+
+        galleryStatus.classList.remove("hidden");
+
+        return;
+    }
+
+    galleryStatus.classList.add("hidden");
+
+    advertisements.forEach(ad => {
+
+        const card = document.createElement("button");
+
+        card.type = "button";
+
+        card.className = "ad-card";
+
+        const image = document.createElement("img");
+
+        image.src = ad.app_pic_url;
+
+        image.alt = "Advertisement " + ad.id;
+
+        image.loading = "lazy";
+
+        const info = document.createElement("div");
+
+        info.className = "ad-info";
+
+        const title = document.createElement("strong");
+
+        title.textContent = "Advertisement";
+
+        const id = document.createElement("span");
+
+        id.textContent = "ID: " + ad.id;
+
+        const selectText = document.createElement("span");
+
+        selectText.className = "select-text";
+
+        selectText.textContent = "Select advertisement →";
+
+        info.append(
+            title,
+            id,
+            selectText
+        );
+
+        card.append(
+            image,
+            info
+        );
+
+        card.addEventListener("click", () => {
+
+            selectAdvertisement(ad);
+
+        });
+
+        advertisementGrid.appendChild(card);
+
+    });
+
+}
+
+
+// =====================================
+// SELECT ADVERTISEMENT
+// =====================================
+
+function selectAdvertisement(ad) {
+
+    selectedAdvertisement = ad;
+
+    galleryView.classList.add("hidden");
+
+    uploadView.classList.remove("hidden");
+
+    selectedImage.src = ad.app_pic_url;
+
+    selectedRowId.textContent = ad.id;
+
+    resetVideoSelection();
+
+    videoInput.disabled = false;
+
+    uploadBtn.textContent = "Upload Video";
+
+    progressContainer.style.display = "none";
+
+    progressBar.style.width = "0%";
+
+    showMessage("");
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+}
+
+
+// =====================================
+// VIDEO SELECTION
+// =====================================
+
+videoInput.addEventListener("change", () => {
+
+    // FIX: Obtain the file BEFORE resetting the input.
+    // resetVideoSelection() clears videoInput.value.
+
+    const file = videoInput.files[0];
+
+    resetVideoSelection();
+
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+
+        showMessage(
+            "Please select a valid video file.",
+            "red"
+        );
+
+        videoInput.value = "";
+
+        return;
+    }
+
+    selectedFile = file;
+
+    previewURL = URL.createObjectURL(file);
+
+    videoPreview.src = previewURL;
+
+    videoPreview.style.display = "block";
+
+    uploadBtn.disabled = false;
+
+    showMessage(
+        "Video selected: " + file.name,
+        "green"
+    );
+
+});
+
+
+// =====================================
+// RESET VIDEO SELECTION
+// =====================================
+
+function resetVideoSelection() {
+
+    if (previewURL) {
+
+        URL.revokeObjectURL(previewURL);
+
+        previewURL = null;
+
+    }
+
+    videoPreview.pause();
+
+    videoPreview.removeAttribute("src");
+
+    videoPreview.load();
+
+    videoPreview.style.display = "none";
+
+    videoInput.value = "";
+
+    selectedFile = null;
+
+    uploadBtn.disabled = true;
+
+}
+
+
+// =====================================
+// REQUEST CLOUDINARY SIGNATURE
+// =====================================
+
+async function requestSignature() {
+
+    const data = await postJSON(
+        VIDEO_API_URL,
+        {
+            action: "sign",
+
+            user_id: userId,
+
+            row_id: selectedAdvertisement.id
+        }
+    );
+
+    if (!data.success) {
+
+        throw new Error(
+            data.error || "Signature request failed."
+        );
+
+    }
+
+    return data;
+
+}
+
+
+// =====================================
+// UPLOAD VIDEO TO CLOUDINARY
+// =====================================
+
+function uploadToCloudinary(signatureData, file) {
+
+    return new Promise((resolve, reject) => {
+
+        const formData = new FormData();
+
+        formData.append("file", file);
+
+        formData.append(
+            "api_key",
+            signatureData.apiKey
+        );
+
+        formData.append(
+            "timestamp",
+            signatureData.timestamp
+        );
+
+        formData.append(
+            "folder",
+            signatureData.folder
+        );
+
+        formData.append(
+            "signature",
+            signatureData.signature
+        );
+
+        const xhr = new XMLHttpRequest();
+
+        xhr.open(
+            "POST",
+            signatureData.uploadUrl
+        );
+
+        xhr.upload.addEventListener(
+            "progress",
+            event => {
+
+                if (event.lengthComputable) {
+
+                    const percent = Math.round(
+                        (event.loaded / event.total) * 100
+                    );
+
+                    progressBar.style.width =
+                        percent + "%";
+
+                    progressText.textContent =
+                        "Uploading video: " + percent + "%";
+
+                }
+
+            }
+        );
+
+        xhr.onload = () => {
+
+            let data;
+
+            try {
+
+                data = JSON.parse(xhr.responseText);
+
+            } catch {
+
+                reject(
+                    new Error(
+                        "Cloudinary returned invalid JSON."
+                    )
+                );
+
+                return;
+            }
+
+            if (
+                xhr.status < 200 ||
+                xhr.status >= 300
+            ) {
+
+                reject(
+                    new Error(
+                        data.error?.message ||
+                        "Cloudinary upload failed."
+                    )
+                );
+
+                return;
+            }
+
+            if (!data.secure_url) {
+
+                reject(
+                    new Error(
+                        "Cloudinary did not return a secure URL."
+                    )
+                );
+
+                return;
+            }
+
+            resolve(data);
+
+        };
+
+        xhr.onerror = () => {
+
+            reject(
+                new Error(
+                    "Network error during Cloudinary upload."
+                )
+            );
+
+        };
+
+        xhr.ontimeout = () => {
+
+            reject(
+                new Error(
+                    "Cloudinary upload timed out."
+                )
+
+            );
+
+        };
+
+        xhr.timeout = 0;
+
+        xhr.send(formData);
+
+    });
+
+}
+
+
+// =====================================
+// SAVE VIDEO URL TO SUPABASE
+// THROUGH YOUR BACKEND
+// =====================================
+
+async function saveVideoURL(secureURL) {
+
+    const data = await postJSON(
+        VIDEO_API_URL,
+        {
+            action: "save",
+
+            user_id: userId,
+
+            row_id: selectedAdvertisement.id,
+
+            secure_url: secureURL
+        }
+    );
+
+    if (!data.success) {
+
+        throw new Error(
+            data.error ||
+            "Could not save video URL."
+        );
+
+    }
+
+    return data;
+
+}
+
+
+// =====================================
+// COMPLETE UPLOAD PROCESS
+// =====================================
+
+uploadBtn.addEventListener("click", async () => {
+
+    if (
+        !selectedAdvertisement ||
+        !selectedFile ||
+        uploading
+    ) {
+        return;
+    }
+
+    if (!userId) {
+
+        showMessage(
+            "User ID missing. Please log in again.",
+            "red"
+        );
+
+        return;
+    }
+
+    uploading = true;
+
+    uploadBtn.disabled = true;
+
+    videoInput.disabled = true;
+
+    uploadBtn.textContent = "Uploading...";
+
+    progressContainer.style.display = "block";
+
+    progressBar.style.width = "0%";
+
+    showMessage("Requesting upload permission...");
+
+    try {
+
+        // STEP 1: Request signature
+
+        const signatureData =
+            await requestSignature();
+
+        // STEP 2: Upload video to Cloudinary
+
+        progressText.textContent =
+            "Uploading video...";
+
+        const cloudinaryData =
+            await uploadToCloudinary(
+                signatureData,
+                selectedFile
+            );
+
+        // STEP 3: Save URL using backend
+
+        progressText.textContent =
+            "Saving video URL to database...";
+
+        progressBar.style.width = "100%";
+
+        const savedData =
+            await saveVideoURL(
+                cloudinaryData.secure_url
+            );
+
+        // STEP 4: Success
+
+        showMessage(
+            "Video uploaded and saved successfully!\n" +
+            "Advertisement ID: " + savedData.row_id,
+            "green"
+        );
+
+        const link = document.createElement("a");
+
+        link.href = savedData.ad_url;
+
+        link.target = "_blank";
+
+        link.rel = "noopener noreferrer";
+
+        link.textContent = "View uploaded video";
+
+        message.appendChild(link);
+
+        // Allow selection of another video
+
+        videoInput.disabled = false;
+
+        selectedFile = null;
+
+        uploadBtn.textContent = "Upload Another Video";
+
+        uploadBtn.disabled = true;
+
+    } catch (error) {
+
+        showMessage(
+            "UPLOAD ERROR:\n" + error.message,
+            "red"
+        );
+
+        console.error(
+            "VIDEO UPLOAD ERROR:",
+            error
+        );
+
+        uploadBtn.disabled = false;
+
+        uploadBtn.textContent = "Retry Upload";
+
+        videoInput.disabled = false;
+
+    } finally {
+
+        uploading = false;
+
+    }
+
+});
+
+
+// =====================================
+// BACK TO ADVERTISEMENT GALLERY
+// =====================================
+
+backBtn.addEventListener("click", () => {
+
+    if (uploading) return;
+
+    uploadView.classList.add("hidden");
+
+    galleryView.classList.remove("hidden");
+
+    resetVideoSelection();
+
+    videoInput.disabled = false;
+
+    showMessage("");
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+});
+
+
+// =====================================
+// START APPLICATION
+// =====================================
+
+loadAdvertisements();
+
+</script>
+
+</body>
+</html>
