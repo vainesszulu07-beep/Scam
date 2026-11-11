@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Backend Diagnostics</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  background: #101318;
+  color: #fff;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 650px;
+  margin: 40px auto;
+  background: #1b2028;
+  padding: 22px;
+  border-radius: 12px;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+p {
+  color: #aab2bf;
+  font-size: 14px;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  background: #2878ff;
+  border: none;
+  border-radius: 7px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: .5;
+}
+
+.status {
+  margin: 18px 0 10px;
+  font-size: 13px;
+  color: #aab2bf;
+}
+
+pre {
+  background: #080b10;
+  color: #b9f6ca;
+  padding: 16px;
+  border-radius: 8px;
+  min-height: 200px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.copy {
+  background: #343c49;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>Backend Diagnostics</h2>
+
+  <p>
+    Test the partner verification connection and inspect
+    the complete raw backend response.
+  </p>
+
+  <button id="testBtn" onclick="testBackend()">
+    Run Diagnostics
+  </button>
+
+  <div class="status" id="status">
+    Ready to test.
+  </div>
+
+  <pre id="output">No response yet.</pre>
+
+  <button class="copy" onclick="copyOutput()">
+    Copy Raw Response
+  </button>
+
+</div>
+
+<script>
+
+async function testBackend() {
+
+  const button = document.getElementById("testBtn");
+  const status = document.getElementById("status");
+  const output = document.getElementById("output");
+
+  button.disabled = true;
+  button.textContent = "Testing...";
+  status.textContent = "Sending request to backend...";
+
+  output.textContent = "Waiting for response...";
+
+  try {
+
+    const response = await fetch("/api/check-ad-network", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({})
+    });
+
+    // Read the exact response text without JSON conversion
+    const rawText = await response.text();
+
+    status.textContent =
+      "HTTP Status: " + response.status +
+      " | " + response.statusText +
+      " | Content-Type: " +
+      (response.headers.get("content-type") || "Unknown");
+
+    output.textContent = rawText || "(Empty response body)";
+
+  } catch (error) {
+
+    status.textContent = "REQUEST FAILED";
+
+    output.textContent =
+      "FRONTEND / NETWORK ERROR\n\n" +
+      error.name + ": " + error.message;
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent = "Run Diagnostics";
+
+  }
+}
+
+async function copyOutput() {
+
+  const output = document.getElementById("output").textContent;
+
+  try {
+    await navigator.clipboard.writeText(output);
+    document.getElementById("status").textContent =
+      "Response copied.";
+  } catch {
+    document.getElementById("status").textContent =
+      "Could not copy. Select the response manually.";
+  }
+
+}
+
+</script>
+
+</body>
+</html>
