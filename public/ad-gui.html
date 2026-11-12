@@ -1,0 +1,503 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Advertising Platform</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 10px;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  color: #202124;
+}
+
+.ad-card {
+  width: 100%;
+  max-width: 500px;
+  margin: auto;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e3e5e8;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.ad-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ad-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.ad-logo {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background: #1769ff;
+  color: white;
+  font-weight: bold;
+}
+
+.sponsored {
+  color: #777;
+  font-size: 11px;
+  border: 1px solid #ddd;
+  padding: 4px 7px;
+  border-radius: 4px;
+}
+
+.video-wrap {
+  width: 100%;
+  background: #111;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+video {
+  display: block;
+  width: 100%;
+  max-height: 230px;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+
+.end-card {
+  display: none;
+  text-align: center;
+}
+
+.end-card img {
+  display: block;
+  width: 100%;
+  max-height: 175px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.end-card h3 {
+  margin: 8px 0;
+  font-size: 17px;
+}
+
+.end-card p {
+  margin: 5px 0 12px;
+  font-size: 13px;
+  color: #777;
+}
+
+.visit-button {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  background: #1769ff;
+  color: white;
+  border-radius: 7px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.visit-button:hover {
+  background: #1254cc;
+}
+
+.message {
+  padding: 20px 10px;
+  text-align: center;
+  font-size: 13px;
+  color: #777;
+}
+
+[hidden] {
+  display: none !important;
+}
+</style>
+</head>
+
+<body>
+
+<div class="ad-card">
+
+  <div class="ad-header">
+    <div class="ad-brand">
+      <div class="ad-logo">A</div>
+      <span>Advertisement</span>
+    </div>
+
+    <span class="sponsored">Sponsored</span>
+  </div>
+
+  <!-- VIDEO -->
+  <div class="video-wrap" id="videoWrap" hidden>
+
+    <video
+      id="adVideo"
+      controls
+      muted
+      autoplay
+      playsinline
+      preload="auto">
+    </video>
+
+  </div>
+
+  <!-- END CARD -->
+  <div class="end-card" id="endCard" hidden>
+
+    <img
+      id="adPicture"
+      alt="Advertised product">
+
+    <h3>Discover More</h3>
+
+    <p>Learn more about this offer.</p>
+
+    <a
+      id="visitButton"
+      class="visit-button"
+      href="#"
+      target="_blank"
+      rel="noopener noreferrer">
+      Visit Now
+    </a>
+
+  </div>
+
+  <!-- STATUS -->
+  <div class="message" id="statusMessage">
+    Connecting to advertising network...
+  </div>
+
+</div>
+
+
+<script>
+(function () {
+
+  let initialized = false;
+  let parentOrigin = null;
+
+  const statusMessage =
+    document.getElementById("statusMessage");
+
+  const video = document.getElementById("adVideo");
+
+  const videoWrap =
+    document.getElementById("videoWrap");
+
+  const endCard =
+    document.getElementById("endCard");
+
+  const adPicture =
+    document.getElementById("adPicture");
+
+  const visitButton =
+    document.getElementById("visitButton");
+
+
+  // Send status back to the SDK
+  function sendStatus(status, message) {
+
+    if (!parentOrigin) return;
+
+    window.parent.postMessage(
+      {
+        type: "AD_NETWORK_STATUS",
+        status: status,
+        message: message
+      },
+      parentOrigin
+    );
+  }
+
+
+  // Accept only HTTPS URLs from the database
+  function safeHttpsUrl(value) {
+
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    try {
+
+      const url = new URL(value);
+
+      if (url.protocol !== "https:") {
+        return null;
+      }
+
+      return url.href;
+
+    } catch {
+      return null;
+    }
+  }
+
+
+  function showError(message) {
+
+    video.pause();
+
+    videoWrap.hidden = true;
+    endCard.hidden = true;
+
+    statusMessage.hidden = false;
+    statusMessage.textContent = message;
+
+    sendStatus("error", message);
+  }
+
+
+  // STEP 1: Verify credentials again
+  async function verifyAndLoad(token_id, subid) {
+
+    try {
+
+      statusMessage.textContent =
+        "Verifying advertising session...";
+
+      const verifyResponse = await fetch(
+        "/api/verify-token",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            token_id: token_id,
+            subid: subid
+          }),
+          cache: "no-store",
+          credentials: "omit"
+        }
+      );
+
+      const verification =
+        await verifyResponse.json().catch(() => ({}));
+
+      if (
+        !verifyResponse.ok ||
+        verification.authorized !== true
+      ) {
+        throw new Error(
+          verification.message ||
+          "Advertising session verification failed."
+        );
+      }
+
+
+      // STEP 2: Request an advertisement.
+      // The server calls the Supabase RPC, which
+      // independently checks token_id, app_id and time.
+      statusMessage.textContent =
+        "Finding an advertisement...";
+
+      const adResponse = await fetch(
+        "/api/get-ad",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            token_id: token_id,
+            subid: subid
+          }),
+          cache: "no-store",
+          credentials: "omit"
+        }
+      );
+
+      const result =
+        await adResponse.json().catch(() => ({}));
+
+      if (
+        !adResponse.ok ||
+        result.authorized !== true ||
+        result.success !== true
+      ) {
+        throw new Error(
+          result.message ||
+          "Could not retrieve advertisement."
+        );
+      }
+
+
+      // STEP 3: Handle an empty ad inventory
+      if (!result.ad) {
+
+        statusMessage.textContent =
+          "No advertisements are currently available.";
+
+        sendStatus(
+          "no_ad",
+          "No advertisements are currently available."
+        );
+
+        return;
+      }
+
+
+      const ad = result.ad;
+
+      const videoUrl = safeHttpsUrl(ad.ad_url);
+      const imageUrl = safeHttpsUrl(ad.app_pic_url);
+      const appLink = safeHttpsUrl(ad.app_link);
+
+      if (!videoUrl || !imageUrl || !appLink) {
+        throw new Error(
+          "The advertisement contains an invalid URL."
+        );
+      }
+
+
+      // STEP 4: Prepare video and end card
+      adPicture.src = imageUrl;
+      visitButton.href = appLink;
+
+      video.src = videoUrl;
+      videoWrap.hidden = false;
+      endCard.hidden = true;
+      statusMessage.hidden = true;
+
+
+      // STEP 5: After video ends, show the image and button
+      video.addEventListener("ended", function () {
+
+        videoWrap.hidden = true;
+        endCard.hidden = false;
+
+      }, { once: true });
+
+
+      video.addEventListener("error", function () {
+
+        showError("The advertisement video could not be played.");
+
+      }, { once: true });
+
+
+      // STEP 6: Start muted video playback
+      video.load();
+
+      video.play().catch(() => {
+
+        // Browser may block autoplay.
+        // The user can start playback using the controls.
+        statusMessage.hidden = false;
+
+        statusMessage.textContent =
+          "Press play to watch this advertisement.";
+
+      });
+
+
+      sendStatus(
+        "loaded",
+        "Advertisement loaded successfully."
+      );
+
+    } catch (error) {
+
+      console.error(
+        "AD GUI ERROR:",
+        error.message
+      );
+
+      showError(error.message);
+    }
+  }
+
+
+  // STEP 7: Receive credentials from the SDK
+  window.addEventListener("message", function (event) {
+
+    // Only accept messages from the embedding page.
+    if (event.source !== window.parent) {
+      return;
+    }
+
+    const data = event.data;
+
+    if (
+      !data ||
+      typeof data !== "object" ||
+      data.type !== "AD_NETWORK_INIT"
+    ) {
+      return;
+    }
+
+    if (initialized) {
+      return;
+    }
+
+    const token_id =
+      typeof data.token_id === "string"
+        ? data.token_id.trim()
+        : "";
+
+    const subid =
+      typeof data.subid === "string"
+        ? data.subid.trim()
+        : "";
+
+    if (
+      !/^[a-f0-9]{64}$/i.test(token_id) ||
+      !/^[A-F0-9]{8}$/.test(subid)
+    ) {
+      parentOrigin = event.origin === "null"
+        ? "*"
+        : event.origin;
+
+      showError("Invalid advertising credentials.");
+
+      return;
+    }
+
+    initialized = true;
+
+    parentOrigin = event.origin === "null"
+      ? "*"
+      : event.origin;
+
+    verifyAndLoad(token_id, subid);
+
+  });
+
+
+  // Tell the SDK that the GUI is ready.
+  // This message contains no credentials.
+  window.parent.postMessage(
+    {
+      type: "AD_NETWORK_READY"
+    },
+    "*"
+  );
+
+})();
+</script>
+
+</body>
+</html>
