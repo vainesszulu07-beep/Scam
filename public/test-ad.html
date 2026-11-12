@@ -1,0 +1,279 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advertising API Tester</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 25px;
+  background: #f4f6f9;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  padding: 22px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 3px 15px #0001;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #1769ff;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled { opacity: .6; }
+
+pre {
+  padding: 15px;
+  background: #f1f3f5;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  margin: 15px 0;
+  color: #555;
+}
+
+video, img {
+  width: 100%;
+  margin-top: 12px;
+  border-radius: 8px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>Advertising Network Tester</h2>
+
+  <p>
+    Authenticate your application, obtain a valid
+    advertising session and retrieve an advertisement.
+  </p>
+
+  <button id="testButton">
+    Verify Application & Get Advertisement
+  </button>
+
+  <div class="status" id="status">Ready.</div>
+
+  <h3>Authentication Token</h3>
+  <pre id="token">Not generated</pre>
+
+  <h3>Verification Response</h3>
+  <pre id="verification">Waiting...</pre>
+
+  <h3>Get Ad Response</h3>
+  <pre id="response">Waiting...</pre>
+
+  <div id="ad"></div>
+
+</div>
+
+<script>
+"use strict";
+
+const button = document.getElementById("testButton");
+const statusBox = document.getElementById("status");
+const tokenBox = document.getElementById("token");
+const verificationBox = document.getElementById("verification");
+const responseBox = document.getElementById("response");
+const adBox = document.getElementById("ad");
+
+button.addEventListener("click", runTest);
+
+async function runTest() {
+
+  button.disabled = true;
+
+  tokenBox.textContent = "Waiting...";
+  verificationBox.textContent = "Waiting...";
+  responseBox.textContent = "Waiting...";
+  adBox.replaceChildren();
+
+  try {
+
+    // STEP 1: Authenticate the application
+    statusBox.textContent =
+      "Connecting to authentication server...";
+
+    const authResponse = await fetch(
+      "/api/check-ad-network.js",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({}),
+        cache: "no-store"
+      }
+    );
+
+    const authData = await authResponse.json().catch(() => ({}));
+
+    verificationBox.textContent =
+      JSON.stringify(authData, null, 2);
+
+    if (
+      !authResponse.ok ||
+      authData.success !== true ||
+      authData.authorized !== true
+    ) {
+      throw new Error(
+        authData.message ||
+        "Application authentication failed."
+      );
+    }
+
+    // STEP 2: Obtain the real generated token
+    const token_id =
+      typeof authData.token_id === "string"
+        ? authData.token_id.trim()
+        : "";
+
+    if (!/^[a-f0-9]{64}$/i.test(token_id)) {
+      throw new Error(
+        "Authentication server did not return a valid token."
+      );
+    }
+
+    tokenBox.textContent = token_id;
+
+    // STEP 3: Request an advertisement using the real token
+    statusBox.textContent =
+      "Application verified. Requesting advertisement...";
+
+    const adResponse = await fetch(
+      "/api/get-ad",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          token_id: token_id
+        }),
+        cache: "no-store"
+      }
+    );
+
+    const responseText = await adResponse.text();
+
+    let adData;
+
+    try {
+      adData = JSON.parse(responseText);
+    } catch {
+      adData = {
+        raw_response: responseText
+      };
+    }
+
+    responseBox.textContent =
+      JSON.stringify(adData, null, 2);
+
+    if (!adResponse.ok) {
+      throw new Error(
+        "Get-ad failed at " +
+        (adData.stage || "unknown stage") +
+        ": " +
+        (adData.reason || adData.message || "Unknown error")
+      );
+    }
+
+    if (
+      adData.success !== true ||
+      adData.authorized !== true
+    ) {
+      throw new Error(
+        adData.message || "Advertisement authorization failed."
+      );
+    }
+
+    // STEP 4: Check advertisement availability
+    if (!adData.ad) {
+      statusBox.textContent =
+        "Application verified. No advertisements available.";
+      return;
+    }
+
+    // STEP 5: Display advertisement
+    const ad = adData.ad;
+
+    const videoUrl = safeUrl(ad.ad_url);
+    const imageUrl = safeUrl(ad.app_pic_url);
+    const appLink = safeUrl(ad.app_link);
+
+    if (!videoUrl || !imageUrl || !appLink) {
+      throw new Error("Advertisement contains invalid URLs.");
+    }
+
+    const video = document.createElement("video");
+    video.src = videoUrl;
+    video.controls = true;
+    video.playsInline = true;
+
+    const image = document.createElement("img");
+    image.src = imageUrl;
+    image.alt = "Advertisement";
+
+    const link = document.createElement("a");
+    link.href = appLink;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Visit Advertiser";
+
+    adBox.append(video, image, link);
+
+    statusBox.textContent =
+      "Application verified and advertisement retrieved.";
+
+  } catch (error) {
+
+    statusBox.textContent = error.message;
+
+    console.error("ADVERTISING TEST ERROR:", error);
+
+  } finally {
+
+    button.disabled = false;
+
+  }
+}
+
+function safeUrl(value) {
+  try {
+    const url = new URL(value);
+
+    return url.protocol === "https:"
+      ? url.href
+      : null;
+
+  } catch {
+    return null;
+  }
+}
+</script>
+
+</body>
+</html>
