@@ -1,0 +1,361 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Ad Network Verification</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f4f6f9;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  width: 100%;
+  max-width: 600px;
+  padding: 25px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 5px 25px rgba(0,0,0,0.07);
+}
+
+h2 {
+  margin-top: 0;
+  color: #17202a;
+}
+
+p {
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #1769ff;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#result {
+  display: none;
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.success {
+  display: block !important;
+  background: #e9f9ef;
+  color: #137333;
+}
+
+.error {
+  display: block !important;
+  background: #fff0f0;
+  color: #c62828;
+}
+
+#adSection {
+  display: none;
+  margin-top: 25px;
+}
+
+#ad-container {
+  width: 100%;
+  min-height: 250px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+#ad-container iframe {
+  display: block;
+  width: 100%;
+  height: 250px;
+  border: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>Advertising Network</h2>
+
+  <p>
+    Verify your registered advertising network
+    and load your advertising content.
+  </p>
+
+  <button id="verifyBtn" onclick="verifyNetwork()">
+    Verify Network
+  </button>
+
+  <div id="result"></div>
+
+  <div id="adSection">
+    <h3>Advertising Content</h3>
+    <div id="ad-container"></div>
+  </div>
+
+</div>
+
+
+<!-- ADVERTISING SDK -->
+<script>
+(function (window) {
+
+  const AD_NETWORK_ORIGIN =
+    "https://scam-gamma.vercel.app";
+
+  const AdvertisingSDK = {
+
+    init: async function (options = {}) {
+
+      const container =
+        typeof options.container === "string"
+          ? document.querySelector(options.container)
+          : null;
+
+      if (!container) {
+        return {
+          success: false,
+          message: "Advertising container not found."
+        };
+      }
+
+      // STEP 1: Get token and subid
+      const token_id =
+        typeof options.token_id === "string"
+          ? options.token_id.trim()
+          : "";
+
+      const subid =
+        typeof options.subid === "string"
+          ? options.subid.trim()
+          : "";
+
+      // STEP 2: Validate credentials
+      if (!/^[a-f0-9]{64}$/i.test(token_id)) {
+        return {
+          success: false,
+          message: "Invalid authentication token."
+        };
+      }
+
+      if (!/^[A-F0-9]{8}$/.test(subid)) {
+        return {
+          success: false,
+          message: "Invalid application subid."
+        };
+      }
+
+      try {
+
+        // STEP 3: Verify BOTH credentials
+        const response = await fetch(
+          AD_NETWORK_ORIGIN + "/api/verify-token",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              token_id: token_id,
+              subid: subid
+            }),
+            cache: "no-store",
+            credentials: "omit"
+          }
+        );
+
+        const result = await response.json().catch(() => ({}));
+
+        // STEP 4: Reject unauthorized applications
+        if (
+          !response.ok ||
+          result.success !== true ||
+          result.authorized !== true
+        ) {
+          return {
+            success: false,
+            message:
+              result.message ||
+              "Advertising authorization failed."
+          };
+        }
+
+        console.log(
+          "Advertising SDK: Partner authenticated."
+        );
+
+        // STEP 5: Load advertising GUI
+        const iframe = document.createElement("iframe");
+
+        iframe.src =
+          AD_NETWORK_ORIGIN + "/ad-gui.html";
+
+        iframe.style.width = "100%";
+        iframe.style.height = "250px";
+        iframe.style.border = "none";
+
+        iframe.setAttribute(
+          "title",
+          "Advertising Platform"
+        );
+
+        // Replace any previously loaded GUI
+        container.replaceChildren(iframe);
+
+        console.log(
+          "Advertising SDK: Advertising GUI loaded."
+        );
+
+        return {
+          success: true,
+          message: "Advertising GUI loaded."
+        };
+
+      } catch (error) {
+
+        console.error(
+          "Advertising SDK: Verification server unavailable.",
+          error.message
+        );
+
+        return {
+          success: false,
+          message: "Verification server unavailable."
+        };
+
+      }
+    }
+
+  };
+
+  window.AdvertisingSDK = AdvertisingSDK;
+
+})(window);
+</script>
+
+
+<!-- FRONTEND VERIFICATION -->
+<script>
+
+async function verifyNetwork() {
+
+  const button = document.getElementById("verifyBtn");
+  const resultBox = document.getElementById("result");
+  const adSection = document.getElementById("adSection");
+  const adContainer = document.getElementById("ad-container");
+
+  button.disabled = true;
+  button.textContent = "Verifying...";
+
+  resultBox.className = "";
+  resultBox.style.display = "none";
+
+  adSection.style.display = "none";
+  adContainer.replaceChildren();
+
+  try {
+
+    // STEP 1: Authenticate partner
+    const response = await fetch("/api/check-ad-network.js", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({}),
+      cache: "no-store"
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (
+      !response.ok ||
+      data.success !== true ||
+      data.authorized !== true
+    ) {
+      throw new Error(
+        data.message || "Network verification failed."
+      );
+    }
+
+    // STEP 2: Check that both credentials were returned
+    if (
+      typeof data.token_id !== "string" ||
+      typeof data.subid !== "string"
+    ) {
+      throw new Error(
+        "Authentication response is missing token_id or subid."
+      );
+    }
+
+    // STEP 3: Send BOTH credentials to SDK
+    resultBox.className = "success";
+    resultBox.textContent =
+      "Partner verified. Checking advertising session...";
+
+    button.textContent = "Loading Advertisements...";
+
+    const sdkResult = await window.AdvertisingSDK.init({
+      token_id: data.token_id,
+      subid: data.subid,
+      container: "#ad-container"
+    });
+
+    // STEP 4: Handle SDK result
+    if (!sdkResult.success) {
+      throw new Error(sdkResult.message);
+    }
+
+    // STEP 5: Display GUI
+    adSection.style.display = "block";
+
+    resultBox.className = "success";
+    resultBox.textContent =
+      "Application verified and advertising loaded.";
+
+  } catch (error) {
+
+    resultBox.className = "error";
+    resultBox.textContent = error.message;
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent = "Verify Network";
+
+  }
+}
+
+</script>
+
+</body>
+</html>
