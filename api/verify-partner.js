@@ -296,9 +296,11 @@ export default async function handler(req, res) {
       success: true,
       authorized: true,
       message: "Partner verified",
-
+      
+      subid: data.subid,
       token_id: session.token_id,
       session_id: session.id,
+      
 
       diagnostics: {
         request_received: true,
