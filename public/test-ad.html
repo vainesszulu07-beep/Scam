@@ -1,0 +1,222 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Get Ad API Tester</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 25px;
+  background: #f4f6f9;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  max-width: 600px;
+  margin: auto;
+  padding: 22px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 3px 15px #0001;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #1769ff;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled { opacity: .6; }
+
+pre {
+  padding: 15px;
+  background: #f1f3f5;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  margin: 15px 0;
+  color: #555;
+}
+
+video, img {
+  width: 100%;
+  margin-top: 12px;
+  border-radius: 8px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>Advertising API Tester</h2>
+
+  <p>
+    Generate a test token and call the
+    advertising server.
+  </p>
+
+  <button id="testButton">
+    Generate Token & Call Get Ad
+  </button>
+
+  <div class="status" id="status">
+    Ready.
+  </div>
+
+  <h3>Generated Token</h3>
+  <pre id="token">Not generated</pre>
+
+  <h3>Server Response</h3>
+  <pre id="response">Waiting...</pre>
+
+  <div id="ad"></div>
+
+</div>
+
+<script>
+const button = document.getElementById("testButton");
+const statusBox = document.getElementById("status");
+const tokenBox = document.getElementById("token");
+const responseBox = document.getElementById("response");
+const adBox = document.getElementById("ad");
+
+button.addEventListener("click", testGetAd);
+
+async function testGetAd() {
+
+  button.disabled = true;
+  statusBox.textContent = "Generating token...";
+  responseBox.textContent = "Waiting for server...";
+  adBox.replaceChildren();
+
+  try {
+
+    // Generate a random 64-character token
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+
+    const token_id = Array.from(bytes)
+      .map(byte => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    tokenBox.textContent = token_id;
+
+    statusBox.textContent = "Calling advertising server...";
+
+    // Call backend. It obtains SUBID from server environment.
+    const serverResponse = await fetch("/api/get-ad", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        token_id: token_id
+      }),
+      cache: "no-store"
+    });
+
+    const responseText = await serverResponse.text();
+
+    let data;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = { raw_response: responseText };
+    }
+
+    responseBox.textContent = JSON.stringify(
+      data,
+      null,
+      2
+    );
+
+    if (!serverResponse.ok) {
+      statusBox.textContent =
+        "Server returned HTTP " + serverResponse.status;
+      return;
+    }
+
+    if (data.success !== true || data.authorized !== true) {
+      statusBox.textContent =
+        data.message || "Authorization failed.";
+      return;
+    }
+
+    if (!data.ad) {
+      statusBox.textContent = "No advertisement available.";
+      return;
+    }
+
+    // Display returned ad information
+    const ad = data.ad;
+
+    const videoUrl = safeUrl(ad.ad_url);
+    const imageUrl = safeUrl(ad.app_pic_url);
+    const appLink = safeUrl(ad.app_link);
+
+    if (!videoUrl || !imageUrl || !appLink) {
+      statusBox.textContent =
+        "Ad returned, but one or more URLs are invalid.";
+      return;
+    }
+
+    const video = document.createElement("video");
+    video.src = videoUrl;
+    video.controls = true;
+    video.playsInline = true;
+
+    const image = document.createElement("img");
+    image.src = imageUrl;
+    image.alt = "Advertisement";
+
+    const link = document.createElement("a");
+    link.href = appLink;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Visit Advertiser";
+
+    adBox.append(video, image, link);
+
+    statusBox.textContent = "Advertisement retrieved.";
+
+  } catch (error) {
+
+    statusBox.textContent = "Request failed: " + error.message;
+
+    console.error(error);
+
+  } finally {
+
+    button.disabled = false;
+
+  }
+}
+
+function safeUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+</script>
+
+</body>
+</html>
