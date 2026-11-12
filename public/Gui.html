@@ -1,0 +1,381 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advertising Network Test</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f4f6f9;
+  font-family: Arial, sans-serif;
+  transition: padding-bottom 0.4s ease;
+}
+
+/* Reserve space when the sticky ad is visible */
+body.ad-visible {
+  padding-bottom: 370px;
+}
+
+.container {
+  width: 100%;
+  max-width: 600px;
+  padding: 25px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 5px 25px rgba(0,0,0,0.07);
+}
+
+h2 {
+  margin-top: 0;
+  color: #17202a;
+}
+
+p {
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #1769ff;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#result {
+  display: none;
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.success {
+  display: block !important;
+  background: #e9f9ef;
+  color: #137333;
+}
+
+.error {
+  display: block !important;
+  background: #fff0f0;
+  color: #c62828;
+}
+
+/* Sticky advertising banner */
+#adSection {
+  display: none;
+
+  position: fixed;
+  z-index: 99999;
+
+  left: 50%;
+  bottom: 16px;
+
+  width: min(600px, calc(100% - 24px));
+
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+
+  box-shadow: 0 8px 35px rgba(0,0,0,0.22);
+
+  /* Start below the screen */
+  transform: translate(-50%, calc(100% + 30px));
+  opacity: 0;
+
+  transition:
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease;
+}
+
+/* Slide into view */
+#adSection.show {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.ad-label {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #667085;
+  background: #ffffff;
+  border-bottom: 1px solid #eeeeee;
+}
+
+#ad-container {
+  width: 100%;
+  height: 320px;
+  overflow: hidden;
+  background: #f4f6f8;
+}
+
+#ad-container iframe {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: none;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  #adSection {
+    bottom: 0;
+    width: 100%;
+    border-radius: 14px 14px 0 0;
+  }
+
+  body.ad-visible {
+    padding-bottom: 350px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>Advertising Network</h2>
+
+  <p>
+    Verify your registered application and
+    load advertising content.
+  </p>
+
+  <button id="verifyBtn" type="button">
+    Connect to Advertising Network
+  </button>
+
+  <div id="result"></div>
+
+</div>
+
+<!-- Sticky advertising banner -->
+<div id="adSection">
+
+  <div class="ad-label">
+    ADVERTISEMENT
+  </div>
+
+  <div id="ad-container"></div>
+
+</div>
+
+<script src="https://scam-gamma.vercel.app/advertising-sdk.js"></script>
+
+<script>
+"use strict";
+
+const button = document.getElementById("verifyBtn");
+const resultBox = document.getElementById("result");
+const adSection = document.getElementById("adSection");
+const adContainer = document.getElementById("ad-container");
+
+function showResult(type, message) {
+  resultBox.className = type;
+  resultBox.textContent = message;
+  resultBox.style.display = "block";
+}
+
+function hideAdvertisement() {
+
+  adSection.classList.remove("show");
+  document.body.classList.remove("ad-visible");
+
+  setTimeout(() => {
+    if (!adSection.classList.contains("show")) {
+      adSection.style.display = "none";
+      adContainer.replaceChildren();
+    }
+  }, 700);
+}
+
+async function verifyNetwork() {
+
+  button.disabled = true;
+  button.textContent = "Connecting...";
+
+  resultBox.style.display = "none";
+  hideAdvertisement();
+
+  try {
+
+    // STEP 1: Verify publisher
+    showResult(
+      "success",
+      "Connecting to advertising network..."
+    );
+
+    const response = await fetch(
+      "/api/check-ad-network.js",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({}),
+        cache: "no-store"
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (
+      !response.ok ||
+      data.success !== true ||
+      data.authorized !== true
+    ) {
+      throw new Error(
+        data.message || "Publisher verification failed."
+      );
+    }
+
+    // STEP 2: Validate credentials
+    if (
+      typeof data.token_id !== "string" ||
+      !/^[a-f0-9]{64}$/i.test(data.token_id) ||
+      typeof data.subid !== "string" ||
+      !/^[A-F0-9]{8}$/.test(data.subid)
+    ) {
+      throw new Error(
+        "Invalid authentication credentials."
+      );
+    }
+
+    // STEP 3: Check SDK
+    if (
+      !window.AdvertisingSDK ||
+      typeof window.AdvertisingSDK.init !== "function"
+    ) {
+      throw new Error(
+        "Advertising SDK could not be loaded."
+      );
+    }
+
+    // STEP 4: Prepare hidden banner
+    adSection.style.display = "block";
+    adSection.classList.remove("show");
+
+    button.textContent = "Loading Advertisement...";
+
+    showResult(
+      "success",
+      "Publisher verified. Loading advertisement..."
+    );
+
+    // STEP 5: Initialize SDK
+    const sdkResult = await window.AdvertisingSDK.init({
+
+      token_id: data.token_id,
+
+      subid: data.subid,
+
+      container: "#ad-container",
+
+      // Called when the user closes the ad
+      onClose: function () {
+
+        hideAdvertisement();
+
+        showResult(
+          "success",
+          "Advertisement closed successfully."
+        );
+
+      }
+
+    });
+
+    // STEP 6: Handle result
+    if (!sdkResult || sdkResult.success !== true) {
+      throw new Error(
+        sdkResult?.message ||
+        "Advertising initialization failed."
+      );
+    }
+
+    if (sdkResult.noAd === true) {
+
+      hideAdvertisement();
+
+      showResult(
+        "success",
+        "Application verified. No complete advertisements are available."
+      );
+
+    } else if (sdkResult.closed === true) {
+
+      hideAdvertisement();
+
+    } else {
+
+      // STEP 7: Slide advertisement upward
+      document.body.classList.add("ad-visible");
+
+      requestAnimationFrame(() => {
+        adSection.classList.add("show");
+      });
+
+      showResult(
+        "success",
+        "Advertisement loaded successfully."
+      );
+
+    }
+
+  } catch (error) {
+
+    console.error(
+      "ADVERTISING NETWORK ERROR:",
+      error
+    );
+
+    hideAdvertisement();
+
+    showResult(
+      "error",
+      error.message ||
+      "Unable to connect to advertising network."
+    );
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent = "Connect to Advertising Network";
+
+  }
+}
+
+button.addEventListener("click", verifyNetwork);
+
+</script>
+
+</body>
+</html>
