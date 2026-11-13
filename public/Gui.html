@@ -1,0 +1,1050 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advertising Network Diagnostics</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  min-height: 100vh;
+  background: #f3f5f9;
+  font-family: Arial, sans-serif;
+  color: #17202a;
+}
+
+.container {
+  width: 100%;
+  max-width: 850px;
+  margin: 30px auto;
+  padding: 24px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 5px 25px rgba(0,0,0,0.07);
+}
+
+h2 {
+  margin: 0 0 10px;
+}
+
+h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+p {
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 8px;
+  background: #1769ff;
+  color: white;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.panel {
+  margin-top: 18px;
+  padding: 15px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.status {
+  padding: 13px;
+  margin-top: 15px;
+  border-radius: 8px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.status.info {
+  background: #eaf2ff;
+  color: #174ea6;
+}
+
+.status.success {
+  background: #e9f9ef;
+  color: #137333;
+}
+
+.status.error {
+  background: #fff0f0;
+  color: #c62828;
+}
+
+.status.warning {
+  background: #fff7e6;
+  color: #946200;
+}
+
+.step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 0;
+  border-bottom: 1px solid #e8ebef;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.step:last-child {
+  border-bottom: none;
+}
+
+.step-icon {
+  flex-shrink: 0;
+  font-weight: bold;
+}
+
+.step-content {
+  min-width: 0;
+}
+
+.step-time {
+  display: block;
+  margin-top: 4px;
+  color: #888;
+  font-size: 11px;
+}
+
+pre {
+  margin: 0;
+  padding: 14px;
+  max-height: 550px;
+  overflow: auto;
+  background: #111827;
+  color: #d1fae5;
+  border-radius: 8px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+details {
+  margin-top: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+summary {
+  padding: 13px;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+details pre {
+  border-radius: 0;
+}
+
+.ad-field {
+  margin: 10px 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.ad-field strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #475467;
+}
+
+.ad-field a {
+  color: #1769ff;
+  word-break: break-all;
+}
+
+.small {
+  font-size: 12px;
+  color: #667085;
+}
+
+.hidden {
+  display: none;
+}
+
+.copy-button {
+  width: auto;
+  padding: 9px 13px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  background: #344054;
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 10px;
+  }
+
+  .container {
+    margin: 10px auto;
+    padding: 16px;
+  }
+
+  pre {
+    font-size: 11px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h2>Advertising Network Diagnostics</h2>
+
+  <p>
+    This tester checks publisher authentication, calls the
+    advertisement API directly, and displays the complete
+    responses received from the server.
+  </p>
+
+  <button id="testButton" type="button">
+    Run Full Diagnostic Test
+  </button>
+
+  <div id="mainStatus" class="status info">
+    Ready. Press the button to begin.
+  </div>
+
+
+  <!-- REQUEST STEPS -->
+
+  <div class="panel">
+    <h3>Execution Timeline</h3>
+    <div id="timeline">
+      No requests have been made.
+    </div>
+  </div>
+
+
+  <!-- AD RESULT -->
+
+  <div class="panel hidden" id="adPanel">
+    <h3>Advertisement Information</h3>
+    <div id="adInformation"></div>
+  </div>
+
+
+  <!-- COMPLETE REPORT -->
+
+  <div class="panel hidden" id="reportPanel">
+
+    <h3>Complete Diagnostic Report</h3>
+
+    <button
+      class="copy-button"
+      id="copyButton"
+      type="button"
+    >
+      Copy Complete Report
+    </button>
+
+    <pre id="completeReport"></pre>
+
+  </div>
+
+
+  <!-- INDIVIDUAL RESPONSE DETAILS -->
+
+  <div class="panel hidden" id="responsePanel">
+    <h3>Individual API Responses</h3>
+    <div id="individualResponses"></div>
+  </div>
+
+
+  <p class="small">
+    Diagnostic note: A successful get-ad request creates an
+    advertisement impression record. It does not prove that
+    the advertisement was watched.
+  </p>
+
+</div>
+
+
+<script>
+"use strict";
+
+
+// ==================================================
+// 1. API CONFIGURATION
+// ==================================================
+
+// Publisher verification endpoint.
+// This remains on the current page's domain.
+const CHECK_ENDPOINT =
+  "/api/check-ad-network.js";
+
+// Advertising network endpoint.
+// Set this to the domain where get-ad.js is deployed.
+const GET_AD_ENDPOINT =
+  "https://scam-gamma.vercel.app/api/get-ad.js";
+
+
+// ==================================================
+// 2. ELEMENT REFERENCES
+// ==================================================
+
+const testButton =
+  document.getElementById("testButton");
+
+const mainStatus =
+  document.getElementById("mainStatus");
+
+const timeline =
+  document.getElementById("timeline");
+
+const reportPanel =
+  document.getElementById("reportPanel");
+
+const completeReport =
+  document.getElementById("completeReport");
+
+const responsePanel =
+  document.getElementById("responsePanel");
+
+const individualResponses =
+  document.getElementById("individualResponses");
+
+const adPanel =
+  document.getElementById("adPanel");
+
+const adInformation =
+  document.getElementById("adInformation");
+
+const copyButton =
+  document.getElementById("copyButton");
+
+
+// ==================================================
+// 3. REPORT STORAGE
+// ==================================================
+
+let report = {
+  started_at: null,
+  finished_at: null,
+  requests: [],
+  events: [],
+  final_result: null
+};
+
+
+// ==================================================
+// 4. GENERAL HELPERS
+// ==================================================
+
+function now() {
+  return new Date().toISOString();
+}
+
+
+function setStatus(type, message) {
+  mainStatus.className = "status " + type;
+  mainStatus.textContent = message;
+}
+
+
+function addEvent(name, description, type = "info") {
+
+  const event = {
+    time: now(),
+    name,
+    description,
+    type
+  };
+
+  report.events.push(event);
+
+  const row = document.createElement("div");
+  row.className = "step";
+
+  const icon = document.createElement("div");
+  icon.className = "step-icon";
+
+  icon.textContent =
+    type === "success" ? "✓" :
+    type === "error" ? "✕" :
+    type === "warning" ? "!" : "•";
+
+  const content = document.createElement("div");
+  content.className = "step-content";
+
+  const title = document.createElement("strong");
+  title.textContent = name;
+
+  const descriptionElement =
+    document.createElement("div");
+
+  descriptionElement.textContent = description;
+
+  const timestamp = document.createElement("span");
+  timestamp.className = "step-time";
+  timestamp.textContent = event.time;
+
+  content.append(
+    title,
+    descriptionElement,
+    timestamp
+  );
+
+  row.append(icon, content);
+
+  if (timeline.textContent === "No requests have been made.") {
+    timeline.replaceChildren();
+  }
+
+  timeline.appendChild(row);
+
+  renderReport();
+}
+
+
+// ==================================================
+// 5. MASK TOKEN BEFORE SHOWING REQUEST DETAILS
+// ==================================================
+
+function maskToken(token) {
+
+  if (typeof token !== "string") {
+    return token;
+  }
+
+  if (token.length < 15) {
+    return "[REDACTED]";
+  }
+
+  return (
+    token.slice(0, 8) +
+    "..." +
+    token.slice(-6)
+  );
+}
+
+
+// ==================================================
+// 6. READ AND SAVE THE COMPLETE HTTP RESPONSE
+// ==================================================
+
+async function performRequest(
+  name,
+  url,
+  body
+) {
+
+  const requestRecord = {
+    name,
+    time: now(),
+    url,
+    method: "POST",
+    request_headers: {
+      "Content-Type": "application/json"
+    },
+    request_body: body
+      ? {
+          ...body,
+          token_id: body.token_id
+            ? maskToken(body.token_id)
+            : undefined
+        }
+      : null,
+    response: null,
+    network_error: null
+  };
+
+  addEvent(
+    name,
+    "Sending POST request...",
+    "info"
+  );
+
+  try {
+
+    const response = await fetch(url, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: body
+        ? JSON.stringify(body)
+        : JSON.stringify({}),
+
+      cache: "no-store"
+    });
+
+
+    // Read the original response body as text.
+    const rawBody = await response.text();
+
+    // Attempt JSON parsing without discarding raw text.
+    let parsedBody = null;
+    let jsonParseError = null;
+
+    try {
+      parsedBody = JSON.parse(rawBody);
+    } catch (error) {
+      jsonParseError = {
+        message: error.message
+      };
+    }
+
+
+    // Collect every response header accessible to the browser.
+    const responseHeaders = {};
+
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+
+
+    requestRecord.response = {
+      http_status: response.status,
+      http_status_text: response.statusText,
+      response_ok: response.ok,
+      response_type: response.type,
+      response_url: response.url,
+      redirected: response.redirected,
+      headers: responseHeaders,
+      parsed_json: parsedBody,
+      json_parse_error: jsonParseError,
+      raw_body: rawBody
+    };
+
+
+    report.requests.push(requestRecord);
+
+    renderIndividualResponses();
+    renderReport();
+
+
+    addEvent(
+      name,
+      "HTTP " + response.status +
+      " " + response.statusText,
+      response.ok ? "success" : "error"
+    );
+
+
+    return {
+      response,
+      data: parsedBody,
+      raw: rawBody,
+      record: requestRecord
+    };
+
+
+  } catch (error) {
+
+    requestRecord.network_error = {
+      name: error.name || "Error",
+      message: error.message || String(error),
+      stack: error.stack || null
+    };
+
+    report.requests.push(requestRecord);
+
+    renderIndividualResponses();
+    renderReport();
+
+    addEvent(
+      name,
+      "Browser/network request failed: " +
+      error.message,
+      "error"
+    );
+
+    throw error;
+  }
+}
+
+
+// ==================================================
+// 7. DISPLAY INDIVIDUAL RESPONSES
+// ==================================================
+
+function renderIndividualResponses() {
+
+  responsePanel.classList.remove("hidden");
+
+  individualResponses.replaceChildren();
+
+  report.requests.forEach((request, index) => {
+
+    const details = document.createElement("details");
+
+    const summary = document.createElement("summary");
+
+    const status =
+      request.response?.http_status ??
+      "NETWORK ERROR";
+
+    summary.textContent =
+      (index + 1) + ". " +
+      request.name +
+      " — " + status;
+
+    const data = document.createElement("pre");
+
+    data.textContent =
+      JSON.stringify(request, null, 2);
+
+    details.append(summary, data);
+
+    individualResponses.appendChild(details);
+  });
+}
+
+
+// ==================================================
+// 8. DISPLAY COMPLETE REPORT
+// ==================================================
+
+function renderReport() {
+
+  reportPanel.classList.remove("hidden");
+
+  completeReport.textContent =
+    JSON.stringify(report, null, 2);
+}
+
+
+// ==================================================
+// 9. DISPLAY RETURNED ADVERTISEMENT
+// ==================================================
+
+function addAdField(container, label, value) {
+
+  if (value === undefined || value === null) {
+    return;
+  }
+
+  const field = document.createElement("div");
+  field.className = "ad-field";
+
+  const strong = document.createElement("strong");
+  strong.textContent = label;
+
+  const content = document.createElement("div");
+  content.textContent = String(value);
+
+  field.append(strong, content);
+
+  container.appendChild(field);
+}
+
+
+function addAdLink(container, label, value) {
+
+  if (
+    typeof value !== "string" ||
+    !value.trim()
+  ) {
+    return;
+  }
+
+  const field = document.createElement("div");
+  field.className = "ad-field";
+
+  const strong = document.createElement("strong");
+  strong.textContent = label;
+
+  const link = document.createElement("a");
+
+  link.href = value;
+  link.textContent = value;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+
+  field.append(strong, link);
+
+  container.appendChild(field);
+}
+
+
+function displayAdvertisement(data) {
+
+  const ad = data?.ad;
+
+  if (!ad || typeof ad !== "object") {
+    return;
+  }
+
+  adPanel.classList.remove("hidden");
+  adInformation.replaceChildren();
+
+  addAdField(
+    adInformation,
+    "Impression ID",
+    data.impression_id
+  );
+
+  addAdField(
+    adInformation,
+    "Video duration",
+    data.timer
+  );
+
+  addAdField(
+    adInformation,
+    "Advertisement ID",
+    ad.id
+  );
+
+  addAdLink(
+    adInformation,
+    "Video URL",
+    ad.ad_url
+  );
+
+  addAdLink(
+    adInformation,
+    "Advertiser image",
+    ad.app_pic_url
+  );
+
+  addAdLink(
+    adInformation,
+    "Advertiser destination",
+    ad.app_link
+  );
+}
+
+
+// ==================================================
+// 10. MAIN DIAGNOSTIC TEST
+// ==================================================
+
+async function runDiagnostic() {
+
+  testButton.disabled = true;
+  testButton.textContent = "Running diagnostics...";
+
+  timeline.replaceChildren();
+
+  report = {
+    started_at: now(),
+    finished_at: null,
+    requests: [],
+    events: [],
+    final_result: null
+  };
+
+  adPanel.classList.add("hidden");
+
+  adInformation.replaceChildren();
+
+  individualResponses.replaceChildren();
+
+  responsePanel.classList.add("hidden");
+
+  setStatus(
+    "info",
+    "Starting advertising network diagnostics..."
+  );
+
+  renderReport();
+
+  try {
+
+    // ----------------------------------------------
+    // STEP 1: VERIFY PUBLISHER
+    // ----------------------------------------------
+
+    addEvent(
+      "Publisher verification",
+      "Calling check-ad-network endpoint."
+    );
+
+    const checkResult = await performRequest(
+      "Publisher verification",
+      CHECK_ENDPOINT,
+      {}
+    );
+
+    const checkData = checkResult.data;
+
+    if (!checkResult.response.ok) {
+
+      throw new Error(
+        "Publisher verification returned HTTP " +
+        checkResult.response.status
+      );
+    }
+
+    if (
+      !checkData ||
+      checkData.success !== true ||
+      checkData.authorized !== true
+    ) {
+
+      throw new Error(
+        checkData?.message ||
+        "Publisher verification was unsuccessful."
+      );
+    }
+
+
+    // ----------------------------------------------
+    // STEP 2: VALIDATE CREDENTIALS
+    // ----------------------------------------------
+
+    addEvent(
+      "Credential validation",
+      "Checking the returned token_id and subid."
+    );
+
+    const tokenId =
+      typeof checkData.token_id === "string"
+        ? checkData.token_id.trim()
+        : "";
+
+    const subid =
+      typeof checkData.subid === "string"
+        ? checkData.subid.trim()
+        : "";
+
+    if (!/^[a-f0-9]{64}$/i.test(tokenId)) {
+
+      throw new Error(
+        "Publisher endpoint did not return a valid 64-character token_id."
+      );
+    }
+
+    if (!/^[A-F0-9]{8}$/.test(subid)) {
+
+      throw new Error(
+        "Publisher endpoint did not return a valid 8-character uppercase subid."
+      );
+    }
+
+    addEvent(
+      "Credential validation",
+      "Both credentials passed format validation. Token: " +
+      maskToken(tokenId) +
+      ", Subid: " + subid,
+      "success"
+    );
+
+
+    // ----------------------------------------------
+    // STEP 3: CALL GET-AD API
+    // ----------------------------------------------
+
+    addEvent(
+      "Advertisement retrieval",
+      "Calling get-ad.js directly with token_id."
+    );
+
+    const adResult = await performRequest(
+      "Advertisement retrieval",
+      GET_AD_ENDPOINT,
+      {
+        token_id: tokenId
+      }
+    );
+
+
+    // ----------------------------------------------
+    // STEP 4: SHOW THE COMPLETE RESULT
+    // ----------------------------------------------
+
+    const adData = adResult.data;
+
+    if (!adResult.response.ok) {
+
+      throw new Error(
+        adData?.message ||
+        "Advertisement API returned HTTP " +
+        adResult.response.status
+      );
+    }
+
+    if (
+      !adData ||
+      adData.success !== true
+    ) {
+
+      throw new Error(
+        adData?.message ||
+        "Advertisement retrieval failed."
+      );
+    }
+
+    if (adData.authorized !== true) {
+
+      throw new Error(
+        adData.message ||
+        "The advertising session was not authorized."
+      );
+    }
+
+
+    // ----------------------------------------------
+    // STEP 5: HANDLE NO AD
+    // ----------------------------------------------
+
+    if (!adData.ad) {
+
+      addEvent(
+        "Advertisement result",
+        adData.message ||
+        "No complete advertisements were available.",
+        "warning"
+      );
+
+      report.final_result = {
+        success: true,
+        authorized: true,
+        advertisement_available: false,
+        message: adData.message
+      };
+
+      setStatus(
+        "warning",
+        "Publisher verified, but no advertisement was returned. See the complete report below."
+      );
+
+      return;
+    }
+
+
+    // ----------------------------------------------
+    // STEP 6: VERIFY IMPRESSION RESPONSE
+    // ----------------------------------------------
+
+    if (!adData.impression_id) {
+
+      throw new Error(
+        "Advertisement returned without an impression_id."
+      );
+    }
+
+    addEvent(
+      "Impression creation",
+      "The backend returned impression ID: " +
+      adData.impression_id,
+      "success"
+    );
+
+
+    // ----------------------------------------------
+    // STEP 7: DISPLAY AD INFORMATION
+    // ----------------------------------------------
+
+    displayAdvertisement(adData);
+
+    report.final_result = {
+      success: true,
+      authorized: true,
+      advertisement_available: true,
+      impression_id: adData.impression_id,
+      timer: adData.timer,
+      ad_id: adData.ad?.id
+    };
+
+    setStatus(
+      "success",
+      "Diagnostic completed successfully. The advertisement was retrieved and an impression ID was returned."
+    );
+
+  } catch (error) {
+
+    report.final_result = {
+      success: false,
+      error_name: error.name || "Error",
+      error_message: error.message || String(error)
+    };
+
+    addEvent(
+      "Diagnostic stopped",
+      error.message || String(error),
+      "error"
+    );
+
+    setStatus(
+      "error",
+      "Diagnostic failed: " +
+      (error.message || String(error))
+    );
+
+  } finally {
+
+    report.finished_at = now();
+
+    renderReport();
+    renderIndividualResponses();
+
+    testButton.disabled = false;
+    testButton.textContent = "Run Full Diagnostic Test";
+  }
+}
+
+
+// ==================================================
+// 11. COPY COMPLETE REPORT
+// ==================================================
+
+copyButton.addEventListener("click", async () => {
+
+  const text = JSON.stringify(report, null, 2);
+
+  try {
+
+    await navigator.clipboard.writeText(text);
+
+    copyButton.textContent = "Report Copied";
+
+    setTimeout(() => {
+      copyButton.textContent = "Copy Complete Report";
+    }, 2000);
+
+  } catch (error) {
+
+    copyButton.textContent = "Copy Failed";
+
+    console.error("Clipboard error:", error);
+  }
+});
+
+
+// ==================================================
+// 12. CONNECT BUTTON
+// ==================================================
+
+testButton.addEventListener(
+  "click",
+  runDiagnostic
+);
+
+</script>
+
+</body>
+</html>
