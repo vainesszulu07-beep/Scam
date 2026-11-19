@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ZambianAdvertisements | Frontend Integration Guide</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px 16px;
+  background: #f3f5f3;
+  color: #26352f;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 1050px;
+  margin: auto;
+}
+
+.hero {
+  position: relative;
+  background: #123b2e;
+  color: white;
+  padding: 38px 30px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  border-bottom: 5px solid #d4ad55;
+}
+
+.brand {
+  color: #e2bd6b;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-right: 50px;
+}
+
+.hero h1 {
+  margin: 0 0 12px;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.hero p {
+  margin: 0;
+  color: #e0e9e4;
+  font-size: 15px;
+  max-width: 750px;
+}
+
+.section {
+  background: white;
+  padding: 25px;
+  border-radius: 13px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 15px rgba(0,0,0,0.045);
+}
+
+h2 {
+  color: #174735;
+  font-size: 21px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  color: #174735;
+  font-size: 16px;
+  margin: 20px 0 8px;
+}
+
+p {
+  color: #626f68;
+  font-size: 14px;
+  margin: 8px 0 12px;
+}
+
+ul, ol {
+  padding-left: 22px;
+  color: #626f68;
+  font-size: 14px;
+}
+
+li {
+  margin-bottom: 7px;
+}
+
+.notice {
+  background: #f2f7f3;
+  border-left: 4px solid #26744f;
+  padding: 14px 16px;
+  border-radius: 7px;
+  margin: 15px 0;
+  color: #345244;
+  font-size: 14px;
+}
+
+.warning {
+  background: #fff8e9;
+  border-left: 4px solid #d3a33f;
+  padding: 14px 16px;
+  border-radius: 7px;
+  margin: 15px 0;
+  color: #72551b;
+  font-size: 14px;
+}
+
+.danger {
+  background: #fff0ef;
+  border-left: 4px solid #cb554c;
+  padding: 14px 16px;
+  border-radius: 7px;
+  margin: 15px 0;
+  color: #8c332e;
+  font-size: 14px;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.flow-item {
+  background: #f5f8f5;
+  padding: 17px;
+  border-radius: 10px;
+  border: 1px solid #e3eae4;
+}
+
+.flow-number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #174735;
+  color: white;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 9px;
+}
+
+.flow-item strong {
+  display: block;
+  color: #174735;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.flow-item span {
+  display: block;
+  color: #69766f;
+  font-size: 12px;
+}
+
+.placement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.placement {
+  border: 1px solid #e2e9e3;
+  border-radius: 10px;
+  padding: 18px;
+  background: #fbfcfb;
+}
+
+.placement h3 {
+  margin: 0 0 7px;
+}
+
+.placement code,
+p code,
+li code,
+td code {
+  background: #edf2ee;
+  color: #174735;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+
+.placement-label {
+  display: inline-block;
+  background: #e9f2ec;
+  color: #1d6544;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  background: #174735;
+  color: white;
+  padding: 12px;
+}
+
+td {
+  border-bottom: 1px solid #e8ede9;
+  padding: 12px;
+  color: #58675e;
+  vertical-align: top;
+}
+
+.code-card {
+  background: #142720;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 15px 0 20px;
+}
+
+.code-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  background: #1c3a2e;
+  color: #e5d19c;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.copy-btn {
+  border: none;
+  border-radius: 5px;
+  background: #d4ad55;
+  color: #183328;
+  font-weight: bold;
+  font-size: 12px;
+  padding: 7px 12px;
+  cursor: pointer;
+  width: auto;
+}
+
+.copy-btn:hover {
+  background: #e5c474;
+}
+
+.code-area {
+  display: block;
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  border: none;
+  outline: none;
+  padding: 17px;
+  background: #142720;
+  color: #e5eee8;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+.code-area.large {
+  min-height: 550px;
+}
+
+.code-area.medium {
+  min-height: 190px;
+}
+
+.code-area.small {
+  min-height: 85px;
+}
+
+.footer {
+  text-align: center;
+  color: #77847c;
+  font-size: 12px;
+  padding: 15px 0 25px;
+}
+
+
+/* THREE-LINE MENU BUTTON */
+
+.menu-button {
+  position: absolute;
+  top: 25px;
+  right: 25px;
+  width: 43px;
+  height: 43px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+.menu-button span {
+  display: block;
+  width: 21px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 5px;
+  transition: 0.25s;
+}
+
+.menu-button:hover {
+  background: rgba(255,255,255,0.17);
+}
+
+
+/* SLIDING NAVIGATION */
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1998;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(310px, 85%);
+  height: 100vh;
+  height: 100dvh;
+  background: #123b2e;
+  z-index: 1999;
+  padding: 25px 20px;
+  transform: translateX(-105%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+}
+
+.side-menu.active {
+  transform: translateX(0);
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 22px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.17);
+}
+
+.menu-brand {
+  color: #e2bd6b;
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.close-menu {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 7px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.menu-label {
+  color: #a9c2b4;
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 18px 0 10px;
+}
+
+.menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.menu-links a {
+  color: #edf5ef;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 13px 12px;
+  border-radius: 7px;
+  transition: background 0.2s;
+}
+
+.menu-links a:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+.menu-links a.current {
+  background: rgba(212,173,85,0.16);
+  color: #e9c879;
+  border-left: 3px solid #d4ad55;
+}
+
+.menu-footer {
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.17);
+  color: #a9c2b4;
+  font-size: 12px;
+}
+
+
+@media (max-width: 700px) {
+  body {
+    padding: 12px;
+  }
+
+  .hero {
+    padding: 27px 20px;
+  }
+
+  .hero h1 {
+    font-size: 25px;
+    padding-right: 15px;
+  }
+
+  .section {
+    padding: 19px;
+  }
+
+  .flow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .placement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .menu-button {
+    top: 18px;
+    right: 17px;
+  }
+
+  .brand {
+    padding-right: 45px;
+  }
+}
+
+@media (max-width: 380px) {
+  .flow {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+
+<!-- MENU OVERLAY -->
+
+<div class="menu-overlay" id="menuOverlay"></div>
+
+
+<!-- SLIDING NAVIGATION MENU -->
+
+<nav class="side-menu" id="sideMenu">
+
+  <div class="menu-header">
+
+    <div class="menu-brand">
+      ZambianAdvertisements
+    </div>
+
+    <button
+      class="close-menu"
+      id="closeMenu"
+      type="button"
+      aria-label="Close navigation menu"
+    >
+      &times;
+    </button>
+
+  </div>
+
+  <div class="menu-label">
+    Integration Guide
+  </div>
+
+  <div class="menu-links">
+
+    <a href="get-token.html">
+      How to get a token
+    </a>
+
+    <a href="get-ad.html" class="current">
+      How to render ads from frontend
+    </a>
+
+    <a href="payments.html">
+      Payments
+    </a>
+
+    <a href="contact.html">
+      Contact
+    </a>
+
+  </div>
+
+  <div class="menu-footer">
+    Technical documentation<br>
+    ZambianAdvertisements
+  </div>
+
+</nav>
+
+
+<div class="page">
+
+  <header class="hero">
+
+    <button
+      class="menu-button"
+      id="menuButton"
+      type="button"
+      aria-label="Open navigation menu"
+      aria-expanded="false"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <div class="brand">ZambianAdvertisements</div>
+
+    <h1>Frontend Integration Guide</h1>
+
+    <p>
+      Learn how to connect your registered application to the
+      ZambianAdvertisements network and display advertisements
+      using the official JavaScript SDK.
+    </p>
+
+  </header>
+
+
+  <!-- SECTION 1 -->
+
+  <section class="section">
+
+    <h2>1. How the integration works</h2>
+
+    <p>
+      Your frontend does not communicate directly with the
+      partner verification system. It first contacts your own
+      backend, which verifies your application and returns
+      temporary advertising credentials.
+    </p>
+
+    <div class="flow">
+
+      <div class="flow-item">
+        <div class="flow-number">1</div>
+        <strong>Frontend request</strong>
+        <span>
+          Your website requests authorization from your backend.
+        </span>
+      </div>
+
+      <div class="flow-item">
+        <div class="flow-number">2</div>
+        <strong>Backend verification</strong>
+        <span>
+          Your backend verifies your registered application.
+        </span>
+      </div>
+
+      <div class="flow-item">
+        <div class="flow-number">3</div>
+        <strong>Receive credentials</strong>
+        <span>
+          Your frontend receives the token_id and subid.
+        </span>
+      </div>
+
+      <div class="flow-item">
+        <div class="flow-number">4</div>
+        <strong>Load advertisement</strong>
+        <span>
+          The SDK uses the credentials to request advertising content.
+        </span>
+      </div>
+
+    </div>
+
+    <div class="notice">
+      <strong>Important:</strong>
+      The SDK handles the advertising iframe and its communication
+      with the advertising platform. Your application does not need
+      to manually create an advertising iframe.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 2 -->
+
+  <section class="section">
+
+    <h2>2. Include the official SDK</h2>
+
+    <p>
+      Add the following script to your website. It loads the
+      official ZambianAdvertisements JavaScript SDK.
+    </p>
+
+    <div class="code-card">
+
+      <div class="code-heading">
+        <span>HTML – SDK installation</span>
+        <button class="copy-btn" data-copy="sdk-code">Copy code</button>
+      </div>
+
+      <textarea id="sdk-code" class="code-area small" readonly spellcheck="false"><script src="https://scam-gamma.vercel.app/advertising-sdk.js"></script></textarea>
+
+    </div>
+
+    <p>
+      Add this script to your page, preferably before your
+      application integration script.
+    </p>
+
+  </section>
+
+
+  <!-- SECTION 3 -->
+
+  <section class="section">
+
+    <h2>3. Available advertising placements</h2>
+
+    <p>
+      The SDK supports four advertising placements. Select the
+      placement that best suits the design of your application.
+    </p>
+
+    <div class="placement-grid">
+
+      <div class="placement">
+        <span class="placement-label">FIXED POSITION</span>
+        <h3>Bottom placement</h3>
+        <p>
+          Displays the advertisement at the bottom of the user's
+          screen. It remains fixed while the user scrolls.
+        </p>
+        <p><strong>Container required:</strong> No</p>
+        <p><strong>SDK value:</strong> <code>"bottom"</code></p>
+      </div>
+
+      <div class="placement">
+        <span class="placement-label">FIXED POSITION</span>
+        <h3>Top placement</h3>
+        <p>
+          Displays the advertisement at the top of the user's
+          screen. It remains fixed while the user scrolls.
+        </p>
+        <p><strong>Container required:</strong> No</p>
+        <p><strong>SDK value:</strong> <code>"top"</code></p>
+      </div>
+
+      <div class="placement">
+        <span class="placement-label">FULL SCREEN</span>
+        <h3>Fullscreen placement</h3>
+        <p>
+          Displays an advertisement across the entire screen.
+          The SDK temporarily locks page scrolling while it is open.
+        </p>
+        <p><strong>Container required:</strong> No</p>
+        <p><strong>SDK value:</strong> <code>"fullscreen"</code></p>
+      </div>
+
+      <div class="placement">
+        <span class="placement-label">INLINE POSITION</span>
+        <h3>Static placement</h3>
+        <p>
+          Displays the advertisement inside a specific location
+          in your webpage. You decide exactly where it appears.
+        </p>
+        <p><strong>Container required:</strong> Yes</p>
+        <p><strong>SDK value:</strong> <code>"static"</code></p>
+      </div>
+
+    </div>
+
+    <div class="warning">
+      <strong>Important about static placement:</strong>
+      You must create a container in your HTML exactly where
+      you want the advertisement to appear. The SDK searches
+      for that container and inserts the advertisement there.
+      It replaces the container's existing contents.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 4 -->
+
+  <section class="section">
+
+    <h2>4. How to configure each placement</h2>
+
+    <p>
+      The placement is supplied through the <code>placement</code>
+      property when calling <code>AdvertisingSDK.init()</code>.
+    </p>
+
+    <h3>A. Bottom placement</h3>
+
+    <p>
+      The advertisement is positioned at the bottom of the screen.
+      No container is necessary.
+    </p>
+
+    <div class="code-card">
+      <div class="code-heading">
+        <span>JavaScript – Bottom</span>
+        <button class="copy-btn" data-copy="bottom-code">Copy code</button>
+      </div>
+
+      <textarea id="bottom-code" class="code-area small" readonly spellcheck="false">const adOptions = {
+  token_id: data.token_id,
+  subid: data.subid,
+  placement: "bottom"
+};
+
+const result = await window.AdvertisingSDK.init(adOptions);</textarea>
+    </div>
+
+
+    <h3>B. Top placement</h3>
+
+    <p>
+      The advertisement is positioned at the top of the screen.
+      No container is necessary.
+    </p>
+
+    <div class="code-card">
+      <div class="code-heading">
+        <span>JavaScript – Top</span>
+        <button class="copy-btn" data-copy="top-code">Copy code</button>
+      </div>
+
+      <textarea id="top-code" class="code-area small" readonly spellcheck="false">const adOptions = {
+  token_id: data.token_id,
+  subid: data.subid,
+  placement: "top"
+};
+
+const result = await window.AdvertisingSDK.init(adOptions);</textarea>
+    </div>
+
+
+    <h3>C. Fullscreen placement</h3>
+
+    <p>
+      The advertisement covers the entire screen. The SDK
+      automatically locks scrolling while the fullscreen
+      advertisement is displayed.
+    </p>
+
+    <div class="code-card">
+      <div class="code-heading">
+        <span>JavaScript – Fullscreen</span>
+        <button class="copy-btn" data-copy="fullscreen-code">Copy code</button>
+      </div>
+
+      <textarea id="fullscreen-code" class="code-area small" readonly spellcheck="false">const adOptions = {
+  token_id: data.token_id,
+  subid: data.subid,
+  placement: "fullscreen"
+};
+
+const result = await window.AdvertisingSDK.init(adOptions);</textarea>
+    </div>
+
+
+    <h3>D. Static placement</h3>
+
+    <p>
+      Static placement requires an HTML container. Create the
+      container where the advertisement should appear.
+    </p>
+
+    <div class="code-card">
+      <div class="code-heading">
+        <span>HTML – Create the container</span>
+        <button class="copy-btn" data-copy="static-html-code">Copy code</button>
+      </div>
+
+      <textarea id="static-html-code" class="code-area small" readonly spellcheck="false"><!-- Place this element where the advertisement should appear -->
+<div id="article-ad-slot"></div></textarea>
+    </div>
+
+    <p>
+      Then pass the container's CSS selector to the SDK.
+    </p>
+
+    <div class="code-card">
+      <div class="code-heading">
+        <span>JavaScript – Static</span>
+        <button class="copy-btn" data-copy="static-js-code">Copy code</button>
+      </div>
+
+      <textarea id="static-js-code" class="code-area small" readonly spellcheck="false">const adOptions = {
+  token_id: data.token_id,
+  subid: data.subid,
+  placement: "static",
+  container: "#article-ad-slot"
+};
+
+const result = await window.AdvertisingSDK.init(adOptions);</textarea>
+    </div>
+
+    <div class="notice">
+      <strong>Remember:</strong>
+      The selector must match an existing element on your page.
+      For example, <code>"#article-ad-slot"</code> refers to
+      <code>id="article-ad-slot"</code>.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 5 -->
+
+  <section class="section">
+
+    <h2>5. Obtain advertising credentials from your backend</h2>
+
+    <p>
+      Before initializing the SDK, your frontend must request
+      authorization from your own backend.
+    </p>
+
+    <p>
+      In the example below, the frontend calls:
+      <code>/api/check-ad-network.js</code>.
+    </p>
+
+    <p>
+      This is an example backend route. Replace it with the
+      actual route implemented by your application.
+    </p>
+
+    <div class="code-card">
+
+      <div class="code-heading">
+        <span>JavaScript – Request authorization</span>
+        <button class="copy-btn" data-copy="verify-code">Copy code</button>
+      </div>
+
+      <textarea id="verify-code" class="code-area medium" readonly spellcheck="false">const response = await fetch("/api/check-ad-network.js", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({}),
+  cache: "no-store"
+});
+
+const data = await response.json();
+
+if (
+  !response.ok ||
+  data.success !== true ||
+  data.authorized !== true
+) {
+  throw new Error(
+    data.message || "Application verification failed."
+  );
+}</textarea>
+
+    </div>
+
+    <p>
+      Your backend must perform the partner verification and
+      return the authorization response to the frontend.
+    </p>
+
+    <h3>Expected successful backend response</h3>
+
+    <p>
+      The response must contain the following fields:
+    </p>
+
+    <div class="code-card">
+
+      <div class="code-heading">
+        <span>JSON – Example response</span>
+        <button class="copy-btn" data-copy="response-code">Copy code</button>
+      </div>
+
+      <textarea id="response-code" class="code-area medium" readonly spellcheck="false">{
+  "success": true,
+  "authorized": true,
+  "message": "Partner verified",
+  "subid": "A1B2C3D4",
+  "token_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}</textarea>
+
+    </div>
+
+    <div class="warning">
+      The token shown above is a dummy example for documentation.
+      It is not a real authorization credential. Your backend
+      must return the actual token generated for that request.
+    </div>
+
+    <table>
+      <tr>
+        <th>Field</th>
+        <th>Purpose</th>
+      </tr>
+      <tr>
+        <td><code>success</code></td>
+        <td>Indicates whether the backend request succeeded.</td>
+      </tr>
+      <tr>
+        <td><code>authorized</code></td>
+        <td>Confirms whether the application is authorized.</td>
+      </tr>
+      <tr>
+        <td><code>subid</code></td>
+        <td>Identifies the registered application.</td>
+      </tr>
+      <tr>
+        <td><code>token_id</code></td>
+        <td>
+          The authorization token passed to the advertising SDK.
+        </td>
+      </tr>
+    </table>
+
+  </section>
+
+
+  <!-- SECTION 6 -->
+
+  <section class="section">
+
+    <h2>6. Complete frontend integration example</h2>
+
+    <p>
+      This example combines backend verification and SDK
+      initialization into one working frontend flow.
+    </p>
+
+    <p>
+      The example uses bottom placement by default. To change
+      the placement, edit the <code>AD_PLACEMENT</code> value.
+    </p>
+
+    <div class="code-card">
+
+      <div class="code-heading">
+        <span>HTML – Basic page elements</span>
+        <button class="copy-btn" data-copy="integration-html">Copy code</button>
+      </div>
+
+      <textarea id="integration-html" class="code-area medium" readonly spellcheck="false"><!-- Your advertising integration button -->
+<button id="loadAdButton" type="button">
+  Load Advertisement
+</button>
+
+<!-- Status messages -->
+<p id="adStatus"></p>
+
+<!-- Only required when using static placement.
+     Put this element where the advertisement should appear. -->
+<div id="article-ad-slot"></div>
+
+<script src="https://scam-gamma.vercel.app/advertising-sdk.js"></script></textarea>
+
+    </div>
+
+
+    <div class="code-card">
+
+      <div class="code-heading">
+        <span>JavaScript – Complete integration</span>
+        <button class="copy-btn" data-copy="integration-js">Copy code</button>
+      </div>
+
+      <textarea id="integration-js" class="code-area large" readonly spellcheck="false">"use strict";
+
+// STEP 1: Configure your integration
+
+// Allowed values:
+// "bottom", "top", "fullscreen", "static"
+
+const AD_PLACEMENT = "bottom";
+
+// This is only required for static placement.
+// It must match an existing element on your page.
+const STATIC_CONTAINER = "#article-ad-slot";
+
+// Your own backend verification endpoint.
+// Replace this if your backend uses a different route.
+const VERIFICATION_ENDPOINT = "/api/check-ad-network.js";
+
+const button = document.getElementById("loadAdButton");
+const statusBox = document.getElementById("adStatus");
+
+function showStatus(message) {
+  statusBox.textContent = message;
+}
+
+// STEP 2: Request and load an advertisement
+
+async function requestAdvertisement() {
+
+  button.disabled = true;
+  button.textContent = "Connecting...";
+
+  showStatus("Verifying application...");
+
+  try {
+
+    // Request authorization from your own backend.
+    const response = await fetch(VERIFICATION_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({}),
+      cache: "no-store"
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    // Confirm that the backend authorized the application.
+    if (
+      !response.ok ||
+      data.success !== true ||
+      data.authorized !== true
+    ) {
+      throw new Error(
+        data.message || "Application verification failed."
+      );
+    }
+
+    // Validate the credentials returned by your backend.
+    if (
+      typeof data.token_id !== "string" ||
+      !/^[a-f0-9]{64}$/i.test(data.token_id) ||
+      typeof data.subid !== "string" ||
+      !/^[A-F0-9]{8}$/.test(data.subid)
+    ) {
+      throw new Error("Invalid advertising credentials.");
+    }
+
+    // Confirm that the official SDK is available.
+    if (
+      !window.AdvertisingSDK ||
+      typeof window.AdvertisingSDK.init !== "function"
+    ) {
+      throw new Error("Advertising SDK could not be loaded.");
+    }
+
+    // Prepare SDK configuration.
+    const adOptions = {
+      token_id: data.token_id,
+      subid: data.subid,
+      placement: AD_PLACEMENT,
+
+      onClose: function () {
+        showStatus("Advertisement closed.");
+      }
+    };
+
+    // Static placement must have a container selector.
+    if (AD_PLACEMENT === "static") {
+      adOptions.container = STATIC_CONTAINER;
+    }
+
+    showStatus("Application verified. Loading advertisement...");
+
+    // Initialize the official advertising SDK.
+    const result = await window.AdvertisingSDK.init(adOptions);
+
+    // Check the SDK result.
+    if (!result || result.success !== true) {
+      throw new Error(
+        result?.message || "Advertisement could not be loaded."
+      );
+    }
+
+    if (result.noAd === true) {
+
+      showStatus(
+        "Application verified. No advertisement is available."
+      );
+
+    } else if (result.closed === true) {
+
+      showStatus("Advertisement closed.");
+
+    } else {
+
+      showStatus("Advertisement loaded successfully.");
+
+    }
+
+  } catch (error) {
+
+    console.error("Advertising integration error:", error);
+
+    showStatus(
+      error.message || "Unable to load advertisement."
+    );
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent = "Load Advertisement";
+
+  }
+}
+
+// STEP 3: Connect the button to the integration.
+
+button.addEventListener("click", requestAdvertisement);</textarea>
+
+    </div>
+
+    <div class="notice">
+      <strong>How to change placement:</strong>
+      Change only <code>AD_PLACEMENT</code> to one of the four
+      supported values. For static placement, also make sure
+      <code>STATIC_CONTAINER</code> points to the correct HTML
+      element.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 7 -->
+
+  <section class="section">
+
+    <h2>7. Understanding the SDK response</h2>
+
+    <p>
+      The SDK returns a result after the advertising platform
+      responds to the initialization request.
+    </p>
+
+    <table>
+      <tr>
+        <th>Result</th>
+        <th>Meaning</th>
+        <th>Recommended handling</th>
+      </tr>
+
+      <tr>
+        <td><code>success: true</code></td>
+        <td>The advertisement was initialized successfully.</td>
+        <td>Continue normal application operation.</td>
+      </tr>
+
+      <tr>
+        <td><code>noAd: true</code></td>
+        <td>No advertisement is currently available.</td>
+        <td>Continue without displaying an ad.</td>
+      </tr>
+
+      <tr>
+        <td><code>closed: true</code></td>
+        <td>The user closed the advertisement.</td>
+        <td>Continue normal application operation.</td>
+      </tr>
+
+      <tr>
+        <td><code>success: false</code></td>
+        <td>Initialization failed.</td>
+        <td>Check the returned error message.</td>
+      </tr>
+    </table>
+
+    <h3>Example: Advertisement successfully loaded</h3>
+
+    <div class="code-card">
+      <div class="code-heading">
+        <span>JSON – SDK result</span>
+        <button class="copy-btn" data-copy="loaded-response">Copy code</button>
+      </div>
+
+      <textarea id="loaded-response" class="code-area small" readonly spellcheck="false">{
+  "success": true,
+  "noAd": false,
+  "placement": "bottom",
+  "message": "Advertisement loaded successfully."
+}</textarea>
+    </div>
+
+    <h3>Example: No advertisement available</h3>
+
+    <div class="code-card">
+      <div class="code-heading">
+        <span>JSON – No advertisement</span>
+        <button class="copy-btn" data-copy="no-ad-response">Copy code</button>
+      </div>
+
+      <textarea id="no-ad-response" class="code-area small" readonly spellcheck="false">{
+  "success": true,
+  "noAd": true,
+  "placement": "bottom",
+  "message": "No advertisements available."
+}</textarea>
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 8 -->
+
+  <section class="section">
+
+    <h2>8. Important implementation rules</h2>
+
+    <ul>
+      <li>
+        Always request authorization from your own backend before
+        initializing the SDK.
+      </li>
+
+      <li>
+        Use the actual <code>token_id</code> and
+        <code>subid</code> returned by your backend.
+      </li>
+
+      <li>
+        Do not invent tokens or use sample credentials in production.
+      </li>
+
+      <li>
+        Do not store temporary authorization tokens in
+        <code>localStorage</code> or hardcode them into your website.
+      </li>
+
+      <li>
+        Do not reuse a token when your backend's token rules require
+        a fresh authorization request.
+      </li>
+
+      <li>
+        For static placement, create the container exactly where
+        the advertisement should appear.
+      </li>
+
+      <li>
+        Do not use a container for top, bottom or fullscreen
+        placement. The SDK positions those advertisements itself.
+      </li>
+
+      <li>
+        Check the SDK result and handle errors so that an
+        advertising issue does not break the rest of your website.
+      </li>
+    </ul>
+
+    <div class="danger">
+      <strong>Security warning:</strong>
+      Never put your partner <code>secret_key</code>, private
+      application credentials, or Supabase secret keys in frontend
+      HTML or JavaScript. Keep these values in your server-side
+      environment or backend code. The frontend should receive
+      only the authorization response required to initialize the SDK.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 9 -->
+
+  <section class="section">
+
+    <h2>9. Integration checklist</h2>
+
+    <p>Before deploying your integration, confirm the following:</p>
+
+    <ul>
+      <li>The official SDK script is included in your webpage.</li>
+      <li>Your backend verification endpoint is working.</li>
+      <li>Your backend returns <code>success</code> and <code>authorized</code> as true when verification succeeds.</li>
+      <li>Your response contains a valid <code>token_id</code> and <code>subid</code>.</li>
+      <li>You selected a supported placement.</li>
+      <li>For static placement, the container exists and its selector is correct.</li>
+      <li>Your frontend handles no-ad and error responses.</li>
+      <li>No private partner credentials are exposed in the browser.</li>
+    </ul>
+
+    <div class="notice">
+      Once these steps are complete, your application can request
+      advertisements through the ZambianAdvertisements SDK.
+    </div>
+
+  </section>
+
+
+  <footer class="footer">
+    ZambianAdvertisements · Frontend Integration Documentation
+  </footer>
+
+</div>
+
+
+<script>
+"use strict";
+
+/* NAVIGATION MENU */
+
+const menuButton = document.getElementById("menuButton");
+const sideMenu = document.getElementById("sideMenu");
+const menuOverlay = document.getElementById("menuOverlay");
+const closeMenu = document.getElementById("closeMenu");
+
+function openMenu() {
+  sideMenu.classList.add("active");
+  menuOverlay.classList.add("active");
+  menuButton.setAttribute("aria-expanded", "true");
+  document.body.style.overflow = "hidden";
+}
+
+function hideMenu() {
+  sideMenu.classList.remove("active");
+  menuOverlay.classList.remove("active");
+  menuButton.setAttribute("aria-expanded", "false");
+  document.body.style.overflow = "";
+}
+
+menuButton.addEventListener("click", openMenu);
+closeMenu.addEventListener("click", hideMenu);
+menuOverlay.addEventListener("click", hideMenu);
+
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape") {
+    hideMenu();
+  }
+});
+
+// Close menu when a navigation link is selected.
+sideMenu.querySelectorAll("a").forEach(link => {
+  link.addEventListener("click", hideMenu);
+});
+
+
+/* COPY CODE BUTTONS */
+
+document.querySelectorAll(".copy-btn").forEach(button => {
+
+  button.addEventListener("click", async () => {
+
+    const codeArea = document.getElementById(
+      button.dataset.copy
+    );
+
+    if (!codeArea) return;
+
+    const originalText = button.textContent;
+
+    try {
+
+      await navigator.clipboard.writeText(codeArea.value);
+
+    } catch (error) {
+
+      // Fallback for browsers without Clipboard API access.
+      codeArea.focus();
+      codeArea.select();
+
+      const copied = document.execCommand("copy");
+
+      if (!copied) {
+        button.textContent = "Select and copy";
+        return;
+      }
+
+    }
+
+    button.textContent = "Copied!";
+
+    setTimeout(() => {
+      button.textContent = originalText;
+    }, 1600);
+
+  });
+
+});
+</script>
+
+</body>
+          </html>
