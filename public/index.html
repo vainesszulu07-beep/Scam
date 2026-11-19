@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#123b2e">
+
+<title>ZambianAdvertisements | Welcome</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px 16px;
+  min-height: 100vh;
+  background: #f3f5f3;
+  color: #26352f;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 1050px;
+  margin: auto;
+}
+
+/* HERO */
+
+.hero {
+  position: relative;
+  background: #123b2e;
+  color: white;
+  padding: 65px 35px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  border-bottom: 5px solid #d4ad55;
+  text-align: center;
+}
+
+.brand {
+  color: #e2bd6b;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  padding: 0 50px;
+}
+
+.hero h1 {
+  margin: 0 0 16px;
+  font-size: clamp(30px, 5vw, 43px);
+  line-height: 1.2;
+}
+
+.hero h1 span {
+  color: #e2bd6b;
+}
+
+.hero p {
+  margin: 0 auto;
+  color: #e0e9e4;
+  font-size: 15px;
+  max-width: 720px;
+}
+
+.hero-tag {
+  display: inline-block;
+  margin-top: 23px;
+  padding: 7px 14px;
+  border: 1px solid rgba(226,189,107,0.5);
+  border-radius: 30px;
+  color: #e2bd6b;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* SECTIONS */
+
+.section {
+  background: white;
+  padding: 26px;
+  border-radius: 13px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 15px rgba(0,0,0,0.045);
+}
+
+h2 {
+  color: #174735;
+  font-size: 21px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  color: #174735;
+  font-size: 17px;
+  margin: 18px 0 8px;
+}
+
+p {
+  color: #626f68;
+  font-size: 14px;
+  margin: 8px 0 12px;
+}
+
+strong {
+  color: #26352f;
+}
+
+ul {
+  padding-left: 22px;
+  color: #626f68;
+  font-size: 14px;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+/* INFORMATION BOXES */
+
+.notice {
+  background: #f2f7f3;
+  border-left: 4px solid #26744f;
+  padding: 15px 16px;
+  border-radius: 7px;
+  margin: 17px 0;
+  color: #345244;
+  font-size: 14px;
+}
+
+.warning {
+  background: #fff8e9;
+  border-left: 4px solid #d3a33f;
+  padding: 15px 16px;
+  border-radius: 7px;
+  margin: 17px 0;
+  color: #72551b;
+  font-size: 14px;
+}
+
+/* PLATFORM OVERVIEW */
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.feature {
+  padding: 19px;
+  background: #f5f8f5;
+  border: 1px solid #e3eae4;
+  border-radius: 10px;
+}
+
+.feature-icon {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f1eb;
+  color: #174735;
+  border-radius: 9px;
+  font-size: 21px;
+  margin-bottom: 12px;
+}
+
+.feature h3 {
+  margin: 0 0 7px;
+  font-size: 15px;
+}
+
+.feature p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* AUDIENCE SELECTION */
+
+.audience-section {
+  padding: 30px 26px;
+}
+
+.audience-intro {
+  max-width: 700px;
+}
+
+.audience-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 23px;
+}
+
+.audience-card {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  background: #f8faf8;
+  border: 1px solid #e1e9e2;
+  border-radius: 12px;
+}
+
+.audience-card h3 {
+  margin: 0 0 10px;
+  font-size: 19px;
+}
+
+.audience-card p {
+  flex: 1;
+  font-size: 14px;
+}
+
+.audience-icon {
+  width: 49px;
+  height: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f1eb;
+  color: #174735;
+  border-radius: 10px;
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.audience-button {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 17px;
+  padding: 13px 15px;
+  background: #174735;
+  color: white;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.audience-button:hover {
+  background: #226449;
+}
+
+.audience-button.advertiser {
+  background: #b18a35;
+  color: white;
+}
+
+.audience-button.advertiser:hover {
+  background: #967027;
+}
+
+/* ZAMBIA SECTION */
+
+.zambia-box {
+  padding: 22px;
+  border-radius: 11px;
+  background: #f5f8f5;
+  border: 1px solid #e3eae4;
+  margin-top: 17px;
+}
+
+.zambia-box strong {
+  color: #174735;
+}
+
+/* FUNDING SECTION */
+
+.funding-section {
+  background: #123b2e;
+  color: white;
+  border-bottom: 4px solid #d4ad55;
+}
+
+.funding-section h2 {
+  color: white;
+}
+
+.funding-section h3 {
+  color: #e2bd6b;
+}
+
+.funding-section p {
+  color: #d6e2da;
+}
+
+.funding-section strong {
+  color: white;
+}
+
+.funding-section .notice {
+  background: rgba(255,255,255,0.08);
+  border-left-color: #e2bd6b;
+  color: #f1e4bf;
+}
+
+/* FINAL MESSAGE */
+
+.final-section {
+  text-align: center;
+  padding: 34px 25px;
+}
+
+.final-section h2 {
+  font-size: 23px;
+}
+
+.final-section p {
+  max-width: 680px;
+  margin: 10px auto;
+}
+
+.final-contact {
+  display: inline-block;
+  margin-top: 17px;
+  padding: 12px 23px;
+  border-radius: 8px;
+  background: #174735;
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.final-contact:hover {
+  background: #226449;
+}
+
+/* FOOTER */
+
+.footer {
+  text-align: center;
+  color: #77847c;
+  font-size: 12px;
+  padding: 15px 0 25px;
+}
+
+/* THREE-LINE MENU BUTTON */
+
+.menu-button {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 43px;
+  height: 43px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+.menu-button span {
+  display: block;
+  width: 21px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 5px;
+  transition: 0.25s;
+}
+
+.menu-button:hover {
+  background: rgba(255,255,255,0.17);
+}
+
+/* SLIDING NAVIGATION */
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1998;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(310px, 85%);
+  height: 100vh;
+  height: 100dvh;
+  background: #123b2e;
+  z-index: 1999;
+  padding: 25px 20px;
+  transform: translateX(-105%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+}
+
+.side-menu.active {
+  transform: translateX(0);
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 22px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.17);
+}
+
+.menu-brand {
+  color: #e2bd6b;
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.close-menu {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 7px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.menu-label {
+  color: #a9c2b4;
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 18px 0 10px;
+}
+
+.menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.menu-links a {
+  color: #edf5ef;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 13px 12px;
+  border-radius: 7px;
+  transition: background 0.2s;
+}
+
+.menu-links a:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+.menu-links a.current {
+  background: rgba(212,173,85,0.16);
+  color: #e9c879;
+  border-left: 3px solid #d4ad55;
+}
+
+.menu-footer {
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.17);
+  color: #a9c2b4;
+  font-size: 12px;
+}
+
+/* MOBILE */
+
+@media (max-width: 700px) {
+  body {
+    padding: 12px;
+  }
+
+  .hero {
+    padding: 48px 20px 30px;
+  }
+
+  .hero h1 {
+    font-size: 29px;
+  }
+
+  .brand {
+    font-size: 12px;
+  }
+
+  .section {
+    padding: 20px;
+  }
+
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .audience-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-button {
+    top: 15px;
+    right: 15px;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero h1 {
+    font-size: 26px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- MENU OVERLAY -->
+<div class="menu-overlay" id="menuOverlay"></div>
+
+<!-- SLIDING NAVIGATION MENU -->
+<nav class="side-menu" id="sideMenu">
+
+  <div class="menu-header">
+
+    <div class="menu-brand">
+      ZambianAdvertisements
+    </div>
+
+    <button
+      class="close-menu"
+      id="closeMenu"
+      type="button"
+      aria-label="Close navigation menu"
+    >
+      &times;
+    </button>
+
+  </div>
+
+  <div class="menu-label">
+    Main Navigation
+  </div>
+
+  <div class="menu-links">
+
+    <a href="index.html" class="current">
+      Welcome
+    </a>
+
+    <a href="get-token.html">
+      How to get a token
+    </a>
+
+    <a href="get-ad.html">
+      How to render ads from frontend
+    </a>
+
+    <a href="payments.html">
+      Publisher payments
+    </a>
+
+    <a href="advertisers-request.html">
+      Advertiser request
+    </a>
+
+    <a href="contact.html">
+      Contact
+    </a>
+
+  </div>
+
+  <div class="menu-footer">
+    Built with a focus on Zambia<br>
+    ZambianAdvertisements
+  </div>
+
+</nav>
+
+
+<div class="page">
+
+  <!-- HERO -->
+  <header class="hero">
+
+    <button
+      class="menu-button"
+      id="menuButton"
+      type="button"
+      aria-label="Open navigation menu"
+      aria-expanded="false"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <div class="brand">
+      ZambianAdvertisements
+    </div>
+
+    <h1>
+      Welcome to <span>ZambianAdvertisements</span>
+    </h1>
+
+    <p>
+      A developing advertising platform with a focus on connecting
+      Zambian publishers, application developers and advertisers
+      through digital advertising.
+    </p>
+
+    <div class="hero-tag">
+      BUILT WITH ZAMBIA IN MIND
+    </div>
+
+  </header>
+
+
+  <!-- SECTION 1 -->
+  <section class="section">
+
+    <h2>1. What is ZambianAdvertisements?</h2>
+
+    <p>
+      ZambianAdvertisements is a developing digital advertising
+      platform designed specifically for the Zambian market.
+      Our aim is to create an opportunity for local application
+      developers and publishers to earn from advertising while
+      helping businesses reach audiences through digital platforms.
+    </p>
+
+    <p>
+      We want to make digital advertising more accessible to
+      Zambian publishers and advertisers by providing a platform
+      where both sides can connect and participate in the
+      advertising ecosystem.
+    </p>
+
+    <p>
+      Our focus is on building a system that considers the needs
+      of Zambian businesses, developers, publishers and digital
+      audiences.
+    </p>
+
+    <div class="notice">
+      <strong>Our focus:</strong>
+      Creating more opportunities for digital advertising within
+      Zambia and supporting the growth of the local digital
+      technology ecosystem.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 2 -->
+  <section class="section">
+
+    <h2>2. Designed for Zambia</h2>
+
+    <p>
+      ZambianAdvertisements is specifically focused on serving
+      the Zambian market. Our platform is being developed with
+      local businesses, local publishers and Zambian audiences
+      in mind.
+    </p>
+
+    <div class="zambia-box">
+
+      <h3>Supporting the Zambian digital community</h3>
+
+      <ul>
+
+        <li>
+          Helping Zambian application developers and publishers
+          access advertising opportunities.
+        </li>
+
+        <li>
+          Giving Zambian businesses another way to promote their
+          products and services digitally.
+        </li>
+
+        <li>
+          Encouraging the development of digital platforms and
+          local technology projects.
+        </li>
+
+        <li>
+          Building an advertising network that understands the
+          needs of the Zambian market.
+        </li>
+
+      </ul>
+
+    </div>
+
+    <p>
+      Our long-term aim is to contribute to a stronger local
+      digital advertising environment where Zambian businesses
+      and developers can participate.
+    </p>
+
+  </section>
+
+
+  <!-- SECTION 3 -->
+  <section class="section">
+
+    <h2>3. What does the platform offer?</h2>
+
+    <p>
+      ZambianAdvertisements is being developed around two main
+      groups: publishers and advertisers.
+    </p>
+
+    <div class="feature-grid">
+
+      <div class="feature">
+
+        <div class="feature-icon">▣</div>
+
+        <h3>Publisher opportunities</h3>
+
+        <p>
+          An opportunity for application developers and publishers
+          to display advertisements and earn from eligible,
+          verified advertising activity.
+        </p>
+
+      </div>
+
+      <div class="feature">
+
+        <div class="feature-icon">◈</div>
+
+        <h3>Business advertising</h3>
+
+        <p>
+          A platform through which businesses can seek digital
+          advertising opportunities and reach users through
+          participating applications.
+        </p>
+
+      </div>
+
+      <div class="feature">
+
+        <div class="feature-icon">▤</div>
+
+        <h3>Activity and payments</h3>
+
+        <p>
+          Publisher payment tracking and advertising activity
+          information are part of the platform's developing
+          ecosystem.
+        </p>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 4 -->
+  <section class="section audience-section">
+
+    <div class="audience-intro">
+
+      <h2>4. What brings you to ZambianAdvertisements?</h2>
+
+      <p>
+        Choose the category that best describes you so that
+        we can direct you to the appropriate information
+        and registration process.
+      </p>
+
+    </div>
+
+    <div class="audience-grid">
+
+      <!-- PUBLISHER -->
+      <div class="audience-card">
+
+        <div class="audience-icon">▣</div>
+
+        <h3>I am a Publisher</h3>
+
+        <p>
+          Are you an application developer or website owner
+          interested in displaying advertisements and earning
+          from eligible user activity?
+        </p>
+
+        <p>
+          Start by reviewing the publisher integration
+          requirements and learning how to obtain your
+          application authentication token.
+        </p>
+
+        <a
+          href="get-token.html"
+          class="audience-button"
+        >
+          Continue as Publisher
+        </a>
+
+      </div>
+
+
+      <!-- ADVERTISER -->
+      <div class="audience-card">
+
+        <div class="audience-icon">◈</div>
+
+        <h3>I am an Advertiser</h3>
+
+        <p>
+          Are you a business or individual looking to promote
+          products, services or a brand to audiences through
+          participating digital applications?
+        </p>
+
+        <p>
+          Submit an advertiser request so that your advertising
+          requirements can be reviewed.
+        </p>
+
+        <a
+          href="advertisers-request.html"
+          class="audience-button advertiser"
+        >
+          Continue as Advertiser
+        </a>
+
+      </div>
+
+    </div>
+
+    <div class="notice">
+      <strong>Not sure which option to choose?</strong>
+      Publishers provide the applications and spaces where
+      advertisements can appear. Advertisers provide the
+      advertising campaigns they want users to see.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 5 -->
+  <section class="section">
+
+    <h2>5. Our direction and long-term vision</h2>
+
+    <p>
+      Our vision is to develop a digital advertising network
+      that creates meaningful opportunities for Zambian
+      publishers and businesses.
+    </p>
+
+    <p>
+      We want to make it easier for local publishers to
+      participate in advertising while creating another
+      digital marketing option for businesses looking to
+      reach people in Zambia.
+    </p>
+
+    <p>
+      As development progresses, our aim is to improve the
+      platform, expand participation and build relationships
+      with individuals and organisations that support
+      technology and digital innovation in Zambia.
+    </p>
+
+  </section>
+
+
+  <!-- SECTION 6: REGISTRATION STATUS -->
+  <section class="section">
+
+    <h2>6. Current organisational status</h2>
+
+    <p>
+      We believe in being open about the current stage of
+      ZambianAdvertisements.
+    </p>
+
+    <div class="warning">
+
+      <strong>Registration disclosure:</strong>
+
+      <br><br>
+
+      ZambianAdvertisements is currently a developing
+      advertising platform and is not yet registered as a
+      company in Zambia.
+
+      <br><br>
+
+      We do not claim to be a registered Zambian company.
+      Our organisational and registration arrangements are
+      still part of our development journey.
+
+    </div>
+
+    <p>
+      We are sharing this information so that publishers,
+      advertisers, potential supporters and other interested
+      individuals understand the platform's current status
+      before choosing to participate.
+    </p>
+
+  </section>
+
+
+  <!-- SECTION 7: FUNDING -->
+  <section class="section funding-section">
+
+    <h2>7. We are seeking funding support</h2>
+
+    <p>
+      ZambianAdvertisements is currently looking for funding
+      support from interested individuals who believe in the
+      potential of local digital technology and advertising
+      opportunities in Zambia.
+    </p>
+
+    <p>
+      Funding would help support the platform's development,
+      technical improvements, operational requirements and
+      future growth.
+    </p>
+
+    <h3>Why we are seeking support</h3>
+
+    <ul>
+
+      <li>
+        To support the continued development of the platform.
+      </li>
+
+      <li>
+        To improve the technology and infrastructure behind
+        the advertising network.
+      </li>
+
+      <li>
+        To support the development of opportunities for
+        Zambian publishers and advertisers.
+      </li>
+
+      <li>
+        To help move the project towards its longer-term
+        operational and organisational goals.
+      </li>
+
+    </ul>
+
+    <div class="notice">
+
+      <strong>For interested individuals:</strong>
+
+      <br><br>
+
+      Individuals interested in supporting or discussing
+      funding opportunities can contact us directly.
+
+      Any proposed funding arrangement would need to be
+      discussed transparently and documented appropriately.
+      This page does not constitute an offer of shares,
+      guaranteed financial returns or a public investment
+      solicitation.
+
+    </div>
+
+    <p>
+      We welcome conversations with individuals who are
+      interested in supporting the development of a
+      Zambian-focused digital advertising platform.
+    </p>
+
+  </section>
+
+
+  <!-- SECTION 8 -->
+  <section class="section">
+
+    <h2>8. Be part of the journey</h2>
+
+    <p>
+      Whether you are a publisher, advertiser, developer or
+      someone interested in supporting digital innovation
+      in Zambia, there is a place for you to learn more
+      about what we are building.
+    </p>
+
+    <p>
+      We invite you to explore the platform, understand how
+      it works and choose the category that applies to you.
+    </p>
+
+    <div class="notice">
+      <strong>Welcome to ZambianAdvertisements.</strong>
+      Our goal is to build digital advertising opportunities
+      with Zambia at the centre.
+    </div>
+
+  </section>
+
+
+  <!-- FINAL SECTION -->
+  <section class="section final-section">
+
+    <h2>Ready to get started?</h2>
+
+    <p>
+      Tell us whether you are a publisher or an advertiser
+      and continue to the appropriate page to learn about
+      the next steps.
+    </p>
+
+    <div class="audience-grid">
+
+      <div>
+        <a href="get-token.html" class="audience-button">
+          I am a Publisher
+        </a>
+      </div>
+
+      <div>
+        <a
+          href="advertisers-request.html"
+          class="audience-button advertiser"
+        >
+          I am an Advertiser
+        </a>
+      </div>
+
+    </div>
+
+    <p style="margin-top:24px;">
+      Have a question? Contact our team for assistance.
+    </p>
+
+    <a href="contact.html" class="final-contact">
+      Contact Us
+    </a>
+
+  </section>
+
+
+  <!-- FOOTER -->
+  <footer class="footer">
+
+    <strong>ZambianAdvertisements</strong>
+
+    <br>
+
+    A developing digital advertising platform focused on Zambia.
+
+    <br><br>
+
+    Not currently registered as a company in Zambia.
+
+    <br><br>
+
+    © 2026 ZambianAdvertisements
+
+  </footer>
+
+</div>
+
+
+<script>
+"use strict";
+
+/* NAVIGATION MENU */
+
+const menuButton = document.getElementById("menuButton");
+const sideMenu = document.getElementById("sideMenu");
+const menuOverlay = document.getElementById("menuOverlay");
+const closeMenu = document.getElementById("closeMenu");
+
+function openMenu() {
+  sideMenu.classList.add("active");
+  menuOverlay.classList.add("active");
+  menuButton.setAttribute("aria-expanded", "true");
+  document.body.style.overflow = "hidden";
+}
+
+function hideMenu() {
+  sideMenu.classList.remove("active");
+  menuOverlay.classList.remove("active");
+  menuButton.setAttribute("aria-expanded", "false");
+  document.body.style.overflow = "";
+}
+
+menuButton.addEventListener("click", openMenu);
+
+closeMenu.addEventListener("click", hideMenu);
+
+menuOverlay.addEventListener("click", hideMenu);
+
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape") {
+    hideMenu();
+  }
+});
+
+// Close menu when a navigation link is selected.
+sideMenu.querySelectorAll("a").forEach(link => {
+  link.addEventListener("click", hideMenu);
+});
+</script>
+
+</body>
+  </html>
