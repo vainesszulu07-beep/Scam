@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ZambianAdvertisements | Publisher Payments</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px 16px;
+  min-height: 100vh;
+  background: #f3f5f3;
+  color: #26352f;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 1050px;
+  margin: auto;
+}
+
+.hero {
+  position: relative;
+  background: #123b2e;
+  color: white;
+  padding: 38px 30px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  border-bottom: 5px solid #d4ad55;
+}
+
+.brand {
+  color: #e2bd6b;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-right: 50px;
+}
+
+.hero h1 {
+  margin: 0 0 12px;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.hero p {
+  margin: 0;
+  color: #e0e9e4;
+  font-size: 15px;
+  max-width: 750px;
+}
+
+.section {
+  background: white;
+  padding: 25px;
+  border-radius: 13px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 15px rgba(0,0,0,0.045);
+}
+
+h2 {
+  color: #174735;
+  font-size: 21px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  color: #174735;
+  font-size: 16px;
+  margin: 20px 0 8px;
+}
+
+p {
+  color: #626f68;
+  font-size: 14px;
+  margin: 8px 0 12px;
+}
+
+ul, ol {
+  padding-left: 22px;
+  color: #626f68;
+  font-size: 14px;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+.notice {
+  background: #f2f7f3;
+  border-left: 4px solid #26744f;
+  padding: 14px 16px;
+  border-radius: 7px;
+  margin: 15px 0;
+  color: #345244;
+  font-size: 14px;
+}
+
+.warning {
+  background: #fff8e9;
+  border-left: 4px solid #d3a33f;
+  padding: 14px 16px;
+  border-radius: 7px;
+  margin: 15px 0;
+  color: #72551b;
+  font-size: 14px;
+}
+
+.danger {
+  background: #fff0ef;
+  border-left: 4px solid #cb554c;
+  padding: 14px 16px;
+  border-radius: 7px;
+  margin: 15px 0;
+  color: #8c332e;
+  font-size: 14px;
+}
+
+.rate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.rate-card {
+  background: #f7faf7;
+  border: 1px solid #e3eae4;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.rate-label {
+  color: #65736b;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.rate-amount {
+  color: #174735;
+  font-size: 30px;
+  font-weight: bold;
+  margin: 7px 0;
+}
+
+.rate-description {
+  font-size: 13px;
+  color: #66736c;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.flow-item {
+  background: #f5f8f5;
+  padding: 17px;
+  border-radius: 10px;
+  border: 1px solid #e3eae4;
+}
+
+.flow-number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #174735;
+  color: white;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 9px;
+}
+
+.flow-item strong {
+  display: block;
+  color: #174735;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.flow-item span {
+  display: block;
+  color: #69766f;
+  font-size: 12px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  background: #174735;
+  color: white;
+  padding: 12px;
+}
+
+td {
+  border-bottom: 1px solid #e8ede9;
+  padding: 12px;
+  color: #58675e;
+  vertical-align: top;
+}
+
+.example {
+  background: #f7faf7;
+  border: 1px solid #e2e9e3;
+  border-radius: 10px;
+  padding: 17px;
+  margin: 15px 0;
+}
+
+.example strong {
+  color: #174735;
+}
+
+.example p {
+  margin-bottom: 0;
+}
+
+.request-section {
+  text-align: center;
+  padding: 32px 25px;
+}
+
+.request-section h2 {
+  font-size: 23px;
+}
+
+.request-button {
+  display: inline-block;
+  margin-top: 15px;
+  padding: 14px 28px;
+  background: #174735;
+  color: white;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.request-button:hover {
+  background: #226449;
+}
+
+.footer {
+  text-align: center;
+  color: #77847c;
+  font-size: 12px;
+  padding: 15px 0 25px;
+}
+
+/* Three-line menu button */
+
+.menu-button {
+  position: absolute;
+  top: 25px;
+  right: 25px;
+  width: 43px;
+  height: 43px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+.menu-button span {
+  display: block;
+  width: 21px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 5px;
+  transition: 0.25s;
+}
+
+.menu-button:hover {
+  background: rgba(255,255,255,0.17);
+}
+
+/* Sliding navigation */
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1998;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(310px, 85%);
+  height: 100vh;
+  height: 100dvh;
+  background: #123b2e;
+  z-index: 1999;
+  padding: 25px 20px;
+  transform: translateX(-105%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+}
+
+.side-menu.active {
+  transform: translateX(0);
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 22px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.17);
+}
+
+.menu-brand {
+  color: #e2bd6b;
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.close-menu {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 7px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.menu-label {
+  color: #a9c2b4;
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 18px 0 10px;
+}
+
+.menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.menu-links a {
+  color: #edf5ef;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 13px 12px;
+  border-radius: 7px;
+  transition: background 0.2s;
+}
+
+.menu-links a:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+.menu-links a.current {
+  background: rgba(212,173,85,0.16);
+  color: #e9c879;
+  border-left: 3px solid #d4ad55;
+}
+
+.menu-footer {
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.17);
+  color: #a9c2b4;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  body {
+    padding: 12px;
+  }
+
+  .hero {
+    padding: 27px 20px;
+  }
+
+  .hero h1 {
+    font-size: 25px;
+    padding-right: 15px;
+  }
+
+  .section {
+    padding: 19px;
+  }
+
+  .flow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .rate-grid {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .menu-button {
+    top: 18px;
+    right: 17px;
+  }
+
+  .brand {
+    padding-right: 45px;
+  }
+}
+
+@media (max-width: 380px) {
+  .flow {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- Sliding menu overlay -->
+<div class="menu-overlay" id="menuOverlay"></div>
+
+<!-- Navigation menu -->
+<nav class="side-menu" id="sideMenu">
+
+  <div class="menu-header">
+    <div class="menu-brand">ZambianAdvertisements</div>
+
+    <button
+      class="close-menu"
+      id="closeMenu"
+      type="button"
+      aria-label="Close navigation menu"
+    >
+      &times;
+    </button>
+  </div>
+
+  <div class="menu-label">Integration Guide</div>
+
+  <div class="menu-links">
+
+    <a href="get-token.html">
+      How to get a token
+    </a>
+
+    <a href="get-ad.html">
+      How to render ads from frontend
+    </a>
+
+    <a href="payments.html" class="current">
+      Payments
+    </a>
+
+    <a href="contact.html">
+      Contact
+    </a>
+
+  </div>
+
+  <div class="menu-footer">
+    Technical documentation<br>
+    ZambianAdvertisements
+  </div>
+
+</nav>
+
+
+<div class="page">
+
+  <!-- Header -->
+  <header class="hero">
+
+    <button
+      class="menu-button"
+      id="menuButton"
+      type="button"
+      aria-label="Open navigation menu"
+      aria-expanded="false"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <div class="brand">ZambianAdvertisements</div>
+
+    <h1>Publisher Payments</h1>
+
+    <p>
+      Understand how your application earns money from eligible
+      advertising activity, how daily request limits work, and
+      how to monitor your earnings.
+    </p>
+
+  </header>
+
+
+  <!-- SECTION 1 -->
+  <section class="section">
+
+    <h2>1. How publisher payments work</h2>
+
+    <p>
+      When your application displays advertisements through
+      ZambianAdvertisements, eligible user activity can generate
+      earnings for your registered application.
+    </p>
+
+    <p>
+      Your application earns from verified advertising clicks
+      and views. These earnings are calculated in Zambian Kwacha
+      (ZMW) and credited to your publisher account through the
+      settlement system.
+    </p>
+
+    <div class="flow">
+
+      <div class="flow-item">
+        <div class="flow-number">1</div>
+        <strong>Render advertisements</strong>
+        <span>
+          Integrate the SDK and display ads in your application.
+        </span>
+      </div>
+
+      <div class="flow-item">
+        <div class="flow-number">2</div>
+        <strong>User activity</strong>
+        <span>
+          Users interact with advertisements through eligible views
+          and clicks.
+        </span>
+      </div>
+
+      <div class="flow-item">
+        <div class="flow-number">3</div>
+        <strong>Calculate earnings</strong>
+        <span>
+          Verified activity is considered under the applicable
+          payment rates and daily limits.
+        </span>
+      </div>
+
+      <div class="flow-item">
+        <div class="flow-number">4</div>
+        <strong>Settlement</strong>
+        <span>
+          Eligible earnings are transferred to your publisher
+          account balance.
+        </span>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 2 -->
+  <section class="section">
+
+    <h2>2. Current advertising payment rates</h2>
+
+    <p>
+      The settlement rates currently configured for publisher
+      earnings are shown below.
+    </p>
+
+    <div class="rate-grid">
+
+      <div class="rate-card">
+        <div class="rate-label">Eligible advertising click</div>
+        <div class="rate-amount">K15.00</div>
+        <div class="rate-description">
+          Credited for each eligible, verified click.
+        </div>
+      </div>
+
+      <div class="rate-card">
+        <div class="rate-label">Eligible advertising view</div>
+        <div class="rate-amount">K0.03</div>
+        <div class="rate-description">
+          Credited for each eligible, verified view.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="notice">
+      <strong>Example:</strong>
+      If one payment entry contains both an eligible click and
+      an eligible view, the current settlement calculation adds
+      K15.00 and K0.03, giving K15.03.
+    </div>
+
+    <p>
+      These are the rates configured in the current settlement
+      procedure. They are not a guarantee that every browser
+      request will generate earnings.
+    </p>
+
+  </section>
+
+
+  <!-- SECTION 3 -->
+  <section class="section">
+
+    <h2>3. Daily advertising request limits</h2>
+
+    <p>
+      Each publisher application is subject to a daily eligible
+      advertising request limit. This limit is determined using
+      the proven active users of the publisher's application.
+    </p>
+
+    <p>
+      The limit is intended to reflect the actual active audience
+      of your application. It is not automatically the same for
+      every publisher.
+    </p>
+
+    <h3>How the daily limit is determined</h3>
+
+    <ul>
+      <li>
+        The network assesses the proven active users of your
+        application.
+      </li>
+
+      <li>
+        Your application's daily eligible request allowance is
+        based on that active-user information.
+      </li>
+
+      <li>
+        Applications with different proven active user numbers
+        may receive different daily limits.
+      </li>
+
+      <li>
+        The limit applies to eligible requests within the
+        applicable day.
+      </li>
+    </ul>
+
+    <div class="warning">
+      <strong>Important:</strong>
+      Requests exceeding your assigned daily limit will not
+      qualify for additional publisher earnings. Reaching the
+      limit means that further requests for that day are not
+      payable.
+    </div>
+
+    <h3>Example of a daily limit</h3>
+
+    <p>
+      Suppose your application is assigned a limit of
+      500 eligible advertising requests per day.
+    </p>
+
+    <table>
+      <tr>
+        <th>Request range</th>
+        <th>Payment eligibility</th>
+      </tr>
+
+      <tr>
+        <td>Requests 1–500</td>
+        <td>Eligible for payment, subject to verification and other payment conditions.</td>
+      </tr>
+
+      <tr>
+        <td>Request 501 onwards</td>
+        <td>Not eligible for additional publisher earnings for that day.</td>
+      </tr>
+    </table>
+
+    <div class="notice">
+      The 500 requests shown above are an example, not a fixed
+      allowance for every application. Your actual daily limit
+      depends on your application's proven active users and the
+      allowance assigned to it.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 4 -->
+  <section class="section">
+
+    <h2>4. Why daily limits matter</h2>
+
+    <p>
+      Daily limits help align payable advertising activity with
+      the actual audience of each publisher application.
+    </p>
+
+    <p>
+      Your daily allowance should therefore be understood before
+      deploying the advertising integration across your application.
+    </p>
+
+    <ul>
+      <li>
+        Do not assume that every request made by your application
+        will qualify for payment.
+      </li>
+
+      <li>
+        Do not assume that another publisher's daily limit will
+        apply to your application.
+      </li>
+
+      <li>
+        Your allowance is based on proven active users, rather
+        than simply the number of registered accounts.
+      </li>
+
+      <li>
+        Advertising activity beyond the assigned daily allowance
+        will not generate additional payable earnings.
+      </li>
+    </ul>
+
+  </section>
+
+
+  <!-- SECTION 5 -->
+  <section class="section">
+
+    <h2>5. Your publisher earnings dashboard</h2>
+
+    <p>
+      Publishers will be provided with a dashboard for monitoring
+      advertising activity and earnings.
+    </p>
+
+    <p>
+      The dashboard will help your technical and management teams
+      understand how the application is performing and how much
+      it has earned.
+    </p>
+
+    <h3>Information available on your dashboard</h3>
+
+    <table>
+
+      <tr>
+        <th>Dashboard information</th>
+        <th>What it shows</th>
+      </tr>
+
+      <tr>
+        <td>Daily activity</td>
+        <td>
+          Advertising activity recorded for each day.
+        </td>
+      </tr>
+
+      <tr>
+        <td>Eligible requests</td>
+        <td>
+          Requests counted within your assigned daily allowance.
+        </td>
+      </tr>
+
+      <tr>
+        <td>Clicks and views</td>
+        <td>
+          Eligible clicks and views recorded by the system.
+        </td>
+      </tr>
+
+      <tr>
+        <td>Daily earnings</td>
+        <td>
+          The amount earned from eligible user activity each day.
+        </td>
+      </tr>
+
+      <tr>
+        <td>Account balance</td>
+        <td>
+          Your publisher earnings credited to your account.
+        </td>
+      </tr>
+
+      <tr>
+        <td>Settlement records</td>
+        <td>
+          Payments that have been processed and credited.
+        </td>
+      </tr>
+
+    </table>
+
+    <div class="notice">
+      <strong>Why use the dashboard?</strong>
+      You can review the days your application generated advertising
+      activity, compare daily earnings, and monitor the amount
+      credited to your publisher account.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 6 -->
+  <section class="section">
+
+    <h2>6. When are earnings credited?</h2>
+
+    <p>
+      Advertising earnings are processed through the network's
+      settlement system. Eligible payment entries are assessed
+      before the corresponding amount is deducted from the
+      advertising company's available balance and added to your
+      publisher account balance.
+    </p>
+
+    <p>
+      Settlement is subject to the following conditions:
+    </p>
+
+    <ul>
+      <li>
+        The publisher must have a registered account balance.
+      </li>
+
+      <li>
+        The advertising activity must have an eligible matching
+        advertisement and company account.
+      </li>
+
+      <li>
+        The advertising company must not be blocked.
+      </li>
+
+      <li>
+        The advertising company must have sufficient available
+        funds for the payment.
+      </li>
+
+      <li>
+        The payment entry must qualify under the application's
+        eligibility and daily limit rules.
+      </li>
+    </ul>
+
+    <div class="warning">
+      An activity record does not automatically mean that its
+      earnings have already been credited. The settlement system
+      must successfully process the payment.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 7 -->
+  <section class="section">
+
+    <h2>7. Important information for integration teams</h2>
+
+    <ul>
+      <li>
+        Use the official ZambianAdvertisements SDK when displaying
+        advertisements.
+      </li>
+
+      <li>
+        Request a valid authorization token through your backend
+        before initializing the SDK.
+      </li>
+
+      <li>
+        Do not attempt to create artificial advertising activity
+        or manipulate request counts.
+      </li>
+
+      <li>
+        Build your integration so that advertising failures do not
+        interrupt the normal operation of your application.
+      </li>
+
+      <li>
+        Review the assigned daily limit before estimating the
+        potential advertising earnings of your application.
+      </li>
+
+      <li>
+        Use your publisher dashboard to monitor activity and
+        credited earnings.
+      </li>
+    </ul>
+
+    <div class="danger">
+      <strong>Payment eligibility:</strong>
+      Only activity accepted by the network's verification,
+      eligibility and settlement processes should be considered
+      payable. Requests above the assigned daily limit are not
+      payable.
+    </div>
+
+  </section>
+
+
+  <!-- FINAL REQUEST SECTION -->
+  <section class="section request-section">
+
+    <h2>Ready to integrate?</h2>
+
+    <p>
+      If your technical team understands the advertising
+      integration process, payment rates and daily request limits,
+      you can proceed with an integration request.
+    </p>
+
+    <p>
+      Submit your application details so that your publisher
+      integration can be reviewed.
+    </p>
+
+    <a href="request.html" class="request-button">
+      Request Integration
+    </a>
+
+  </section>
+
+
+  <footer class="footer">
+    ZambianAdvertisements · Publisher Payments Documentation
+  </footer>
+
+</div>
+
+
+<script>
+"use strict";
+
+const menuButton = document.getElementById("menuButton");
+const sideMenu = document.getElementById("sideMenu");
+const menuOverlay = document.getElementById("menuOverlay");
+const closeMenu = document.getElementById("closeMenu");
+
+function openMenu() {
+  sideMenu.classList.add("active");
+  menuOverlay.classList.add("active");
+  menuButton.setAttribute("aria-expanded", "true");
+  document.body.style.overflow = "hidden";
+}
+
+function hideMenu() {
+  sideMenu.classList.remove("active");
+  menuOverlay.classList.remove("active");
+  menuButton.setAttribute("aria-expanded", "false");
+  document.body.style.overflow = "";
+}
+
+menuButton.addEventListener("click", openMenu);
+closeMenu.addEventListener("click", hideMenu);
+menuOverlay.addEventListener("click", hideMenu);
+
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape") {
+    hideMenu();
+  }
+});
+
+// Close the menu when a navigation link is selected.
+sideMenu.querySelectorAll("a").forEach(link => {
+  link.addEventListener("click", hideMenu);
+});
+</script>
+
+</body>
+  </html>
