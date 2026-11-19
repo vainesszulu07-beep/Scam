@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#123b2e">
+
+<title>ZambianAdvertisements | Advertiser Information</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px 16px;
+  min-height: 100vh;
+  background: #f3f5f3;
+  color: #26352f;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 1050px;
+  margin: auto;
+}
+
+/* HERO */
+
+.hero {
+  background: #123b2e;
+  color: white;
+  padding: 55px 30px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  border-bottom: 5px solid #d4ad55;
+  text-align: center;
+}
+
+.brand {
+  color: #e2bd6b;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 17px;
+}
+
+.hero h1 {
+  margin: 0 0 15px;
+  font-size: clamp(28px, 5vw, 39px);
+  line-height: 1.2;
+}
+
+.hero h1 span {
+  color: #e2bd6b;
+}
+
+.hero p {
+  margin: 0 auto;
+  color: #e0e9e4;
+  font-size: 15px;
+  max-width: 720px;
+}
+
+.hero-label {
+  display: inline-block;
+  margin-top: 22px;
+  padding: 6px 14px;
+  border: 1px solid rgba(226,189,107,0.5);
+  border-radius: 30px;
+  color: #e2bd6b;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* SECTIONS */
+
+.section {
+  background: white;
+  padding: 26px;
+  border-radius: 13px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 15px rgba(0,0,0,0.045);
+}
+
+h2 {
+  color: #174735;
+  font-size: 21px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  color: #174735;
+  font-size: 16px;
+  margin: 20px 0 8px;
+}
+
+p {
+  color: #626f68;
+  font-size: 14px;
+  margin: 8px 0 12px;
+}
+
+strong {
+  color: #26352f;
+}
+
+ul {
+  padding-left: 22px;
+  color: #626f68;
+  font-size: 14px;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+/* INFORMATION BOXES */
+
+.notice {
+  background: #f2f7f3;
+  border-left: 4px solid #26744f;
+  padding: 15px 16px;
+  border-radius: 7px;
+  margin: 17px 0;
+  color: #345244;
+  font-size: 14px;
+}
+
+.warning {
+  background: #fff8e9;
+  border-left: 4px solid #d3a33f;
+  padding: 15px 16px;
+  border-radius: 7px;
+  margin: 17px 0;
+  color: #72551b;
+  font-size: 14px;
+}
+
+/* PROCESS */
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.flow-item {
+  background: #f5f8f5;
+  padding: 17px;
+  border-radius: 10px;
+  border: 1px solid #e3eae4;
+}
+
+.flow-number {
+  width: 29px;
+  height: 29px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #174735;
+  color: white;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.flow-item strong {
+  display: block;
+  color: #174735;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.flow-item span {
+  display: block;
+  color: #69766f;
+  font-size: 12px;
+}
+
+/* RATE CARDS */
+
+.rate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.rate-card {
+  background: #f7faf7;
+  border: 1px solid #e3eae4;
+  border-radius: 10px;
+  padding: 21px;
+}
+
+.rate-label {
+  color: #69766f;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.rate-amount {
+  color: #174735;
+  font-size: 31px;
+  font-weight: bold;
+  margin: 7px 0;
+}
+
+.rate-description {
+  color: #69766f;
+  font-size: 13px;
+}
+
+/* DASHBOARD */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 13px;
+  margin-top: 18px;
+}
+
+.dashboard-card {
+  background: #f7faf7;
+  padding: 18px;
+  border: 1px solid #e3eae4;
+  border-radius: 10px;
+}
+
+.dashboard-card h3 {
+  margin: 0 0 7px;
+  font-size: 15px;
+}
+
+.dashboard-card p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.dashboard-card .dashboard-icon {
+  font-size: 21px;
+  margin-bottom: 8px;
+}
+
+/* TABLE */
+
+.table-wrap {
+  overflow-x: auto;
+  margin-top: 15px;
+}
+
+table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 13px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e8ede9;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+th {
+  background: #174735;
+  color: white;
+}
+
+td {
+  color: #58675e;
+}
+
+/* ACCOUNT PROTECTION */
+
+.protection-box {
+  background: #f2f7f3;
+  border: 1px solid #dce9df;
+  border-radius: 11px;
+  padding: 20px;
+  margin-top: 18px;
+}
+
+.protection-box h3 {
+  margin-top: 0;
+}
+
+/* FINAL SECTION */
+
+.final-section {
+  text-align: center;
+  padding: 38px 25px;
+}
+
+.final-section h2 {
+  font-size: 25px;
+}
+
+.final-section p {
+  max-width: 690px;
+  margin: 10px auto;
+}
+
+.request-button {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 15px 28px;
+  background: #174735;
+  color: white;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: bold;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.request-button:hover {
+  background: #226449;
+  transform: translateY(-2px);
+}
+
+.footer {
+  text-align: center;
+  color: #77847c;
+  font-size: 12px;
+  padding: 15px 0 25px;
+}
+
+/* MOBILE */
+
+@media (max-width: 700px) {
+  body {
+    padding: 12px;
+  }
+
+  .hero {
+    padding: 38px 20px;
+  }
+
+  .hero h1 {
+    font-size: 29px;
+  }
+
+  .section {
+    padding: 20px;
+  }
+
+  .flow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .rate-grid,
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .flow {
+    grid-template-columns: 1fr;
+  }
+
+  .hero h1 {
+    font-size: 26px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="page">
+
+  <!-- HERO -->
+
+  <header class="hero">
+
+    <div class="brand">
+      ZambianAdvertisements
+    </div>
+
+    <h1>
+      Advertise with <span>ZambianAdvertisements</span>
+    </h1>
+
+    <p>
+      Reach audiences through participating applications
+      while maintaining visibility and control over your
+      advertising expenditure.
+    </p>
+
+    <div class="hero-label">
+      ADVERTISER INFORMATION
+    </div>
+
+  </header>
+
+
+  <!-- SECTION 1 -->
+
+  <section class="section">
+
+    <h2>1. What is your role as an advertiser?</h2>
+
+    <p>
+      As an advertiser, your role is to provide the advertising
+      campaigns you want displayed to users through applications
+      participating in the ZambianAdvertisements network.
+    </p>
+
+    <p>
+      Your advertising campaigns are made available to participating
+      publishers. When eligible advertising activity takes place,
+      the corresponding amount is deducted from your advertising
+      account balance through the network's payment settlement
+      process.
+    </p>
+
+    <p>
+      This allows your business or organisation to advertise
+      through digital applications while publishers earn from
+      eligible activity generated through their platforms.
+    </p>
+
+    <div class="notice">
+      <strong>Your role:</strong>
+      Fund your advertising account, provide your advertising
+      materials and monitor your advertising expenditure through
+      your advertiser dashboard.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 2 -->
+
+  <section class="section">
+
+    <h2>2. How your advertising money is deducted</h2>
+
+    <p>
+      Advertising deductions are calculated using eligible,
+      verified user activity. The current payment rates configured
+      in the network's settlement system are:
+    </p>
+
+    <div class="rate-grid">
+
+      <div class="rate-card">
+
+        <div class="rate-label">
+          Eligible advertising click
+        </div>
+
+        <div class="rate-amount">
+          K15.00
+        </div>
+
+        <div class="rate-description">
+          Deducted for an eligible, verified click.
+        </div>
+
+      </div>
+
+      <div class="rate-card">
+
+        <div class="rate-label">
+          Eligible advertising view
+        </div>
+
+        <div class="rate-amount">
+          K0.03
+        </div>
+
+        <div class="rate-description">
+          Deducted for an eligible, verified view.
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="notice">
+      <strong>Example:</strong>
+      If one payment entry contains both an eligible click and
+      an eligible view, the current settlement calculation
+      deducts K15.00 + K0.03 = K15.03.
+    </div>
+
+    <p>
+      These rates reflect the current publisher settlement
+      configuration. The applicable advertising charges and
+      campaign terms should be confirmed before a campaign
+      is activated.
+    </p>
+
+  </section>
+
+
+  <!-- SECTION 3 -->
+
+  <section class="section">
+
+    <h2>3. How the deduction process works</h2>
+
+    <p>
+      Your account is connected to the advertising activity
+      generated through participating applications.
+      Eligible payment entries are processed by the settlement
+      system.
+    </p>
+
+    <div class="flow">
+
+      <div class="flow-item">
+
+        <div class="flow-number">1</div>
+
+        <strong>Advertising account</strong>
+
+        <span>
+          Your available advertising funds are recorded in
+          your company account.
+        </span>
+
+      </div>
+
+      <div class="flow-item">
+
+        <div class="flow-number">2</div>
+
+        <strong>User activity</strong>
+
+        <span>
+          Users generate eligible advertising views and clicks
+          through participating applications.
+        </span>
+
+      </div>
+
+      <div class="flow-item">
+
+        <div class="flow-number">3</div>
+
+        <strong>Verification</strong>
+
+        <span>
+          Eligible payment records are checked before settlement.
+        </span>
+
+      </div>
+
+      <div class="flow-item">
+
+        <div class="flow-number">4</div>
+
+        <strong>Balance deduction</strong>
+
+        <span>
+          The corresponding amount is deducted and credited
+          to the publisher.
+        </span>
+
+      </div>
+
+    </div>
+
+    <div class="warning">
+      Not every raw request automatically creates a charge.
+      The payment must qualify under the network's verification,
+      eligibility and settlement requirements before it is
+      processed.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 4 -->
+
+  <section class="section">
+
+    <h2>4. Your advertiser dashboard</h2>
+
+    <p>
+      Advertisers will be provided with a dedicated dashboard
+      where they can monitor their advertising account and
+      understand how their funds are being used.
+    </p>
+
+    <p>
+      The dashboard is intended to give you visibility into
+      deductions as settlement records are processed, rather
+      than leaving you unaware of your advertising expenditure.
+    </p>
+
+    <div class="dashboard-grid">
+
+      <div class="dashboard-card">
+
+        <div class="dashboard-icon">💰</div>
+
+        <h3>Available funds</h3>
+
+        <p>
+          View the remaining balance in your advertising account.
+        </p>
+
+      </div>
+
+      <div class="dashboard-card">
+
+        <div class="dashboard-icon">📉</div>
+
+        <h3>Live deductions</h3>
+
+        <p>
+          Monitor deductions as eligible advertising payments
+          are processed.
+        </p>
+
+      </div>
+
+      <div class="dashboard-card">
+
+        <div class="dashboard-icon">📱</div>
+
+        <h3>Applications earning</h3>
+
+        <p>
+          See which participating applications and publishers
+          have earned from your advertising activity.
+        </p>
+
+      </div>
+
+      <div class="dashboard-card">
+
+        <div class="dashboard-icon">📊</div>
+
+        <h3>Total deductions</h3>
+
+        <p>
+          See the total amount deducted from your advertising
+          account over the selected period.
+        </p>
+
+      </div>
+
+      <div class="dashboard-card">
+
+        <div class="dashboard-icon">🗓️</div>
+
+        <h3>Daily expenditure</h3>
+
+        <p>
+          Review the amount deducted on individual days and
+          compare your advertising expenditure.
+        </p>
+
+      </div>
+
+      <div class="dashboard-card">
+
+        <div class="dashboard-icon">🧾</div>
+
+        <h3>Transaction records</h3>
+
+        <p>
+          Review payment entries and the amounts associated
+          with eligible user activity.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="notice">
+      <strong>Know where your money goes:</strong>
+      Your dashboard will help you identify which applications
+      are earning from your campaigns and how much has been
+      deducted for their eligible activity.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 5 -->
+
+  <section class="section">
+
+    <h2>5. See which applications earn from you</h2>
+
+    <p>
+      Your advertising expenditure is associated with the
+      participating applications that generate eligible
+      advertising activity.
+    </p>
+
+    <p>
+      The advertiser dashboard will provide an application-level
+      breakdown so that you can understand how your advertising
+      funds are distributed.
+    </p>
+
+    <div class="table-wrap">
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Dashboard item</th>
+            <th>Information provided</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          <tr>
+            <td>Application</td>
+            <td>The participating application associated with the earnings.</td>
+          </tr>
+
+          <tr>
+            <td>Eligible clicks</td>
+            <td>The eligible clicks attributed to that application.</td>
+          </tr>
+
+          <tr>
+            <td>Eligible views</td>
+            <td>The eligible views attributed to that application.</td>
+          </tr>
+
+          <tr>
+            <td>Amount earned</td>
+            <td>The amount credited to the publisher for eligible activity.</td>
+          </tr>
+
+          <tr>
+            <td>Total deducted</td>
+            <td>The amount deducted from your advertising account for processed activity.</td>
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+    <div class="notice">
+      This breakdown is intended to make your advertising
+      expenditure easier to understand and monitor.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 6 -->
+
+  <section class="section">
+
+    <h2>6. Protection against excessive deductions</h2>
+
+    <p>
+      We understand that advertisers need confidence that
+      their available funds are protected.
+    </p>
+
+    <p>
+      The settlement process is designed with account-balance
+      checks before eligible publisher payments are deducted.
+      The intention is to prevent deductions from exceeding
+      the available advertising balance through this process.
+    </p>
+
+    <div class="protection-box">
+
+      <h3>How the balance protection works</h3>
+
+      <ul>
+
+        <li>
+          The system checks the company's available balance
+          before processing a publisher payment.
+        </li>
+
+        <li>
+          A payment is not processed when the available balance
+          is insufficient to cover the amount.
+        </li>
+
+        <li>
+          The settlement process does not deliberately allow
+          an eligible payment deduction to push the account
+          balance below zero.
+        </li>
+
+        <li>
+          When the company balance reaches zero, the system
+          can mark the company account as blocked.
+        </li>
+
+        <li>
+          Blocked company accounts are not used to process
+          further publisher payments.
+        </li>
+
+      </ul>
+
+    </div>
+
+    <div class="notice">
+      <strong>Your funds matter.</strong>
+      Our settlement logic includes balance checks and
+      account-blocking controls designed to prevent uncontrolled
+      deductions through the publisher payment process.
+    </div>
+
+    <div class="warning">
+      These protections apply to the described settlement
+      process. They should not be interpreted as a guarantee
+      against every possible loss, system error, unauthorised
+      transaction or other financial risk.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 7 -->
+
+  <section class="section">
+
+    <h2>7. Advertising activity and eligibility</h2>
+
+    <p>
+      Charges are based on eligible activity accepted by the
+      network. The number of raw requests alone does not
+      determine the amount deducted from your account.
+    </p>
+
+    <ul>
+
+      <li>
+        Advertising activity must pass the applicable
+        verification and eligibility checks.
+      </li>
+
+      <li>
+        Publisher payment records must be associated with
+        a valid advertising company and advertisement.
+      </li>
+
+      <li>
+        The company must have sufficient available funds
+        for the payment being processed.
+      </li>
+
+      <li>
+        Payments associated with blocked companies are
+        not processed.
+      </li>
+
+      <li>
+        The dashboard is intended to help you monitor
+        the resulting account activity.
+      </li>
+
+    </ul>
+
+    <div class="notice">
+      Only verified, eligible and successfully settled
+      advertising activity should be treated as a completed
+      charge.
+    </div>
+
+  </section>
+
+
+  <!-- SECTION 8 -->
+
+  <section class="section">
+
+    <h2>8. Why choose ZambianAdvertisements?</h2>
+
+    <p>
+      ZambianAdvertisements is being developed with a focus
+      on the Zambian digital market. We aim to connect
+      advertisers with participating applications while
+      providing greater visibility into advertising expenditure.
+    </p>
+
+    <ul>
+
+      <li>
+        A platform focused on Zambian publishers and advertisers.
+      </li>
+
+      <li>
+        Advertising activity linked to participating applications.
+      </li>
+
+      <li>
+        Account-balance checks within the settlement process.
+      </li>
+
+      <li>
+        An advertiser dashboard for monitoring deductions.
+      </li>
+
+      <li>
+        A breakdown of applications receiving publisher earnings.
+      </li>
+
+      <li>
+        Greater visibility into advertising expenditure in Kwacha.
+      </li>
+
+    </ul>
+
+  </section>
+
+
+  <!-- FINAL SECTION -->
+
+  <section class="section final-section">
+
+    <h2>Are you ready to become an advertiser?</h2>
+
+    <p>
+      Join the ZambianAdvertisements advertising network and
+      take the next step towards promoting your business,
+      products or services through participating applications.
+    </p>
+
+    <p>
+      Submit an advertiser request to begin the application
+      and review process.
+    </p>
+
+    <a
+      href="request-advetiser.html"
+      class="request-button"
+    >
+      Make Request to Be an Advertiser
+    </a>
+
+    <p style="margin-top:22px;">
+      Thank you for considering ZambianAdvertisements.
+    </p>
+
+  </section>
+
+
+  <!-- FOOTER -->
+
+  <footer class="footer">
+
+    <strong>ZambianAdvertisements</strong>
+
+    <br>
+
+    Advertiser Information
+
+    <br><br>
+
+    A developing digital advertising platform focused on Zambia.
+
+    <br>
+
+    © 2026 ZambianAdvertisements
+
+  </footer>
+
+</div>
+
+</body>
+  </html>
