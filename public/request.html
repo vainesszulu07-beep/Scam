@@ -1,0 +1,578 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071c18">
+  <title>Publisher Request | ZambianAdvertisements</title>
+
+  <style>
+    :root {
+      --background: #071c18;
+      --surface: #102923;
+      --surface-light: #17362e;
+      --green: #24c982;
+      --green-dark: #159b62;
+      --gold: #e8bd58;
+      --white: #f4faf6;
+      --muted: #a5b9ae;
+      --border: rgba(255,255,255,.10);
+      --danger: #ff7777;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: 35px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--white);
+      background:
+        radial-gradient(ellipse at 15% 5%, rgba(36,201,130,.14), transparent 38%),
+        radial-gradient(ellipse at 90% 90%, rgba(232,189,88,.09), transparent 35%),
+        var(--background);
+    }
+
+    .page {
+      width: 100%;
+      max-width: 650px;
+      margin: auto;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .brand-name {
+      font-size: 25px;
+      font-weight: 800;
+      letter-spacing: -.8px;
+    }
+
+    .brand-name span {
+      color: var(--green);
+    }
+
+    .brand-caption {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 7px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .card {
+      background: linear-gradient(145deg, rgba(23,54,46,.97), rgba(16,41,35,.98));
+      border: 1px solid var(--border);
+      border-radius: 23px;
+      padding: 35px;
+      box-shadow: 0 25px 80px rgba(0,0,0,.28);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+      background: rgba(232,189,88,.09);
+      border: 1px solid rgba(232,189,88,.20);
+      padding: 8px 12px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--gold);
+    }
+
+    h1 {
+      font-size: clamp(27px, 6vw, 37px);
+      line-height: 1.15;
+      letter-spacing: -1px;
+      margin-bottom: 13px;
+    }
+
+    h1 span {
+      color: var(--green);
+    }
+
+    .intro {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 25px;
+    }
+
+    .info-box {
+      padding: 16px;
+      border: 1px solid rgba(36,201,130,.18);
+      background: rgba(36,201,130,.07);
+      border-radius: 13px;
+      margin-bottom: 27px;
+    }
+
+    .info-box strong {
+      display: block;
+      color: var(--green);
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .info-box p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .form-group {
+      margin-bottom: 19px;
+    }
+
+    label {
+      display: block;
+      color: #e1eee6;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 9px;
+    }
+
+    input {
+      width: 100%;
+      min-height: 53px;
+      padding: 0 15px;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 11px;
+      outline: none;
+      background: rgba(4,19,15,.55);
+      color: var(--white);
+      font-size: 15px;
+      transition: border .2s, box-shadow .2s;
+    }
+
+    input::placeholder {
+      color: #789087;
+    }
+
+    input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(36,201,130,.12);
+    }
+
+    .field-hint {
+      color: #8fa69b;
+      font-size: 12px;
+      margin-top: 7px;
+      line-height: 1.5;
+    }
+
+    .submit-btn {
+      width: 100%;
+      min-height: 55px;
+      margin-top: 8px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(110deg, var(--green-dark), var(--green));
+      color: #042218;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform .2s, filter .2s, opacity .2s;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+
+    .submit-btn:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .spinner {
+      width: 17px;
+      height: 17px;
+      border: 2px solid rgba(4,34,24,.25);
+      border-top-color: #042218;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+
+    .submit-btn.loading .spinner {
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      display: none;
+      color: var(--danger);
+      background: rgba(255,90,90,.08);
+      border: 1px solid rgba(255,90,90,.2);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 15px 0 5px;
+    }
+
+    .privacy-note {
+      text-align: center;
+      color: #8fa69b;
+      font-size: 12px;
+      line-height: 1.6;
+      margin-top: 19px;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 22px;
+      color: #82998e;
+      font-size: 12px;
+    }
+
+    .footer a {
+      color: var(--gold);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* Success transition */
+    .success-state {
+      text-align: center;
+      padding: 20px 5px 12px;
+      animation: successEnter .55s cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    @keyframes successEnter {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(.97);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .check-circle {
+      width: 94px;
+      height: 94px;
+      margin: 0 auto 24px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(36,201,130,.12);
+      border: 1px solid rgba(36,201,130,.35);
+      box-shadow: 0 0 0 10px rgba(36,201,130,.035);
+      animation: pop .55s .1s cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(.5); }
+      70% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    .check-circle svg {
+      width: 48px;
+      height: 48px;
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .check-circle path {
+      stroke-dasharray: 60;
+      stroke-dashoffset: 60;
+      animation: drawCheck .55s .45s ease forwards;
+    }
+
+    @keyframes drawCheck {
+      to { stroke-dashoffset: 0; }
+    }
+
+    .success-state h2 {
+      font-size: 27px;
+      margin-bottom: 12px;
+    }
+
+    .success-state h2 span {
+      color: var(--green);
+    }
+
+    .success-state p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .redirect-note {
+      color: var(--gold) !important;
+      margin-top: 20px;
+      font-size: 12px !important;
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 22px 13px;
+        align-items: flex-start;
+      }
+
+      .brand {
+        margin-top: 12px;
+      }
+
+      .brand-name {
+        font-size: 22px;
+      }
+
+      .card {
+        padding: 25px 19px;
+        border-radius: 18px;
+      }
+
+      .intro {
+        font-size: 14px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <header class="brand">
+      <div class="brand-name">Zambian<span>Advertisements</span></div>
+      <div class="brand-caption">Publisher partnerships in Zambia</div>
+    </header>
+
+    <section class="card">
+      <div id="requestContent">
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          PUBLISHER APPLICATION
+        </div>
+
+        <h1>Let's build a <span>partnership.</span></h1>
+
+        <p class="intro">
+          Do you operate an app or digital platform and want to work with
+          ZambianAdvertisements? Submit your details and the monthly amount
+          you are willing to pay as part of the proposed publishing
+          arrangement. Our team will contact you to discuss your request.
+        </p>
+
+        <div class="info-box">
+          <strong>What happens next?</strong>
+          <p>
+            We will review your request and contact you using the details
+            provided. Submitting this form does not automatically approve
+            your platform, create a partnership or guarantee any earnings.
+          </p>
+        </div>
+
+        <form id="requestForm">
+          <div class="form-group">
+            <label for="name">Publisher or app owner's name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              maxlength="150"
+              placeholder="Enter your name or business name"
+              autocomplete="name"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="contact">Contact information</label>
+            <input
+              id="contact"
+              name="contact"
+              type="text"
+              maxlength="200"
+              placeholder="Phone number or email address"
+              autocomplete="email"
+              required
+            >
+            <p class="field-hint">
+              Provide a phone number or email address where we can reach you.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="amount">Amount you are willing to pay per month (ZMW)</label>
+            <input
+              id="amount"
+              name="amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputmode="decimal"
+              placeholder="e.g. 200"
+              required
+            >
+            <p class="field-hint">
+              Enter the proposed monthly amount in Zambian Kwacha.
+            </p>
+          </div>
+
+          <div id="errorMessage" class="error-message" role="alert"></div>
+
+          <button class="submit-btn" id="submitBtn" type="submit">
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="buttonText">Submit publisher request</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </form>
+
+        <p class="privacy-note">
+          Your information will be used to review your request and contact you.
+        </p>
+      </div>
+
+      <div id="successState" class="success-state" hidden aria-live="polite">
+        <div class="check-circle">
+          <svg viewBox="0 0 52 52" aria-hidden="true">
+            <path d="M12 27 L22 37 L41 16"></path>
+          </svg>
+        </div>
+
+        <h2>Request <span>received!</span></h2>
+        <p>
+          Thank you for your interest in partnering with
+          ZambianAdvertisements. Your publisher request has been submitted
+          successfully. Our team will contact you using the details
+          you provided.
+        </p>
+        <p class="redirect-note">
+          Redirecting you to the homepage...
+        </p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      © <span id="year"></span> ZambianAdvertisements ·
+      <a href="index.html">Back to homepage</a>
+    </footer>
+  </main>
+
+  <script type="module">
+    import { createClient } from
+      "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    // Replace these with your Supabase project details.
+    const SUPABASE_URL = "YOUR_SUPABASE_URL";
+    const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+
+    const form = document.getElementById("requestForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const buttonText = document.getElementById("buttonText");
+    const errorMessage = document.getElementById("errorMessage");
+    const requestContent = document.getElementById("requestContent");
+    const successState = document.getElementById("successState");
+
+    document.getElementById("year").textContent =
+      new Date().getFullYear();
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      errorMessage.style.display = "none";
+
+      const name = document.getElementById("name").value.trim();
+      const contact = document.getElementById("contact").value.trim();
+      const amount = Number(document.getElementById("amount").value);
+
+      if (!name || !contact || !Number.isFinite(amount) || amount <= 0) {
+        errorMessage.textContent =
+          "Please enter your name, contact information and a valid monthly amount.";
+        errorMessage.style.display = "block";
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.classList.add("loading");
+      buttonText.textContent = "Submitting request...";
+
+      try {
+        const { data, error } = await supabase.rpc(
+          "submit_publisher_request",
+          {
+            p_name: name,
+            p_contact: contact,
+            p_amount_willing_to_pay_per_month: amount
+          }
+        );
+
+        if (error) throw error;
+        if (!data) throw new Error("The request was not confirmed.");
+
+        requestContent.hidden = true;
+        successState.hidden = false;
+
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 3000);
+
+      } catch (error) {
+        console.error("Publisher request error:", error);
+
+        errorMessage.textContent =
+          "We could not submit your request. Please check your connection and try again.";
+
+        errorMessage.style.display = "block";
+        submitBtn.disabled = false;
+        submitBtn.classList.remove("loading");
+        buttonText.textContent = "Submit publisher request";
+      }
+    });
+  </script>
+</body>
+</html>
