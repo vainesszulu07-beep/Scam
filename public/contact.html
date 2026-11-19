@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ZambianAdvertisements | Contact Us</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px 16px;
+  min-height: 100vh;
+  background: #f3f5f3;
+  color: #26352f;
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 1050px;
+  margin: auto;
+}
+
+.hero {
+  position: relative;
+  background: #123b2e;
+  color: white;
+  padding: 38px 30px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  border-bottom: 5px solid #d4ad55;
+}
+
+.brand {
+  color: #e2bd6b;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-right: 50px;
+}
+
+.hero h1 {
+  margin: 0 0 12px;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.hero p {
+  margin: 0;
+  color: #e0e9e4;
+  font-size: 15px;
+  max-width: 750px;
+}
+
+.section {
+  background: white;
+  padding: 25px;
+  border-radius: 13px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 15px rgba(0,0,0,0.045);
+}
+
+h2 {
+  color: #174735;
+  font-size: 21px;
+  margin: 0 0 12px;
+}
+
+p {
+  color: #626f68;
+  font-size: 14px;
+  margin: 8px 0 12px;
+}
+
+.notice {
+  background: #f2f7f3;
+  border-left: 4px solid #26744f;
+  padding: 14px 16px;
+  border-radius: 7px;
+  margin: 15px 0;
+  color: #345244;
+  font-size: 14px;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.contact-card {
+  background: #f7faf7;
+  border: 1px solid #e3eae4;
+  border-radius: 11px;
+  padding: 23px;
+}
+
+.contact-icon {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f1eb;
+  color: #174735;
+  border-radius: 10px;
+  font-size: 23px;
+  margin-bottom: 15px;
+}
+
+.contact-card h2 {
+  font-size: 18px;
+  margin-bottom: 7px;
+}
+
+.contact-detail {
+  color: #174735;
+  font-size: 15px;
+  font-weight: bold;
+  overflow-wrap: anywhere;
+  margin: 12px 0 15px;
+}
+
+.contact-description {
+  color: #68756d;
+  font-size: 13px;
+  min-height: 40px;
+}
+
+.contact-button {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+  padding: 12px 15px;
+  background: #174735;
+  color: white;
+  border-radius: 7px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: bold;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.contact-button:hover {
+  background: #226449;
+}
+
+.contact-button.whatsapp {
+  background: #26744f;
+}
+
+.contact-button.whatsapp:hover {
+  background: #1d6040;
+}
+
+.assistance {
+  text-align: center;
+  padding: 32px 25px;
+}
+
+.assistance h2 {
+  font-size: 23px;
+}
+
+.assistance p {
+  max-width: 650px;
+  margin: 10px auto;
+}
+
+.assistance-mark {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e8f1eb;
+  color: #174735;
+  font-size: 25px;
+}
+
+.footer {
+  text-align: center;
+  color: #77847c;
+  font-size: 12px;
+  padding: 15px 0 25px;
+}
+
+/* Three-line menu button */
+
+.menu-button {
+  position: absolute;
+  top: 25px;
+  right: 25px;
+  width: 43px;
+  height: 43px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+.menu-button span {
+  display: block;
+  width: 21px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 5px;
+  transition: 0.25s;
+}
+
+.menu-button:hover {
+  background: rgba(255,255,255,0.17);
+}
+
+/* Sliding navigation */
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1998;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.side-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(310px, 85%);
+  height: 100vh;
+  height: 100dvh;
+  background: #123b2e;
+  z-index: 1999;
+  padding: 25px 20px;
+  transform: translateX(-105%);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+}
+
+.side-menu.active {
+  transform: translateX(0);
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 22px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.17);
+}
+
+.menu-brand {
+  color: #e2bd6b;
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.close-menu {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 7px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.menu-label {
+  color: #a9c2b4;
+  font-size: 11px;
+  letter-spacing: 1px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 18px 0 10px;
+}
+
+.menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.menu-links a {
+  color: #edf5ef;
+  text-decoration: none;
+  font-size: 14px;
+  padding: 13px 12px;
+  border-radius: 7px;
+  transition: background 0.2s;
+}
+
+.menu-links a:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+.menu-links a.current {
+  background: rgba(212,173,85,0.16);
+  color: #e9c879;
+  border-left: 3px solid #d4ad55;
+}
+
+.menu-footer {
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.17);
+  color: #a9c2b4;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  body {
+    padding: 12px;
+  }
+
+  .hero {
+    padding: 27px 20px;
+  }
+
+  .hero h1 {
+    font-size: 25px;
+    padding-right: 15px;
+  }
+
+  .section {
+    padding: 19px;
+  }
+
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-button {
+    top: 18px;
+    right: 17px;
+  }
+
+  .brand {
+    padding-right: 45px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- Sliding menu overlay -->
+<div class="menu-overlay" id="menuOverlay"></div>
+
+<!-- Navigation menu -->
+<nav class="side-menu" id="sideMenu">
+
+  <div class="menu-header">
+    <div class="menu-brand">ZambianAdvertisements</div>
+
+    <button
+      class="close-menu"
+      id="closeMenu"
+      type="button"
+      aria-label="Close navigation menu"
+    >
+      &times;
+    </button>
+  </div>
+
+  <div class="menu-label">Integration Guide</div>
+
+  <div class="menu-links">
+
+    <a href="get-token.html">
+      How to get a token
+    </a>
+
+    <a href="get-ad.html">
+      How to render ads from frontend
+    </a>
+
+    <a href="payments.html">
+      Payments
+    </a>
+
+    <a href="contact.html" class="current">
+      Contact
+    </a>
+
+  </div>
+
+  <div class="menu-footer">
+    Technical documentation<br>
+    ZambianAdvertisements
+  </div>
+
+</nav>
+
+
+<div class="page">
+
+  <!-- Header -->
+  <header class="hero">
+
+    <button
+      class="menu-button"
+      id="menuButton"
+      type="button"
+      aria-label="Open navigation menu"
+      aria-expanded="false"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <div class="brand">ZambianAdvertisements</div>
+
+    <h1>Contact Our Team</h1>
+
+    <p>
+      Need assistance with your advertising integration,
+      application verification or publisher account?
+      Our team is available to help.
+    </p>
+
+  </header>
+
+
+  <!-- Introduction -->
+  <section class="section">
+
+    <h2>1. Get in touch</h2>
+
+    <p>
+      We understand that integrating an advertising network
+      requires clear technical guidance and reliable support.
+      Whether you need help obtaining an authorization token,
+      rendering advertisements or understanding your payments,
+      you can contact our team directly.
+    </p>
+
+    <p>
+      Choose your preferred contact method below. Our team is
+      committed to responding quickly and providing assistance
+      so that you can resolve issues and continue with your
+      integration.
+    </p>
+
+    <div class="notice">
+      <strong>Need technical assistance?</strong>
+      Contact us with a brief explanation of the issue you are
+      experiencing. Including the relevant error message or
+      integration step will help us understand your request.
+    </div>
+
+  </section>
+
+
+  <!-- Contact methods -->
+  <section class="section">
+
+    <h2>2. Contact details</h2>
+
+    <p>
+      You can reach ZambianAdvertisements through either of
+      the following channels.
+    </p>
+
+    <div class="contact-grid">
+
+      <!-- Email -->
+      <div class="contact-card">
+
+        <div class="contact-icon">✉</div>
+
+        <h2>Email Support</h2>
+
+        <p class="contact-description">
+          Send us your technical questions, integration issues
+          or general enquiries.
+        </p>
+
+        <div class="contact-detail">
+          zamadvertisements@gmail.com
+        </div>
+
+        <a
+          class="contact-button"
+          href="mailto:zamadvertisements@gmail.com?subject=ZambianAdvertisements%20Support"
+        >
+          Send an Email
+        </a>
+
+      </div>
+
+
+      <!-- WhatsApp -->
+      <div class="contact-card">
+
+        <div class="contact-icon">☏</div>
+
+        <h2>WhatsApp Support</h2>
+
+        <p class="contact-description">
+          Contact our team directly through WhatsApp for
+          assistance with your integration.
+        </p>
+
+        <div class="contact-detail">
+          0975368749
+        </div>
+
+        <a
+          class="contact-button whatsapp"
+          href="https://wa.me/260975368749?text=Hello%20ZambianAdvertisements%2C%20I%20need%20assistance%20with%20my%20application%20integration."
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Chat on WhatsApp
+        </a>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- Assistance message -->
+  <section class="section assistance">
+
+    <div class="assistance-mark">✓</div>
+
+    <h2>We Are Ready to Assist You</h2>
+
+    <p>
+      Your integration matters to us. We are committed to
+      providing quick assistance and helping your technical
+      team resolve any challenges encountered while using
+      ZambianAdvertisements.
+    </p>
+
+    <p>
+      Do not hesitate to contact us whenever you need help.
+      We look forward to working with your team.
+    </p>
+
+  </section>
+
+
+  <footer class="footer">
+    ZambianAdvertisements · Technical Support
+  </footer>
+
+</div>
+
+
+<script>
+"use strict";
+
+const menuButton = document.getElementById("menuButton");
+const sideMenu = document.getElementById("sideMenu");
+const menuOverlay = document.getElementById("menuOverlay");
+const closeMenu = document.getElementById("closeMenu");
+
+function openMenu() {
+  sideMenu.classList.add("active");
+  menuOverlay.classList.add("active");
+  menuButton.setAttribute("aria-expanded", "true");
+  document.body.style.overflow = "hidden";
+}
+
+function hideMenu() {
+  sideMenu.classList.remove("active");
+  menuOverlay.classList.remove("active");
+  menuButton.setAttribute("aria-expanded", "false");
+  document.body.style.overflow = "";
+}
+
+menuButton.addEventListener("click", openMenu);
+closeMenu.addEventListener("click", hideMenu);
+menuOverlay.addEventListener("click", hideMenu);
+
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape") {
+    hideMenu();
+  }
+});
+
+sideMenu.querySelectorAll("a").forEach(link => {
+  link.addEventListener("click", hideMenu);
+});
+</script>
+
+</body>
+  </html>
